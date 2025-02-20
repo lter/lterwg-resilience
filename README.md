@@ -9,6 +9,7 @@ Principal Investigators:
 Briefly describe the purpose of each script (or folder of scripts) here as you create them!
 
 - "retrieve-mswep-ppt-data.R" - script for retreiveing daily precipitation data for sites from MSWEP
+- "01_harmonize.R" - script for harmonizing raw data into a single data table
 
 ## Supplementary Resources
 
