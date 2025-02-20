@@ -8,6 +8,8 @@ Principal Investigators:
 
 Briefly describe the purpose of each script (or folder of scripts) here as you create them!
 
+- "retrieve-mswep-ppt-data.R" - script for retreiveing daily precipitation data for sites from MSWEP
+
 ## Supplementary Resources
 
 LTER Scientific Computing Team [website](https://lter.github.io/scicomp/) & NCEAS' [Resources for Working Groups](https://www.nceas.ucsb.edu/working-group-resources)
