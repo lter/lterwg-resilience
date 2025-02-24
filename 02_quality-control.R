@@ -1,5 +1,5 @@
 ## ----------------------------------------------------------------- ##
-# Resilience Management - Wrangling Workflow
+# Resilience Management - Quality Control Workflow
 ## ----------------------------------------------------------------- ##
 # Authors: Nick J Lyon, ...
 
@@ -18,17 +18,20 @@ librarian::shelf(tidyverse, googledrive, supportR)
 dir.create(file.path("data"), showWarnings = F)
 dir.create(file.path("data", "tidy"), showWarnings = F)
 
-# Download harmonized data file
-googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
-  dplyr::filter(name == "01_resilience_harmonized.csv") %>% 
-  googledrive::drive_download(file = .$id, overwrite = T,
-                              path = file.path("data", "tidy", .$name))
-
 # Clear environment + collect garbage
 rm(list = ls()); gc()
 
+# Identify relevant tidy file
+focal_file <- "01_resilience_harmonized.csv"
+
+# Download harmonized data file
+googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
+  dplyr::filter(name == focal_file) %>% 
+  googledrive::drive_download(file = .$id, overwrite = T,
+                              path = file.path("data", "tidy", .$name))
+
 # Read in harmonized data
-tidy_v1 <- read.csv(file = file.path("data", "tidy", "01_resilience_harmonized.csv"))
+tidy_v1 <- read.csv(file = file.path("data", "tidy", focal_file))
 
 # Check structure
 dplyr::glimpse(tidy_v1)
@@ -101,45 +104,11 @@ supportR::count(is.na(tidy_v3$spp_richness))
 dplyr::glimpse(tidy_v3)
 
 ## ------------------------------------------- ##
-# Aggregate Across Multiple Veg. Categories ----
-## ------------------------------------------- ##
-
-# Identify all columns other than measurements / veg. categories
-(grp_cols <- setdiff(x = names(tidy_v3), y = c("plant_species", "plant_fraction", "vegetation_category",
-                                               "biomass_g", "biomass_units", "spp_richness", "anpp_units",
-                                               "npp_units")) )
-
-# Want to filter and/or summarize across categories of veg
-tidy_v4 <- tidy_v3 %>% 
-  # Filter out categories that are not wanted
-  ## !!! TBD; pending group decision !!!
-  # Any conditional algebra (e.g., 75% plant biomass for some LTAR data)
-  ## !!! TBD; pending group decision !!!
-  # Summarize across remaining categories
-  dplyr::group_by(dplyr::across(dplyr::all_of(grp_cols))) %>% 
-  dplyr::summarize(biomass_g = mean(biomass_g, na.rm = T),
-                   biomass_units = mean(biomass_units, na.rm = T),
-                   spp_richness = mean(spp_richness, na.rm = T),
-                   anpp_units = mean(anpp_units, na.rm = T),
-                   npp_units = mean(npp_units, na.rm = T),
-                   .groups = "keep") %>% 
-  dplyr::ungroup()
-
-# Make sure we didn't lose/gain unexpected columns
-supportR::diff_check(old = names(tidy_v3), new = names(tidy_v4))
-
-# How many rows are lost as a result of this?
-message(nrow(tidy_v3) - nrow(tidy_v4), " rows lost from this step.")
-
-# Check structure
-dplyr::glimpse(tidy_v4)
-
-## ------------------------------------------- ##
 # Handle Date Data ----
 ## ------------------------------------------- ##
 
 # Date data are horrible but possibly useful so we need a single 'date' column
-tidy_v5 <- tidy_v4 %>% 
+tidy_v4 <- tidy_v3 %>% 
   # Relocate date columns to end
   dplyr::relocate(dplyr::starts_with("date_"), .after = dplyr::everything()) %>% 
   # Fill missing dates with NA instead of just 0-length characters
@@ -173,27 +142,30 @@ tidy_v5 <- tidy_v4 %>%
   dplyr::select(-dplyr::starts_with(c("date_", "tmp_")))
 
 # Check that no unexpected columns are lost/gained
-supportR::diff_check(old = names(tidy_v4), new = names(tidy_v5))
+supportR::diff_check(old = names(tidy_v3), new = names(tidy_v4))
 
 # Check structure
-dplyr::glimpse(tidy_v5)
+dplyr::glimpse(tidy_v4)
 
 ## ------------------------------------------- ##
 # Export ----
 ## ------------------------------------------- ##
 
 # Final pre-export tweaks
-tidy_v99 <- tidy_v5
+tidy_v99 <- tidy_v4
 
 # Check structure
 dplyr::glimpse(tidy_v99)
 
+# Identify nice name for exported object
+focal_output <- "02_resilience_wrangled.csv"
+
 # Export locally
 write.csv(x = tidy_v99, row.names = F, na = '',
-          file = file.path("data", "tidy", "02_resilience_wrangled.csv"))
+          file = file.path("data", "tidy", focal_output))
 
 # Upload to Drive
-googledrive::drive_upload(media = file.path("data", "tidy", "02_resilience_wrangled.csv"), overwrite = T,
+googledrive::drive_upload(media = file.path("data", "tidy", focal_output), overwrite = T,
                           path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ"))
 
 # End ----
