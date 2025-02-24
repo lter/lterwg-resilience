@@ -1,5 +1,5 @@
 ## ----------------------------------------------------------------- ##
-# Resilience Management - Wrangling Workflow
+# Resilience Management - Site Aggregation Workflow
 ## ----------------------------------------------------------------- ##
 # Authors: Nick J Lyon, ...
 

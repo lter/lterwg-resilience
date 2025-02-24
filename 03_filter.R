@@ -1,5 +1,5 @@
 ## ----------------------------------------------------------------- ##
-# Resilience Management - Wrangling Workflow
+# Resilience Management - Filtering Workflow
 ## ----------------------------------------------------------------- ##
 # Authors: Nick J Lyon, ...
 
