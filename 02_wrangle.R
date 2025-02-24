@@ -34,11 +34,42 @@ tidy_v1 <- read.csv(file = file.path("data", "tidy", "01_resilience_harmonized.c
 dplyr::glimpse(tidy_v1)
 
 ## --------------------------------------- ##
+# Identify Network ----
+## --------------------------------------- ##
+
+# Identify network from which each dataset was sourced
+sort(unique(tidy_v1$source))
+
+# Begin identifying networks
+tidy_v2 <- tidy_v1 %>% 
+  dplyr::mutate(network = dplyr::case_when(
+    source %in% c("cdr_anpp_nceas.csv", "KBS-biomass-compilation-herb-systems.csv",
+                  "knz_anpp_nceas.csv", "nwt_anpp_nceas.csv", "sev_anpp_nceas.csv") ~ "LTER",
+    source %in% c("ABS_UF_BIR_NIFA_ANPP_Betsey.csv", "CAF_DET_20231218_MeasHarvestFraction.csv",
+                  "CPER_LTNPP_MeasGrazingPlants.csv",  "ECB_MeasHarvestFractionv2.csv",
+                  "GB_MeasGrazingPlants_04242024.csv", "NP_InOut_MeasGrazingPlants.csv", 
+                  "NPMA_MeasHarvestFraction.csv", "PRHPA_NEMELTCRS_MeasResidueMgnt.csv",
+                  "PRHPA_NEMERREM_MeasHarvestFraction.csv", "SP_RotGraz_MeasGrazingPlants_OLH.csv",
+                  "TG_GSWRL_LTBE_MeasHarvestFractionv2.csv", "UCB_Pahaw_MeasGrazingPlants.csv",
+                  "UCB_Pahaw_MeasResidueMgnt.csv", "UMRB_AMES_IAKFT_MeasHarvestFraction.csv",
+                  "UMRB_MeasHarvestFrac_v2.csv") ~ "LTAR",
+    stringr::str_detect(string = source, pattern = "NutNet") ~ "NutNet",
+    ## Combo ones
+    source %in% c("jrn_anpp_nceas.csv") ~ "LTER & LTAR",
+    T ~ "unknown"), .before = dplyr::everything())
+
+# Did those all get identified?
+tidy_v2 %>% 
+  dplyr::filter(network == "unknown") %>% 
+  dplyr::select(source, network) %>% 
+  dplyr::distinct()
+
+## --------------------------------------- ##
 # Consolidate Multi-Measurements ----
 ## --------------------------------------- ##
 
 # Occasionally, some measurements were done multiple times in separate columns, need to resolve this
-tidy_v2 <- tidy_v1 %>% 
+tidy_v3 <- tidy_v2 %>% 
   # Aggregate these multi-column observations
   ## Biomass
   dplyr::mutate(biomass_units = dplyr::case_when(
@@ -56,30 +87,30 @@ tidy_v2 <- tidy_v1 %>%
                 -biomass_kg.ha_non.grain, -biomass_kg.ha_grain)
 
 # Make sure we only lose expected columns
-supportR::diff_check(old = names(tidy_v1), new = names(tidy_v2))
+supportR::diff_check(old = names(tidy_v2), new = names(tidy_v3))
 
 # Check number of NAs before/after doing this
 ## Biomass
-supportR::count(is.na(tidy_v1$biomass_units))
 supportR::count(is.na(tidy_v2$biomass_units))
+supportR::count(is.na(tidy_v3$biomass_units))
 ## Species richness
-supportR::count(is.na(tidy_v1$spp_richness))
 supportR::count(is.na(tidy_v2$spp_richness))
+supportR::count(is.na(tidy_v3$spp_richness))
 
 # Check structure
-dplyr::glimpse(tidy_v2)
+dplyr::glimpse(tidy_v3)
 
 ## ------------------------------------------- ##
 # Aggregate Across Multiple Veg. Categories ----
 ## ------------------------------------------- ##
 
 # Identify all columns other than measurements / veg. categories
-(grp_cols <- setdiff(x = names(tidy_v2), y = c("plant_species", "plant_fraction", "vegetation_category",
+(grp_cols <- setdiff(x = names(tidy_v3), y = c("plant_species", "plant_fraction", "vegetation_category",
                                                "biomass_g", "biomass_units", "spp_richness", "anpp_units",
                                                "npp_units")) )
 
 # Want to filter and/or summarize across categories of veg
-tidy_v3 <- tidy_v2 %>% 
+tidy_v4 <- tidy_v3 %>% 
   # Filter out categories that are not wanted
   ## !!! TBD; pending group decision !!!
   # Any conditional algebra (e.g., 75% plant biomass for some LTAR data)
@@ -95,20 +126,20 @@ tidy_v3 <- tidy_v2 %>%
   dplyr::ungroup()
 
 # Make sure we didn't lose/gain unexpected columns
-supportR::diff_check(old = names(tidy_v2), new = names(tidy_v3))
+supportR::diff_check(old = names(tidy_v3), new = names(tidy_v4))
 
 # How many rows are lost as a result of this?
-message(nrow(tidy_v2) - nrow(tidy_v3), " rows lost from this step.")
+message(nrow(tidy_v3) - nrow(tidy_v4), " rows lost from this step.")
 
 # Check structure
-dplyr::glimpse(tidy_v3)
+dplyr::glimpse(tidy_v4)
 
 ## ------------------------------------------- ##
 # Handle Date Data ----
 ## ------------------------------------------- ##
 
 # Date data are horrible but possibly useful so we need a single 'date' column
-tidy_v4 <- tidy_v3 %>% 
+tidy_v5 <- tidy_v4 %>% 
   # Relocate date columns to end
   dplyr::relocate(dplyr::starts_with("date_"), .after = dplyr::everything()) %>% 
   # Fill missing dates with NA instead of just 0-length characters
@@ -142,17 +173,17 @@ tidy_v4 <- tidy_v3 %>%
   dplyr::select(-dplyr::starts_with(c("date_", "tmp_")))
 
 # Check that no unexpected columns are lost/gained
-supportR::diff_check(old = names(tidy_v3), new = names(tidy_v4))
+supportR::diff_check(old = names(tidy_v4), new = names(tidy_v5))
 
 # Check structure
-dplyr::glimpse(tidy_v4)
+dplyr::glimpse(tidy_v5)
 
 ## ------------------------------------------- ##
 # Export ----
 ## ------------------------------------------- ##
 
 # Final pre-export tweaks
-tidy_v99 <- tidy_v4
+tidy_v99 <- tidy_v5
 
 # Check structure
 dplyr::glimpse(tidy_v99)
