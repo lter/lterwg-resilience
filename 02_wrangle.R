@@ -44,6 +44,7 @@ tidy_v2 <- tidy_v1 %>%
   dplyr::mutate(biomass_units = dplyr::case_when(
     !is.na(biomass_units) ~ biomass_units,
     any(!is.na(biomass_units.1), !is.na(biomass_units.2), !is.na(biomass_units.3), !is.na(biomass_units.4), !is.na(biomass_units.5)) ~ biomass_units.1 + biomass_units.2 + biomass_units.3 + biomass_units.4 + biomass_units.5,
+    any(!is.na(biomass_kg.ha_non.grain), !is.na(biomass_kg.ha_grain)) ~ biomass_kg.ha_non.grain + biomass_kg.ha_grain,
     T ~ NA)) %>% 
   ## Species richness
   dplyr::mutate(spp_richness = dplyr::case_when(
@@ -51,7 +52,8 @@ tidy_v2 <- tidy_v1 %>%
     any(!is.na(spp_richness.1), !is.na(spp_richness.2), !is.na(spp_richness.3), !is.na(spp_richness.4), !is.na(spp_richness.5)) ~ spp_richness.1 + spp_richness.2 + spp_richness.3 + spp_richness.4 + spp_richness.5,
     T ~ NA)) %>% 
   # Drop now-superseded columns
-  dplyr::select(-dplyr::starts_with(c("spp_richness.", "biomass_units.")))
+  dplyr::select(-dplyr::starts_with(c("spp_richness.", "biomass_units.")),
+                -biomass_kg.ha_non.grain, -biomass_kg.ha_grain)
 
 # Make sure we only lose expected columns
 supportR::diff_check(old = names(tidy_v1), new = names(tidy_v2))
@@ -91,6 +93,9 @@ tidy_v3 <- tidy_v2 %>%
                    npp_units = mean(npp_units, na.rm = T),
                    .groups = "keep") %>% 
   dplyr::ungroup()
+
+# Make sure we didn't lose/gain unexpected columns
+supportR::diff_check(old = names(tidy_v2), new = names(tidy_v3))
 
 # How many rows are lost as a result of this?
 message(nrow(tidy_v2) - nrow(tidy_v3), " rows lost from this step.")
