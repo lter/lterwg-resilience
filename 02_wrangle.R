@@ -104,11 +104,55 @@ message(nrow(tidy_v2) - nrow(tidy_v3), " rows lost from this step.")
 dplyr::glimpse(tidy_v3)
 
 ## ------------------------------------------- ##
+# Handle Date Data ----
+## ------------------------------------------- ##
+
+# Date data are horrible but possibly useful so we need a single 'date' column
+tidy_v4 <- tidy_v3 %>% 
+  # Relocate date columns to end
+  dplyr::relocate(dplyr::starts_with("date_"), .after = dplyr::everything()) %>% 
+  # Fill missing dates with NA instead of just 0-length characters
+  dplyr::mutate(dplyr::across(.cols = dplyr::starts_with("date_"),
+                              .fns = ~ ifelse(nchar(.) == 0, yes = NA, no = .))) %>% 
+  # Make a temp column containing some likely useful bits of date info
+  dplyr::mutate(date_temp = dplyr::case_when(
+    !is.na(date_m.d.yyyy.time) ~ stringr::str_extract(string = date_m.d.yyyy.time,
+                                                      pattern = "[:digit:]{1,2}\\/[:digit:]{1,2}\\/[:digit:]{4}"),
+    !is.na(date_m.d.yyyy) ~ date_m.d.yyyy,
+    !is.na(date_m.d.yy) ~ date_m.d.yy,
+    !is.na(date_m) ~ paste0(date_m, "/01/", year),
+    T ~ NA)) %>% 
+  # Separate into component bits
+  tidyr::separate_wider_delim(cols = date_temp, names = c("tmp_month", "tmp_day", "tmp_year"), delim = "/") %>% 
+  # Make them numbers
+  dplyr::mutate(dplyr::across(.cols = tmp_month:tmp_year, .fns = ~ as.numeric(.))) %>% 
+  # Do needed formatting for to assemble standardized dates
+  dplyr::mutate(tmp_month = ifelse(nchar(tmp_month) == 2,
+                                   yes = as.character(tmp_month), no = paste0("0", tmp_month)),
+                tmp_day = ifelse(nchar(tmp_day) == 2,
+                                 yes = as.character(tmp_day), no = paste0("0", tmp_day)),
+                tmp_year = dplyr::case_when(nchar(tmp_year) == 4 ~ as.character(tmp_year),
+                                            # NOTE GUESS HERE (vvv)
+                                            nchar(tmp_year) == 2 & tmp_year > 25 ~ paste0("19", tmp_year),
+                                            nchar(tmp_year) == 2 & tmp_year <= 25 ~ paste0("20", tmp_year))) %>% 
+  # Assemble into real date column!
+  dplyr::mutate(date = as.Date(paste(tmp_month, tmp_day, tmp_year, sep = "/"), format = "%m/%d/%Y"),
+                .after = long) %>% 
+  # Drop superseded separate 'date' columns & temporary columns
+  dplyr::select(-dplyr::starts_with(c("date_", "tmp_")))
+
+# Check that no unexpected columns are lost/gained
+supportR::diff_check(old = names(tidy_v3), new = names(tidy_v4))
+
+# Check structure
+dplyr::glimpse(tidy_v4)
+
+## ------------------------------------------- ##
 # Export ----
 ## ------------------------------------------- ##
 
 # Final pre-export tweaks
-tidy_v99 <- tidy_v3
+tidy_v99 <- tidy_v4
 
 # Check structure
 dplyr::glimpse(tidy_v99)
