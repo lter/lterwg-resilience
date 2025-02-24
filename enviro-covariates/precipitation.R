@@ -69,8 +69,15 @@ dplyr::glimpse(ppt_annual)
 # Export ----
 ## --------------------------------------- ##
 
+# Identify output
+ppt_output <- "precip_annual-means.csv"
+
 # Export locally
 write.csv(x = ppt_annual, na = '', row.names = F,
-          file = file.path("data", "environment", "precip_annual-means.csv"))
+          file = file.path("data", "environment", ppt_output))
+
+# Upload to Drive
+googledrive::drive_upload(media = file.path("data", "environment", ppt_output), overwrite = T,
+                          path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/16KZhR5CGu7YDze72Y2-LaNEdGNC39Kcf"))
 
 # End ----
