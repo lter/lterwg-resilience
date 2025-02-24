@@ -12,7 +12,7 @@
 ## --------------------------------------- ##
 
 # Load libraries
-librarian::shelf(tidyverse, googledrive)
+librarian::shelf(tidyverse, googledrive, supportR)
 
 # Make needed folder(s)
 dir.create(file.path("data"), showWarnings = F)
