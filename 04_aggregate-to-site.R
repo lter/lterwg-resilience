@@ -41,8 +41,6 @@ dplyr::glimpse(site_v1)
 
 # Reorder remaining columns more intuitively
 site_v2 <- site_v1 %>% 
-  # NPP/biomass after everything
-  dplyr::relocate(dplyr::contains(c("biomass", "npp")), .after = dplyr::everything()) %>% 
   # Coords near site info
   dplyr::relocate(lat, long, .after = site) %>% 
   dplyr::relocate(elevation_m, habitat, .before = site) %>% 
@@ -58,18 +56,12 @@ dplyr::glimpse(site_v2)
 
 # Identify all columns at/above "site" column
 (grp_cols <- setdiff(x = names(site_v2), y = c("block", "plot", "quadrat", "date",
-                                               "annual_precip_mean", "annual_precip_var",
-                                               "biomass_kg.ha", "biomass_g", "biomass_units",
-                                               "anpp_units", "npp_units")))
+                                               "anpp_actual")))
 
 # Summarize within "sites"
 site_v3 <- site_v2 %>% 
   dplyr::group_by(dplyr::across(dplyr::all_of(grp_cols))) %>% 
-  dplyr::summarize(biomass_kg.ha = mean(biomass_kg.ha, na.rm = T),
-                   biomass_g = mean(biomass_g, na.rm = T),
-                   biomass_units = mean(biomass_units, na.rm = T),
-                   anpp_units = mean(anpp_units, na.rm = T),
-                   npp_units = mean(npp_units, na.rm = T),
+  dplyr::summarize(anpp_actual = mean(anpp_actual, na.rm = T),
                    .groups = "keep") %>% 
   dplyr::ungroup()
 
