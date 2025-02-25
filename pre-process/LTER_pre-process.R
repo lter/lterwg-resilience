@@ -81,3 +81,20 @@ cdr_anpp$site <- "cdr_lter"
 write.csv(cdr_anpp, "G:/Shared drives/LTER-WG_Resilience-Management/data/raw_data_to_use/cdr_anpp_nceas.csv")
 
 rm(list = ls()); gc()kg
+
+
+##CAP lter
+cap_anpp <- read.csv("G:/Shared drives/LTER-WG_Resilience-Management/data/raw_data/AllData2017AnnualsAI8_23_18.csv")%>%
+            subset(Treatment == "c")%>%
+            subset(Patch_type == "IP")
+cap_anpp$cap_location <- cap_anpp$Site
+
+cap_anpp$site <- "cap_lter"
+
+cap_anpp <- cap_anpp%>%dplyr::select(site, cap_location, Year, AnnBiomass)
+
+write.csv(cdr_anpp, "G:/Shared drives/LTER-WG_Resilience-Management/data/raw_data_to_use/cap_anpp_nceas.csv")
+
+
+
+
