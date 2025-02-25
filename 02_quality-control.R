@@ -34,6 +34,7 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
 # Read in harmonized data
 tidy_v1 <- read.csv(file = file.path("data", "tidy", focal_file))
 
+
 # Check structure
 dplyr::glimpse(tidy_v1)
 
@@ -56,11 +57,13 @@ tidy_v2 <- tidy_v1 %>%
                   "PRHPA_NEMERREM_MeasHarvestFraction.csv", "SP_RotGraz_MeasGrazingPlants_OLH.csv",
                   "TG_GSWRL_LTBE_MeasHarvestFractionv2.csv", "UCB_Pahaw_MeasGrazingPlants.csv",
                   "UCB_Pahaw_MeasResidueMgnt.csv", "UMRB_AMES_IAKFT_MeasHarvestFraction.csv",
-                  "UMRB_MeasHarvestFrac_v2.csv") ~ "LTAR",
+                  "UMRB_MeasHarvestFrac_v2.csv", 'KBS_ANPP.csv') ~ "LTAR",
     stringr::str_detect(string = source, pattern = "NutNet") ~ "NutNet",
     ## Combo ones
     source %in% c("jrn_anpp_nceas.csv") ~ "LTER & LTAR",
-    T ~ "unknown"), .before = dplyr::everything())
+    T ~ "unknown"), .before = dplyr::everything()) %>% 
+  filter(source!="UCB_Pahaw_MeasGrazingPlants.csv"&source!="UCB_Pahaw_MeasResidueMgnt.csv") %>% 
+  dplyr::select(-lat, -long,-biomass_kg.ha_non.grain, -biomass_kg.ha_grain)
 
 # Did those all get identified?
 tidy_v2 %>% 
@@ -73,22 +76,23 @@ tidy_v2 %>%
 ## --------------------------------------- ##
 
 # Occasionally, some measurements were done multiple times in separate columns, need to resolve this
-tidy_v3 <- tidy_v2 %>% 
-  # Aggregate these multi-column observations
-  ## Biomass
-  dplyr::mutate(biomass_units = dplyr::case_when(
-    !is.na(biomass_units) ~ biomass_units,
-    any(!is.na(biomass_units.1), !is.na(biomass_units.2), !is.na(biomass_units.3), !is.na(biomass_units.4), !is.na(biomass_units.5)) ~ biomass_units.1 + biomass_units.2 + biomass_units.3 + biomass_units.4 + biomass_units.5,
-    any(!is.na(biomass_kg.ha_non.grain), !is.na(biomass_kg.ha_grain)) ~ biomass_kg.ha_non.grain + biomass_kg.ha_grain,
-    T ~ NA)) %>% 
-  ## Species richness
-  dplyr::mutate(spp_richness = dplyr::case_when(
-    !is.na(spp_richness) ~ spp_richness,
-    any(!is.na(spp_richness.1), !is.na(spp_richness.2), !is.na(spp_richness.3), !is.na(spp_richness.4), !is.na(spp_richness.5)) ~ spp_richness.1 + spp_richness.2 + spp_richness.3 + spp_richness.4 + spp_richness.5,
-    T ~ NA)) %>% 
-  # Drop now-superseded columns
-  dplyr::select(-dplyr::starts_with(c("spp_richness.", "biomass_units.")),
-                -biomass_kg.ha_non.grain, -biomass_kg.ha_grain)
+#Meghan update- I no longer this this is a problem with the new datasets. So I am going to skip this step.
+# tidy_v3 <- tidy_v2 %>% 
+#   # Aggregate these multi-column observations
+#   ## Biomass
+#   dplyr::mutate(biomass_units = dplyr::case_when(
+#     any(!is.na(biomass_kg.ha_non.grain), !is.na(biomass_kg.ha_grain)) ~ biomass_kg.ha_non.grain + biomass_kg.ha_grain,
+#     T ~ NA)) %>% 
+#   # ## Species richness
+#   # dplyr::mutate(spp_richness = dplyr::case_when(
+#   #   !is.na(spp_richness) ~ spp_richness,
+#   #   any(!is.na(spp_richness.1), !is.na(spp_richness.2), !is.na(spp_richness.3), !is.na(spp_richness.4), !is.na(spp_richness.5)) ~ spp_richness.1 + spp_richness.2 + spp_richness.3 + spp_richness.4 + spp_richness.5,
+#   #   T ~ NA)) %>% 
+#   # Drop now-superseded columns
+#   dplyr::select(-dplyr::starts_with(c("spp_richness.", "biomass_units.")),
+#                 -biomass_kg.ha_non.grain, -biomass_kg.ha_grain)
+
+
 
 # Make sure we only lose expected columns
 supportR::diff_check(old = names(tidy_v2), new = names(tidy_v3))
@@ -109,7 +113,7 @@ dplyr::glimpse(tidy_v3)
 ## ------------------------------------------- ##
 
 # Date data are horrible but possibly useful so we need a single 'date' column
-tidy_v4 <- tidy_v3 %>% 
+tidy_v4 <- tidy_v2 %>% 
   # Relocate date columns to end
   dplyr::relocate(dplyr::starts_with("date_"), .after = dplyr::everything()) %>% 
   # Fill missing dates with NA instead of just 0-length characters
@@ -120,11 +124,11 @@ tidy_v4 <- tidy_v3 %>%
     !is.na(date_m.d.yyyy.time) ~ stringr::str_extract(string = date_m.d.yyyy.time,
                                                       pattern = "[:digit:]{1,2}\\/[:digit:]{1,2}\\/[:digit:]{4}"),
     !is.na(date_m.d.yyyy) ~ date_m.d.yyyy,
-    !is.na(date_m.d.yy) ~ date_m.d.yy,
+    #!is.na(date_m.d.yy) ~ date_m.d.yy, #meghan notes - this is not longer a column in the new dataset
     !is.na(date_m) ~ paste0(date_m, "/01/", year),
     T ~ NA)) %>% 
   # Separate into component bits
-  tidyr::separate_wider_delim(cols = date_temp, names = c("tmp_month", "tmp_day", "tmp_year"), delim = "/") %>% 
+  tidyr::separate_wider_delim(cols = date_temp, names = c("tmp_month", "tmp_day", "tmp_year"), delim = "/", too_few = 'debug') %>% 
   # Make them numbers
   dplyr::mutate(dplyr::across(.cols = tmp_month:tmp_year, .fns = ~ as.numeric(.))) %>% 
   # Do needed formatting for to assemble standardized dates
@@ -138,10 +142,12 @@ tidy_v4 <- tidy_v3 %>%
                                             nchar(tmp_year) == 2 & tmp_year <= 25 ~ paste0("20", tmp_year))) %>% 
   # Assemble into real date column!
   dplyr::mutate(date = as.Date(paste(tmp_month, tmp_day, tmp_year, sep = "/"), format = "%m/%d/%Y"),
-                .after = long) %>% 
-  # Drop superseded separate 'date' columns & temporary columns
+                .after = year) %>% 
+    dplyr::mutate(year2=ifelse(is.na(tmp_year), year, tmp_year), .after=year) %>% 
+ #Drop superseded separate 'date' columns & temporary columns
   dplyr::select(-dplyr::starts_with(c("date_", "tmp_")))
 
+  
 # Check that no unexpected columns are lost/gained
 supportR::diff_check(old = names(tidy_v3), new = names(tidy_v4))
 
@@ -153,18 +159,35 @@ dplyr::glimpse(tidy_v4)
 ## ------------------------------------------- ##
 
 # Calculate duration for each "site"
+#MEGHAN NOTES: year is not filled out for each dataset so this isn't working, i created a new year2 column above, it works now.
+
 tidy_v5 <- tidy_v4 %>% 
   dplyr::group_by(source) %>% 
-  dplyr::mutate(duration_years = length(unique(year)),
+  dplyr::mutate(duration_years = length(unique(year2)),
                 .after = source) %>% 
-  dplyr::ungroup()
+  dplyr::ungroup() %>% 
+  filter(!is.na(year2)) %>% 
+  select(-year)
 
 # Check structure
 dplyr::glimpse(tidy_v5)
 
 ## ------------------------------------------- ##
+# Getting a site_ID ----
+## ------------------------------------------- ##
+tidy_v6<-tidy_v5 %>% 
+  mutate(site_ID=ifelse(network=='NutNet', site, ifelse(network=='LTER', lter, 'tbd')), .after=network)
+
+## ------------------------------------------- ##
 # ANPP Unit Conversions ----
 ## ------------------------------------------- ##
+
+
+#meghan notes: I am deeply uncomfortable with the b/c we don't know the units that we are dropping! so now we have a meaningless anpp_actual column
+
+test<-tidy_v5 %>% 
+  filter(!is.na(plant_fraction)&plant_fraction!="")
+#note there is a lot of stuff in here, we are going to ask Olivia about this
 
 # Need to convert ANPP variants into a single column
 tidy_v6 <- tidy_v5 %>% 
@@ -213,7 +236,8 @@ purrr::walk2(.x = drive_ppt$id, .y = drive_ppt$name,
 ## ------------------------------------------- ##
 
 # Read in precip data
-precip_v1 <- read.csv(file = file.path("data", "environment", "precip_annual-summary.csv"))
+precip_v1 <- read.csv(file = file.path("data", "environment", "precip_annual-summary.csv")) %>% 
+  mutate(site_ID=site)
 
 # Check structure
 dplyr::glimpse(precip_v1)
@@ -244,7 +268,9 @@ nutnet_ppt <- precip_v2 %>%
 ## ------------------------------------------- ##
 
 # Attach to 'actual' data
-tidy_v7 <- tidy_v6 %>% 
+tidy_v7 <- tidy_v5 %>% 
+  rename(year=year2) %>% 
+  mutate(year=as.integer(year)) %>% 
   dplyr::left_join(x = ., y = ltar_ppt, by = c("treatment", "year")) %>% 
   dplyr::left_join(x = ., y = nutnet_ppt, by = c("site", "year")) %>% 
   # Coalesce values
