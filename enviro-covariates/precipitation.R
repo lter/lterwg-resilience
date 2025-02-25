@@ -58,7 +58,8 @@ dplyr::glimpse(ppt_v1)
 # Begin with annual aggregation
 ppt_annual <- ppt_v1 %>% 
   dplyr::group_by(network, site, year) %>% 
-  dplyr::summarize(annual_precip_mm = mean(precip, na.rm = T),
+  dplyr::summarize(total_annual_precip_mm = sum(precip, na.rm = T),
+                   mean_daily_precip_mm = mean(precip, na.rm = T),
                    .groups = "keep") %>% 
   dplyr::ungroup()
 
@@ -70,7 +71,7 @@ dplyr::glimpse(ppt_annual)
 ## --------------------------------------- ##
 
 # Identify output
-ppt_output <- "precip_annual-means.csv"
+ppt_output <- "precip_annual-summary.csv"
 
 # Export locally
 write.csv(x = ppt_annual, na = '', row.names = F,
