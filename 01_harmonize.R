@@ -121,4 +121,9 @@ write.csv(x = combo_v99, row.names = F, na = '',
 googledrive::drive_upload(media = file.path("data", "tidy", "01_resilience_harmonized.csv"), overwrite = T,
                           path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ"))
 
+
+# Upload to Drive New Key
+googledrive::drive_upload(media = file.path("data", "resilience_data-key.csv"), overwrite = T,
+                          path = googledrive::as_id("https://drive.google.com/drive/folders/1Ty7QX7vyvD797eKJzMWbr8AwIo-GyBFO"))
+
 # End ----
