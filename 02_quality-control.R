@@ -162,11 +162,38 @@ tidy_v5 <- tidy_v4 %>%
 dplyr::glimpse(tidy_v5)
 
 ## ------------------------------------------- ##
+# ANPP Unit Conversions ----
+## ------------------------------------------- ##
+
+# Need to convert ANPP variants into a single column
+tidy_v6 <- tidy_v5 %>% 
+  # NPP/biomass after everything
+  dplyr::relocate(dplyr::contains(c("biomass", "npp")), 
+                  .after = dplyr::everything()) %>% 
+  # Do unit conversion(s)
+  dplyr::mutate(anpp_actual = dplyr::case_when(
+    !is.na(biomass_kg.ha) ~ biomass_kg.ha,
+    !is.na(biomass_g) ~ biomass_g,
+    !is.na(biomass_units) ~ biomass_units,
+    !is.na(anpp_units) ~ anpp_units,
+    !is.na(npp_units) ~ npp_units,
+    # If no provided biomass value, put NA in the 'actual ANPP' column
+    T ~ NA)) %>% 
+  # Drop superseded columns
+  dplyr::select(-dplyr::starts_with("biomass_"), -anpp_units, -npp_units)
+
+# Check to make sure only unwanted columns are lost
+supportR::diff_check(old = names(tidy_v5), new = names(tidy_v6))
+
+# Check structure
+dplyr::glimpse(tidy_v6)
+
+## ------------------------------------------- ##
 # Export ----
 ## ------------------------------------------- ##
 
 # Final pre-export tweaks
-tidy_v99 <- tidy_v5
+tidy_v99 <- tidy_v6
 
 # Check structure
 dplyr::glimpse(tidy_v99)
