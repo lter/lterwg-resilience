@@ -17,6 +17,7 @@ librarian::shelf(tidyverse, googledrive, supportR)
 # Make needed folder(s)
 dir.create(file.path("data"), showWarnings = F)
 dir.create(file.path("data", "tidy"), showWarnings = F)
+dir.create(file.path("data", "environment"), showWarnings = F)
 
 # Clear environment + collect garbage
 rm(list = ls()); gc()
@@ -189,11 +190,79 @@ supportR::diff_check(old = names(tidy_v5), new = names(tidy_v6))
 dplyr::glimpse(tidy_v6)
 
 ## ------------------------------------------- ##
+# Download Precip Data ----
+## ------------------------------------------- ##
+
+# NOTE: "enviro-covariates/precipitation.R" generates the file(s) downloaded here
+## Re-run that script if you want to update the precip data
+
+# Identify the relevant file(s) & download it/them
+drive_ppt <- googledrive::drive_ls(path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/16KZhR5CGu7YDze72Y2-LaNEdGNC39Kcf")) %>% 
+  dplyr::filter(name %in% c("precip_annual-summary.csv"))
+
+# Check identified files
+drive_ppt
+
+# Download them
+purrr::walk2(.x = drive_ppt$id, .y = drive_ppt$name,
+             .f = ~ googledrive::drive_download(file = .x, overwrite = T,
+                                                path = file.path("data", "environment", .y)))
+
+## ------------------------------------------- ##
+# Wrangle / QC Precip Data ----
+## ------------------------------------------- ##
+
+# Read in precip data
+precip_v1 <- read.csv(file = file.path("data", "environment", "precip_annual-summary.csv"))
+
+# Check structure
+dplyr::glimpse(precip_v1)
+
+# Do needed wrangling (if any)
+precip_v2 <- precip_v1 %>%
+  dplyr::mutate(treatment = ifelse(network == "LTAR", yes = site, no = NA)) %>% 
+  dplyr::select(-network, -mean_daily_precip_mm) %>% 
+  dplyr::distinct()
+
+# Re-check structure
+dplyr::glimpse(precip_v2)
+
+# Split by network
+ltar_ppt <- precip_v2 %>% 
+  dplyr::filter(!is.na(treatment)) %>% 
+  dplyr::rename(total_annual_precip_mm.ltar = total_annual_precip_mm) %>% 
+  dplyr::select(-site) %>% 
+  dplyr::distinct()
+nutnet_ppt <- precip_v2 %>% 
+  dplyr::filter(is.na(treatment)) %>% 
+  dplyr::rename(total_annual_precip_mm.nutnet = total_annual_precip_mm) %>% 
+  dplyr::select(-treatment) %>% 
+  dplyr::distinct()
+
+## ------------------------------------------- ##
+# Attach Precip Data ----
+## ------------------------------------------- ##
+
+# Attach to 'actual' data
+tidy_v7 <- tidy_v6 %>% 
+  dplyr::left_join(x = ., y = ltar_ppt, by = c("treatment", "year")) %>% 
+  dplyr::left_join(x = ., y = nutnet_ppt, by = c("site", "year")) %>% 
+  # Coalesce values
+  dplyr::mutate(total_annual_precip_mm = dplyr::coalesce(total_annual_precip_mm.ltar, 
+                                                         total_annual_precip_mm.nutnet),
+                .after = date) %>% 
+  # Drop superseded columns
+  dplyr::select(-dplyr::starts_with("total_annual_precip_mm."))
+  
+# Check structure
+dplyr::glimpse(tidy_v7)
+
+## ------------------------------------------- ##
 # Export ----
 ## ------------------------------------------- ##
 
 # Final pre-export tweaks
-tidy_v99 <- tidy_v6
+tidy_v99 <- tidy_v7
 
 # Check structure
 dplyr::glimpse(tidy_v99)
