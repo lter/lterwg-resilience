@@ -1,4 +1,4 @@
-# Assessing the resilience of productivity to climate variability across management and climate gradients
+# Assessing the Resilience of Productivity to Climate Variability Across Management and Climate Gradients
 
 Principal Investigators:
 - David Hoover
