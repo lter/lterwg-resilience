@@ -148,11 +148,25 @@ supportR::diff_check(old = names(tidy_v3), new = names(tidy_v4))
 dplyr::glimpse(tidy_v4)
 
 ## ------------------------------------------- ##
+# Calculate Duration ----
+## ------------------------------------------- ##
+
+# Calculate duration for each "site"
+tidy_v5 <- tidy_v4 %>% 
+  dplyr::group_by(source) %>% 
+  dplyr::mutate(duration_years = length(unique(year)),
+                .after = source) %>% 
+  dplyr::ungroup()
+
+# Check structure
+dplyr::glimpse(tidy_v5)
+
+## ------------------------------------------- ##
 # Export ----
 ## ------------------------------------------- ##
 
 # Final pre-export tweaks
-tidy_v99 <- tidy_v4
+tidy_v99 <- tidy_v5
 
 # Check structure
 dplyr::glimpse(tidy_v99)
