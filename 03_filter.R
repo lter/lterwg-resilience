@@ -55,7 +55,7 @@ dplyr::glimpse(sub_v2)
 # Do needed subsetting
 sub_v3 <- sub_v2 %>% 
   # Pick a threshold duration minimum
-  dplyr::filter(duration >= 1) # Set to "1" as a placeholder
+  dplyr::filter(duration_years >= 1) # Set to "1" as a placeholder
 
 # How many rows lost?
 message(nrow(sub_v2) - nrow(sub_v3), " rows lost via filtering.")
