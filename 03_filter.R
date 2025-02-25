@@ -11,7 +11,7 @@
 ## --------------------------------------- ##
 
 # Load libraries
-librarian::shelf(tidyverse, googledrive)
+librarian::shelf(tidyverse, googledrive, supportR)
 
 # Make needed folder(s)
 dir.create(file.path("data"), showWarnings = F)
@@ -49,11 +49,41 @@ sub_v2 <- sub_v1
 dplyr::glimpse(sub_v2)
 
 ## ------------------------------------------- ##
+# Filter Unwanted Rows ----
+## ------------------------------------------- ##
+
+# Do needed subsetting
+sub_v3 <- sub_v2 %>% 
+  # Pick a threshold duration minimum
+  dplyr::filter(duration >= 1) # Set to "1" as a placeholder
+
+# How many rows lost?
+message(nrow(sub_v2) - nrow(sub_v3), " rows lost via filtering.")
+
+# Check structure
+dplyr::glimpse(sub_v3)
+
+## ------------------------------------------- ##
+# Drop Unwanted Columns ----
+## ------------------------------------------- ##
+
+# Drop any columns that were useful for subsetting but not for future work
+sub_v4 <- sub_v3 %>% 
+  # Superseded by Ingrid's precip data (MSWEP?)
+  dplyr::select(-annual_precip_mean, -annual_precip_var)
+
+# Make sure only unwanted columns are lost
+supportR::diff_check(old = names(sub_v3), new = names(sub_v4))
+
+# Check structure
+dplyr::glimpse(sub_v4)
+
+## ------------------------------------------- ##
 # Export ----
 ## ------------------------------------------- ##
 
 # Final pre-export tweaks
-sub_v99 <- sub_v2
+sub_v99 <- sub_v4
 
 # Check structure
 dplyr::glimpse(sub_v99)
