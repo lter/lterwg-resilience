@@ -58,6 +58,10 @@ purrr::walk2(.x = files_wanted$id, .y = files_wanted$name,
              .f = ~ googledrive::drive_download(file = .x, overwrite = T,
                                                 path = file.path("data", "pre_processed_data", .y)))
 
+#make the key - we need to just do this once.
+key<-begin_key(raw_folder = file.path("data", "pre-processed_data"))
+
+
 # Grab the data key
 key_drive <- googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Ty7QX7vyvD797eKJzMWbr8AwIo-GyBFO")) %>% 
   dplyr::filter(name == "resilience_data-key.csv")
