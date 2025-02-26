@@ -1,41 +1,44 @@
-###Pre-Processing for LTAR Data
+## ------------------------------------------------------ ##
+# Pre-Processing - LTAR
+## ------------------------------------------------------ ##
+# Author(s): Olivia Hajek, Nick J Lyon, ...
 
-##load libraries
-library(tidyverse)
-library(googledrive)
-library(stringr)
+# Purpose
+## 
+
+## -------------------------------------------- ## 
+# Housekeeping ----
+## -------------------------------------------- ## 
+
+# Load needed libraries
+librarian::shelf(tidyverse, ltertools, googledrive)
 
 # Make needed folder(s)
 dir.create(file.path("data"), showWarnings = F)
 dir.create(file.path("data", "raw"), showWarnings = F)
 dir.create(file.path("data", "pre_processed_data"), showWarnings = F)
 
-# Identify wanted files
-files_drive <- googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/1/folders/1zI1KYBlROyBZSgjSEYmVjsIfCmRPpUPq")) %>% 
-  dplyr::filter(stringr::str_detect(string = .$name, pattern = "\\.csv"))
+# Clear environment
+rm(list = ls()); gc()
 
-# Did that work?
-print(files_drive, n=40)
+## -------------------------------------------- ## 
+# Download Raw Data ----
+## -------------------------------------------- ## 
 
-# Identify local files
-files_local <- dir(path = file.path("data", "raw"))
-files_local
+# Identify raw files in Drive
+drive_raw <- googledrive::drive_ls(path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/1zI1KYBlROyBZSgjSEYmVjsIfCmRPpUPq"))
 
-# Overwrite local data files?
-update <- FALSE
+# Check that worked
+drive_raw
 
-# Identify desired files
-if(update == T) {
-  files_wanted <- files_drive 
-} else {
-  files_wanted <- files_drive %>%
-    dplyr::filter(!name %in% files_local)
-}
-
-# Download them!
-purrr::walk2(.x = files_wanted$id, .y = files_wanted$name,
+# Download them
+purrr::walk2(.x = drive_raw$id, .y = drive_raw$name,
              .f = ~ googledrive::drive_download(file = .x, overwrite = T,
                                                 path = file.path("data", "raw", .y)))
+
+## -------------------------------------------- ## 
+# Pre-Process "ABS_UF" ----
+## -------------------------------------------- ## 
 
 # ABS_UF
 # Add site and network name
@@ -46,6 +49,10 @@ abs$network <- "LTAR"
 write.csv(abs, "./data/pre_processed_data/ABS_UF_BIR_NIFA_ANPP_Betsey.csv", row.names=FALSE)
 
 rm(list = ls()); gc()
+
+## -------------------------------------------- ## 
+# Pre-Process "CAF" ----
+## -------------------------------------------- ## 
 
 # CAF
 # Add site and network name
@@ -60,6 +67,10 @@ caf2 <- caf %>%
 write.csv(caf, "./data/pre_processed_data/CAF_DET_20231218_MeasHarvestFraction.csv", row.names=FALSE)
 
 rm(list = ls()); gc()
+
+## -------------------------------------------- ## 
+# Pre-Process "CPER" ----
+## -------------------------------------------- ## 
 
 # CPER
 # Add site and network name
@@ -78,6 +89,10 @@ write.csv(cper2, "./data/pre_processed_data/CPER_LTNPP_MeasGrazingPlants.csv", r
 
 rm(list = ls()); gc()
 
+## -------------------------------------------- ## 
+# Pre-Process "ECB" ----
+## -------------------------------------------- ## 
+
 # ECB
 # Add site and network name
 ecb <- read.csv("./data/raw/ECB_MeasHarvestFractionv2.csv")
@@ -92,6 +107,10 @@ ecb$Treatment.ID <- ifelse(ecb$Treatment.ID =="ECB_B1BAU", "ECB_E1BAU", ecb$Trea
 write.csv(ecb, "./data/pre_processed_data/ECB_MeasHarvestFractionv2.csv", row.names=FALSE)
 
 rm(list = ls()); gc()
+
+## -------------------------------------------- ## 
+# Pre-Process "GB" ----
+## -------------------------------------------- ## 
 
 # GB
 # Add site and network name
@@ -113,6 +132,10 @@ write.csv(gb2, "./data/pre_processed_data/GB_MeasGrazingPlants_04242024.csv", ro
 
 rm(list = ls()); gc()
 
+## -------------------------------------------- ## 
+# Pre-Process "KBS" ----
+## -------------------------------------------- ## 
+
 # KBS
 # Add site and network name
 kbs <- read.csv("./data/raw/KBS_ANPP.csv")
@@ -126,7 +149,16 @@ write.csv(kbs, "./data/pre_processed_data/KBS_ANPP.csv", row.names=FALSE)
 
 rm(list = ls()); gc()
 
+## -------------------------------------------- ## 
+# Pre-Process "LCB" ----
+## -------------------------------------------- ## 
+
 # LCB - will add/do later
+
+## -------------------------------------------- ## 
+# Pre-Process "NH" ----
+## -------------------------------------------- ## 
+
 
 # NH
 # Add site and network name
@@ -137,6 +169,10 @@ write.csv(nh, "./data/pre_processed_data/UMRB_MeasHarvestFrac_v2.csv", row.names
 
 rm(list = ls()); gc()
 
+## -------------------------------------------- ## 
+# Pre-Process "NP_C" ----
+## -------------------------------------------- ## 
+
 # NP_C
 # Add site and network name
 np_c <- read.csv("./data/raw/NPMA_MeasHarvestFraction.csv")
@@ -146,6 +182,10 @@ write.csv(np_c, "./data/pre_processed_data/NPMA_MeasHarvestFraction.csv", row.na
 
 rm(list = ls()); gc()
 
+## -------------------------------------------- ## 
+# Pre-Process "NP_R" ----
+## -------------------------------------------- ## 
+
 # NP_R
 np_r <- read.csv("./data/raw/NP_InOut_MeasGrazingPlants.csv")
 np_r$site <- "NP_R_LTAR"
@@ -153,6 +193,11 @@ np_r$site <- "NP_R_LTAR"
 write.csv(np_r, "./data/pre_processed_data/NP_InOut_MeasGrazingPlants.csv", row.names=FALSE)
 
 rm(list = ls()); gc()
+
+
+## -------------------------------------------- ## 
+# Pre-Process "PRHPA_NEMERREN" ----
+## -------------------------------------------- ## 
 
 # PRHPA NEMERREN
 prhpa.nem <- read.csv("./data/raw/PRHPA_NEMERREM_MeasHarvestFraction.csv")
@@ -162,6 +207,11 @@ write.csv(prhpa.nem, "./data/pre_processed_data/PRHPA_NEMERREM_MeasHarvestFracti
 
 rm(list = ls()); gc()
 
+## -------------------------------------------- ## 
+# Pre-Process "PRHPA_NEMELTCRS" ----
+## -------------------------------------------- ## 
+
+
 # PRHPA NEMELTCRS
 prhpa.nemel <- read.csv("./data/raw/PRHPA_NEMELTCRS_MeasResidueMgnt.csv")
 prhpa.nemel$site <- "PRHPA_LTAR"
@@ -169,6 +219,10 @@ prhpa.nemel$site <- "PRHPA_LTAR"
 write.csv(prhpa.nemel, "./data/pre_processed_data/PRHPA_NEMELTCRS_MeasResidueMgnt.csv", row.names=FALSE)
 
 rm(list = ls()); gc()
+
+## -------------------------------------------- ## 
+# Pre-Process "SP" ----
+## -------------------------------------------- ## 
 
 # SP
 sp <- read.csv("./data/raw/SP_RotGraz_MeasGrazingPlants_OLH.csv")
@@ -178,6 +232,10 @@ write.csv(sp, "./data/pre_processed_data/SP_RotGraz_MeasGrazingPlants_OLH.csv", 
 
 rm(list = ls()); gc()
 
+## -------------------------------------------- ## 
+# Pre-Process "TG" ----
+## -------------------------------------------- ## 
+
 # TG
 tg <- read.csv("./data/raw/TG_GSWRL_LTBE_MeasHarvestFractionv2.csv")
 tg$site <- "TG_LTAR"
@@ -186,7 +244,15 @@ write.csv(tg, "./data/pre_processed_data/TG_GSWRL_LTBE_MeasHarvestFractionv2.csv
 
 rm(list = ls()); gc()
 
+## -------------------------------------------- ## 
+# Pre-Process "UCB" ----
+## -------------------------------------------- ## 
+
 # UCB - Not doing now
+
+## -------------------------------------------- ## 
+# Pre-Process "UMRB" ----
+## -------------------------------------------- ## 
 
 # UMRB
 umrb <- read.csv("./data/raw/UMRB_AMES_IAKFT_MeasHarvestFraction.csv")
@@ -196,15 +262,15 @@ write.csv(umrb, "./data/pre_processed_data/UMRB_AMES_IAKFT_MeasHarvestFraction.c
 
 rm(list = ls()); gc()
 
-# Move the pre_processed_data folder up to the drive
-files_upload <- dir(path = file.path("data", "pre_processed_data"))
-files_upload <- data.frame(files_upload)
+## -------------------------------------------- ## 
+# Upload Pre-Processed Data ----
+## -------------------------------------------- ## 
 
+# Identify local files
+( local_pp <- dir(path = file.path("data", "pre_processed_data")) )
 
-purrr::walk2(.x = file.path("data", "pre_processed_data", files_upload$files_upload),
-             .f = ~ googledrive::drive_upload(media = .x, overwrite = T,
-                                              path = googledrive::as_id("https://drive.google.com/drive/u/1/folders/1nPqsPO5oxzMoMCLF4USSrZc56ZbtZHND")))
-             
-googledrive::drive_upload(media = file.path("data", "pre_processed_data", files_upload$files_upload ), overwrite = T,
-                          path = googledrive::as_id("https://drive.google.com/drive/u/1/folders/1nPqsPO5oxzMoMCLF4USSrZc56ZbtZHND"))
+# Upload them
+purrr::walk(.x = local_pp,
+            .f = ~ googledrive::drive_upload(media = file.path("data", "pre_processed_data", .x), overwrite = T, path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Sw-CdVIsCNvnS3laPn1a90WHoZsEoMif")))
 
+# End ----
