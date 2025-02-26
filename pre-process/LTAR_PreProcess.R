@@ -55,7 +55,7 @@ caf$site <- "caf_ltar"
 # caf2 <- caf %>%
 #   filter(Plant.Fraction == "Aboveground biomass")
 
-write.csv(caf2, "./data/pre_processed_data/CAF_DET_20231218_MeasHarvestFraction.csv")
+write.csv(caf, "./data/pre_processed_data/CAF_DET_20231218_MeasHarvestFraction.csv")
 
 rm(list = ls()); gc()
 
@@ -109,7 +109,9 @@ rm(list = ls()); gc()
 kbs <- read.csv("./data/raw/KBS_ANPP.csv")
 kbs$site <- "kbs_ltar"
 
-##BIOMASS IS IN G/M2
+# BIOMASS IS IN G/M2
+# Update error in treatment name (KBS_T21 should be T2)
+kbs$Treatment.ID <- ifelse(kbs$Treatment.ID =="KBS_T21", "KBS_T2", kbs$Treatment.ID)
 
 write.csv(kbs, "./data/pre_processed_data/KBS_ANPP.csv")
 
@@ -184,4 +186,8 @@ umrb$site <- "umrb_ltar"
 write.csv(umrb, "./data/pre_processed_data/TG_GSWRL_LTBE_MeasHarvestFractionv2.csv")
 
 rm(list = ls()); gc()
+
+# Move the pre_processed_data folder up to the drive
+
+
 
