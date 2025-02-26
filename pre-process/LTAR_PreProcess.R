@@ -3,6 +3,7 @@
 ##load libraries
 library(tidyverse)
 library(googledrive)
+library(stringr)
 
 # Make needed folder(s)
 dir.create(file.path("data"), showWarnings = F)
@@ -50,33 +51,74 @@ rm(list = ls()); gc()
 caf <- read.csv("./data/raw/CAF_DET_20231218_MeasHarvestFraction.csv")
 caf$site <- "caf_ltar"
 
-write.csv(caf, "./data/pre_processed_data/CAF_DET_20231218_MeasHarvestFraction.csv")
+##Select only AGB
+# caf2 <- caf %>%
+#   filter(Plant.Fraction == "Aboveground biomass")
+
+write.csv(caf2, "./data/pre_processed_data/CAF_DET_20231218_MeasHarvestFraction.csv")
 
 rm(list = ls()); gc()
 
 # CPER
+# Add site and network name
 cper <- read.csv("./data/raw/CPER_LTNPP_MeasGrazingPlants.csv")
 cper$site <- "cper_ltar"
 
-write.csv(cper, "./data/pre_processed_data/CPER_LTNPP_MeasGrazingPlants.csv")
+# Filter out shrubs (SHRB) and sub-shrubs (SS)
+cper2 <- cper %>%
+  filter(!Functional.Groups %in% c("SS", "SHRB"))
+
+write.csv(cper2, "./data/pre_processed_data/CPER_LTNPP_MeasGrazingPlants.csv")
 
 rm(list = ls()); gc()
 
 # ECB
+# Add site and network name
+ecb <- read.csv("./data/raw/ECB_MeasHarvestFractionv2.csv")
+ecb$site <- "ecb_ltar"
 
+##Fix treatment names (ECB_B1bau - ECB_E1BAU)
+##Although, we won't use this treatment because it only has grain yield
+ecb$Treatment.ID <- ifelse(ecb$Treatment.ID =="ECB_B1BAU", "ECB_E1BAU", ecb$Treatment.ID)
+
+write.csv(ecb, "./data/pre_processed_data/ECB_MeasHarvestFractionv2.csv")
+
+rm(list = ls()); gc()
 
 # GB
+# Add site and network name
+gb <- read.csv("./data/raw/GB_MeasGrazingPlants_04242024.csv")
+
+# Update treatment ID
+gb$Treatment.ID <- substring(gb$Unit.ID,1,6)
+
+# Make site name the treatment ID name too 
+# Site/treatment is between thses different vegetation types
+gb$site <- gb$Treatment.ID
+
+# Remove litter from the calculation file
+gb2 <- gb %>%
+  filter(Functional.Groups!="litter")
+
+write.csv(gb2, "./data/pre_processed_data/GB_MeasGrazingPlants_04242024.csv")
+
+rm(list = ls()); gc()
+
 # KBS
+# Add site and network name
 kbs <- read.csv("./data/raw/KBS_ANPP.csv")
 kbs$site <- "kbs_ltar"
+
+##BIOMASS IS IN G/M2
 
 write.csv(kbs, "./data/pre_processed_data/KBS_ANPP.csv")
 
 rm(list = ls()); gc()
 
-# LCB
+# LCB - will add/do later
 
 # NH
+# Add site and network name
 nh <- read.csv("./data/raw/UMRB_MeasHarvestFrac_v2.csv")
 nh$site <- "nh_ltar"
 
@@ -85,10 +127,11 @@ write.csv(nh, "./data/pre_processed_data/UMRB_MeasHarvestFrac_v2.csv")
 rm(list = ls()); gc()
 
 # NP_C
-caf <- read.csv("./data/raw/NPMA_MeasHarvestFraction.csv")
-caf$site <- "caf_ltar"
+# Add site and network name
+np_c <- read.csv("./data/raw/NPMA_MeasHarvestFraction.csv")
+np_c$site <- "np_c_ltar"
 
-write.csv(abs, "./data/pre_processed_data/NPMA_MeasHarvestFraction.csv")
+write.csv(np_c, "./data/pre_processed_data/NPMA_MeasHarvestFraction.csv")
 
 rm(list = ls()); gc()
 
