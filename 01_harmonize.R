@@ -16,7 +16,7 @@ librarian::shelf(tidyverse, lter/ltertools, googledrive, supportR)
 
 # Make needed folder(s)
 dir.create(file.path("data"), showWarnings = F)
-dir.create(file.path("data", "raw"), showWarnings = F)
+dir.create(file.path("data", "pre_processed_data"), showWarnings = F)
 dir.create(file.path("data", "tidy"), showWarnings = F)
 
 # Clear environment + collect garbage
@@ -39,7 +39,7 @@ files_drive <- googledrive::drive_ls(googledrive::as_id("https://drive.google.co
 files_drive
 
 # Identify local files
-files_local <- dir(path = file.path("data", "raw"))
+files_local <- dir(path = file.path("data", "pre_processed_data"))
 files_local
 
 # Overwrite local data files?
@@ -56,7 +56,7 @@ if(update == T) {
 # Download them!
 purrr::walk2(.x = files_wanted$id, .y = files_wanted$name,
              .f = ~ googledrive::drive_download(file = .x, overwrite = T,
-                                                path = file.path("data", "raw", .y)))
+                                                path = file.path("data", "pre_processed_data", .y)))
 
 # Grab the data key
 key_drive <- googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Ty7QX7vyvD797eKJzMWbr8AwIo-GyBFO")) %>% 
@@ -80,28 +80,11 @@ key <- read.csv(file = file.path("data", "resilience_data-key.csv"))
 dplyr::glimpse(key)
 
 # Perform harmonization
-combo_v1 <- ltertools::harmonize(key = key, raw_folder = file.path("data", "raw"),
+combo_v1 <- ltertools::harmonize(key = key, raw_folder = file.path("data", "pre_processed_data"),
                                  data_format = "csv", quiet = F)
 
 # Check that structure out
 dplyr::glimpse(combo_v1)
-
-## ------------------------------------------- ##
-# Re-Order Columns ----
-## ------------------------------------------- ##
-
-# Want columns to be ordered more intuitively
-combo_v2 <- combo_v1 %>% 
-  # Site information towards the left
-  dplyr::relocate(lter, site, block, plot, quadrat, .after = year) %>% 
-  # ANPP/NPP to the far right
-  dplyr::relocate(dplyr::contains("npp_"), .after = dplyr::everything())
-
-# Make sure no columns are unexpectedly lost/gained
-supportR::diff_check(old = names(combo_v1), new = names(combo_v2))
-
-# Check structure 
-dplyr::glimpse(combo_v2)
 
 ## ------------------------------------------- ##
 # Export ----
