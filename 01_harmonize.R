@@ -60,7 +60,7 @@ purrr::walk2(.x = files_wanted$id, .y = files_wanted$name,
 
 # Grab the data key
 key_drive <- googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Ty7QX7vyvD797eKJzMWbr8AwIo-GyBFO")) %>% 
-  dplyr::filter(name == "resilience_data-key")
+  dplyr::filter(name == "resilience_data-key.csv")
 
 # Did that work?
 key_drive
