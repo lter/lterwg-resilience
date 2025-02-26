@@ -104,5 +104,5 @@ cap_anpp <- cap_anpp%>%dplyr::select(site_ID, cap_location, Year, AnnBiomass, ne
 write.csv(cap_anpp, "G:/Shared drives/LTER-WG_Resilience-Management/data/pre_processed_data/cap_anpp_nceas.csv")
 
 
-
+rm(list = ls()); gc()
 
