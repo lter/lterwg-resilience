@@ -40,13 +40,9 @@ purrr::walk2(.x = drive_raw$id, .y = drive_raw$name,
 # Pre-Process "ABS_UF" ----
 ## -------------------------------------------- ## 
 
-# ABS_UF
-# Add site and network name
-abs <- read.csv("./data/raw/ABS_UF_BIR_NIFA_ANPP_Betsey.csv")
-abs$site_ID <- "ABS_UF"
-abs$network <- "LTAR"
+# ABS_UF - looks good
 
-write.csv(abs, "./data/pre_processed_data/ABS_UF_BIR_NIFA_ANPP_Betsey.csv", row.names=FALSE)
+"ABS_UF_BIR_NIFA_ANPP_Betsey.csv"
 
 rm(list = ls()); gc()
 
