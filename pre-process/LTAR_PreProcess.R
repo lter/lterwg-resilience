@@ -94,16 +94,52 @@ write.csv(abs, "")
 rm(list = ls()); gc()
 
 # NP_R
-caf <- read.csv("./data/raw/CAF_DET_20231218_MeasHarvestFraction.csv")
-caf$site <- "caf_ltar"
+np_r <- read.csv("./data/raw/NP_InOut_MeasGrazingPlants.csv")
+np_r$site <- "np_r_ltar"
 
-write.csv(abs, "")
+write.csv(np_r, "")
 
 rm(list = ls()); gc()
 
 # PRHPA NEMERREN
+prhpa.nem <- read.csv("./data/raw/PRHPA_NEMERREM_MeasHarvestFraction.csv")
+prhpa.nem$site <- "prhpa_ltar"
+
+write.csv(prhpa.nem, "")
+
+rm(list = ls()); gc()
+
 # PRHPA NEMELTCRS
+prhpa.nemel <- read.csv("./data/raw/PRHPA_NEMELTCRS_MeasResidueMgnt.csv")
+prhpa.nemel$site <- "prhpa_ltar"
+
+write.csv(prhpa.nemel, "")
+
+rm(list = ls()); gc()
+
 # SP
+sp <- read.csv("./data/raw/SP_RotGraz_MeasGrazingPlants_OLH.csv")
+sp$site <- "sp_ltar"
+
+write.csv(sp, "")
+
+rm(list = ls()); gc()
+
 # TG
+tg <- read.csv("./data/raw/TG_GSWRL_LTBE_MeasHarvestFractionv2.csv")
+tg$site <- "tg_ltar"
+
+write.csv(tg, "")
+
+rm(list = ls()); gc()
+
 # UCB - Not doing now
+
 # UMRB
+umrb <- read.csv("./data/raw/TG_GSWRL_LTBE_MeasHarvestFractionv2.csv")
+umrb$site <- "umrb_ltar"
+
+write.csv(umrb, "")
+
+rm(list = ls()); gc()
+
