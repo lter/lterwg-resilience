@@ -4,6 +4,11 @@
 library(tidyverse)
 library(googledrive)
 
+# Make needed folder(s)
+dir.create(file.path("data"), showWarnings = F)
+dir.create(file.path("data", "raw"), showWarnings = F)
+dir.create(file.path("data", "pre_processed_data"), showWarnings = F)
+
 # Identify wanted files
 files_drive <- googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/1/folders/1zI1KYBlROyBZSgjSEYmVjsIfCmRPpUPq")) %>% 
   dplyr::filter(stringr::str_detect(string = .$name, pattern = "\\.csv"))
@@ -36,7 +41,7 @@ purrr::walk2(.x = files_wanted$id, .y = files_wanted$name,
 abs <- read.csv("./data/raw/ABS_UF_BIR_NIFA_ANPP_Betsey.csv")
 abs$site <- "abs_ltar"
 
-write.csv(abs, "")
+write.csv(abs, "./data/pre_processed_data/ABS_UF_BIR_NIFA_ANPP_Betsey.csv")
 
 rm(list = ls()); gc()
 
@@ -45,7 +50,7 @@ rm(list = ls()); gc()
 caf <- read.csv("./data/raw/CAF_DET_20231218_MeasHarvestFraction.csv")
 caf$site <- "caf_ltar"
 
-write.csv(caf, "")
+write.csv(caf, "./data/pre_processed_data/CAF_DET_20231218_MeasHarvestFraction.csv")
 
 rm(list = ls()); gc()
 
@@ -53,7 +58,7 @@ rm(list = ls()); gc()
 cper <- read.csv("./data/raw/CPER_LTNPP_MeasGrazingPlants.csv")
 cper$site <- "cper_ltar"
 
-write.csv(cper, "")
+write.csv(cper, "./data/pre_processed_data/CPER_LTNPP_MeasGrazingPlants.csv")
 
 rm(list = ls()); gc()
 
@@ -65,31 +70,25 @@ rm(list = ls()); gc()
 kbs <- read.csv("./data/raw/KBS_ANPP.csv")
 kbs$site <- "kbs_ltar"
 
-write.csv(kbs, "")
+write.csv(kbs, "./data/pre_processed_data/KBS_ANPP.csv")
 
 rm(list = ls()); gc()
 
 # LCB
-lcb <- read.csv("./data/raw/CAF_DET_20231218_MeasHarvestFraction.csv")
-lcb$site <- "lcb_ltar"
-
-write.csv(lcb, "")
-
-rm(list = ls()); gc()
 
 # NH
 nh <- read.csv("./data/raw/UMRB_MeasHarvestFrac_v2.csv")
 nh$site <- "nh_ltar"
 
-write.csv(nh, "")
+write.csv(nh, "./data/pre_processed_data/UMRB_MeasHarvestFrac_v2.csv")
 
 rm(list = ls()); gc()
 
 # NP_C
-caf <- read.csv("./data/raw/CAF_DET_20231218_MeasHarvestFraction.csv")
+caf <- read.csv("./data/raw/NPMA_MeasHarvestFraction.csv")
 caf$site <- "caf_ltar"
 
-write.csv(abs, "")
+write.csv(abs, "./data/pre_processed_data/NPMA_MeasHarvestFraction.csv")
 
 rm(list = ls()); gc()
 
@@ -97,7 +96,7 @@ rm(list = ls()); gc()
 np_r <- read.csv("./data/raw/NP_InOut_MeasGrazingPlants.csv")
 np_r$site <- "np_r_ltar"
 
-write.csv(np_r, "")
+write.csv(np_r, "./data/pre_processed_data/NP_InOut_MeasGrazingPlants.csv")
 
 rm(list = ls()); gc()
 
@@ -105,7 +104,7 @@ rm(list = ls()); gc()
 prhpa.nem <- read.csv("./data/raw/PRHPA_NEMERREM_MeasHarvestFraction.csv")
 prhpa.nem$site <- "prhpa_ltar"
 
-write.csv(prhpa.nem, "")
+write.csv(prhpa.nem, "./data/pre_processed_data/PRHPA_NEMERREM_MeasHarvestFraction.csv")
 
 rm(list = ls()); gc()
 
@@ -113,7 +112,7 @@ rm(list = ls()); gc()
 prhpa.nemel <- read.csv("./data/raw/PRHPA_NEMELTCRS_MeasResidueMgnt.csv")
 prhpa.nemel$site <- "prhpa_ltar"
 
-write.csv(prhpa.nemel, "")
+write.csv(prhpa.nemel, "./data/pre_processed_data/PRHPA_NEMELTCRS_MeasResidueMgnt.csv")
 
 rm(list = ls()); gc()
 
@@ -121,7 +120,7 @@ rm(list = ls()); gc()
 sp <- read.csv("./data/raw/SP_RotGraz_MeasGrazingPlants_OLH.csv")
 sp$site <- "sp_ltar"
 
-write.csv(sp, "")
+write.csv(sp, "./data/pre_processed_data/SP_RotGraz_MeasGrazingPlants_OLH.csv")
 
 rm(list = ls()); gc()
 
@@ -129,7 +128,7 @@ rm(list = ls()); gc()
 tg <- read.csv("./data/raw/TG_GSWRL_LTBE_MeasHarvestFractionv2.csv")
 tg$site <- "tg_ltar"
 
-write.csv(tg, "")
+write.csv(tg, "./data/pre_processed_data/TG_GSWRL_LTBE_MeasHarvestFractionv2.csv")
 
 rm(list = ls()); gc()
 
@@ -139,7 +138,7 @@ rm(list = ls()); gc()
 umrb <- read.csv("./data/raw/TG_GSWRL_LTBE_MeasHarvestFractionv2.csv")
 umrb$site <- "umrb_ltar"
 
-write.csv(umrb, "")
+write.csv(umrb, "./data/pre_processed_data/TG_GSWRL_LTBE_MeasHarvestFractionv2.csv")
 
 rm(list = ls()); gc()
 
