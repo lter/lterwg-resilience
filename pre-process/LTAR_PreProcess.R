@@ -180,10 +180,10 @@ rm(list = ls()); gc()
 # UCB - Not doing now
 
 # UMRB
-umrb <- read.csv("./data/raw/TG_GSWRL_LTBE_MeasHarvestFractionv2.csv")
+umrb <- read.csv("./data/raw/UMRB_AMES_IAKFT_MeasHarvestFraction.csv")
 umrb$site <- "umrb_ltar"
 
-write.csv(umrb, "./data/pre_processed_data/TG_GSWRL_LTBE_MeasHarvestFractionv2.csv")
+write.csv(umrb, "./data/pre_processed_data/UMRB_AMES_IAKFT_MeasHarvestFraction.csv")
 
 rm(list = ls()); gc()
 
