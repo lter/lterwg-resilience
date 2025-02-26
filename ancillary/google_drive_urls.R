@@ -9,3 +9,5 @@ dir.raw_data = "https://drive.google.com/drive/folders/1zI1KYBlROyBZSgjSEYmVjsIf
 
 ## data/pre_processed_data
 dir.pre_processed_data <- "https://drive.google.com/drive/folders/1Sw-CdVIsCNvnS3laPn1a90WHoZsEoMif"
+
+dir.exploratory_graphs <- "https://drive.google.com/drive/folders/1hVUbtCS0n28ftvqTl3j1vSlGyyr21Pqr"
