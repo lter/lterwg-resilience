@@ -40,7 +40,8 @@ purrr::walk2(.x = files_wanted$id, .y = files_wanted$name,
 # ABS_UF
 # Add site and network name
 abs <- read.csv("./data/raw/ABS_UF_BIR_NIFA_ANPP_Betsey.csv")
-abs$site <- "ABS_UF_LTAR"
+abs$site_ID <- "ABS_UF"
+abs$network <- "LTAR"
 
 write.csv(abs, "./data/pre_processed_data/ABS_UF_BIR_NIFA_ANPP_Betsey.csv", row.names=FALSE)
 
@@ -49,11 +50,12 @@ rm(list = ls()); gc()
 # CAF
 # Add site and network name
 caf <- read.csv("./data/raw/CAF_DET_20231218_MeasHarvestFraction.csv")
-caf$site <- "CAF_LTAR"
+caf$site_ID <- "CAF"
+caf$network <- "LTAR"
 
 ##Select only AGB
-# caf2 <- caf %>%
-#   filter(Plant.Fraction == "Aboveground biomass")
+caf2 <- caf %>%
+  filter(Plant.Fraction == "Aboveground biomass")
 
 write.csv(caf, "./data/pre_processed_data/CAF_DET_20231218_MeasHarvestFraction.csv", row.names=FALSE)
 
@@ -62,11 +64,15 @@ rm(list = ls()); gc()
 # CPER
 # Add site and network name
 cper <- read.csv("./data/raw/CPER_LTNPP_MeasGrazingPlants.csv")
-cper$site <- "CPER_LTAR"
+cper$site_ID <- "CPER"
+cper$network <- "LTAR"
 
 # Filter out shrubs (SHRB) and sub-shrubs (SS)
 cper2 <- cper %>%
   filter(!Functional.Groups %in% c("SS", "SHRB"))
+
+# Summing by functional groups
+cper
 
 write.csv(cper2, "./data/pre_processed_data/CPER_LTNPP_MeasGrazingPlants.csv", row.names=FALSE)
 
@@ -76,7 +82,9 @@ rm(list = ls()); gc()
 # Add site and network name
 ecb <- read.csv("./data/raw/ECB_MeasHarvestFractionv2.csv")
 
-ecb$site <- paste(ecb$Unit.ID, "LTAR", sep="_")
+ecb$site_ID <- ecb$Unit.ID
+ecb$network <- "LTAR"
+
 ##Fix treatment names (ECB_B1bau - ECB_E1BAU)
 ##Although, we won't use this treatment because it only has grain yield
 ecb$Treatment.ID <- ifelse(ecb$Treatment.ID =="ECB_B1BAU", "ECB_E1BAU", ecb$Treatment.ID)
@@ -94,7 +102,8 @@ gb$Treatment.ID <- substring(gb$Unit.ID,1,6)
 
 # Make site name the treatment ID name too 
 # Site/treatment is between thses different vegetation types
-gb$site <- gb$Treatment.ID
+gb$site_ID <- gb$Treatment.ID
+gb$network <- "LTAR"
 
 # Remove litter from the calculation file
 gb2 <- gb %>%
@@ -191,6 +200,11 @@ rm(list = ls()); gc()
 files_upload <- dir(path = file.path("data", "pre_processed_data"))
 files_upload <- data.frame(files_upload)
 
-purrr::walk2(.x = file.path("data", "pre_processed_data", files_upload$files_upload), .y = files_upload$files_upload,
-             .f = ~ googledrive::drive_upload(file = .x, overwrite = T,
-                                                path = file.path("data", "olh_test", .y)))
+
+purrr::walk2(.x = file.path("data", "pre_processed_data", files_upload$files_upload),
+             .f = ~ googledrive::drive_upload(media = .x, overwrite = T,
+                                              path = googledrive::as_id("https://drive.google.com/drive/u/1/folders/1nPqsPO5oxzMoMCLF4USSrZc56ZbtZHND")))
+             
+googledrive::drive_upload(media = file.path("data", "pre_processed_data", files_upload$files_upload ), overwrite = T,
+                          path = googledrive::as_id("https://drive.google.com/drive/u/1/folders/1nPqsPO5oxzMoMCLF4USSrZc56ZbtZHND"))
+
