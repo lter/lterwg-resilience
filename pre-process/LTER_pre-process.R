@@ -16,7 +16,7 @@ sev_anpp <- read.csv("G:/Shared drives/LTER-WG_Resilience-Management/data/raw_da
 sev_anpp$site_ID <- "sev"
 sev_anpp$network <- "lter"
 
-write.csv(sev_anpp, "G:/Shared drives/LTER-WG_Resilience-Management/data/raw_data_to_use/sev_anpp_nceas.csv")
+write.csv(sev_anpp, "G:/Shared drives/LTER-WG_Resilience-Management/data/pre_processed_data/sev_anpp_nceas.csv")
 
 rm(list = ls()); gc()
 
@@ -33,7 +33,7 @@ jornada_anpp$location <- jornada_anpp$site
 jornada_anpp$site_D <- "jrn"
 jornada_anpp$network <- "LTAR and LTER"
 
-write.csv(jornada_anpp, "G:/Shared drives/LTER-WG_Resilience-Management/data/raw_data_to_use/jrn_anpp_nceas.csv")
+write.csv(jornada_anpp, "G:/Shared drives/LTER-WG_Resilience-Management/data/pre_processed_data/jrn_anpp_nceas.csv")
 
 rm(list = ls()); gc()
 
@@ -56,7 +56,7 @@ konza_anpp <- konza_anpp%>%
 konza_anpp$site_ID <- "knz"
 konza_anpp$network <- "LTER"
 
-write.csv(konza_anpp, "G:/Shared drives/LTER-WG_Resilience-Management/data/raw_data_to_use/knz_anpp_nceas.csv")
+write.csv(konza_anpp, "G:/Shared drives/LTER-WG_Resilience-Management/data/pre_processed_data/knz_anpp_nceas.csv")
 
 rm(list = ls()); gc()
 
@@ -69,7 +69,7 @@ niwot_anpp <- read.csv("G:/Shared drives/LTER-WG_Resilience-Management/data/raw_
 niwot_anpp$network <- "LTER"
 niwot_anpp$site_ID <- "nwt"
 
-write.csv(niwot_anpp, "G:/Shared drives/LTER-WG_Resilience-Management/data/raw_data_to_use/nwt_anpp_nceas.csv")
+write.csv(niwot_anpp, "G:/Shared drives/LTER-WG_Resilience-Management/data/pre_processed_data/nwt_anpp_nceas.csv")
 #pick vegclass FF=fellfield, DM=dry meadow, MM=moist meadow, ST=shrub tundra, SB=snowbed, WM=wet meadow, SF=snowfence. 
 
 rm(list = ls()); gc()
@@ -85,9 +85,9 @@ cdr_anpp$burn_trt <- ifelse(cdr_anpp$Field == "C", "burn","control")
 cdr_anpp$site_ID <- "cdr"
 cdr_anpp$network <- "LTER"
 
-write.csv(cdr_anpp, "G:/Shared drives/LTER-WG_Resilience-Management/data/raw_data_to_use/cdr_anpp_nceas.csv")
+write.csv(cdr_anpp, "G:/Shared drives/LTER-WG_Resilience-Management/data/pre_processed_data/cdr_anpp_nceas.csv")
 
-rm(list = ls()); gc()kg
+rm(list = ls()); gc()
 
 
 ##CAP lter
@@ -99,9 +99,9 @@ cap_anpp$cap_location <- cap_anpp$Site
 cap_anpp$site_ID <- "cap"
 cap_anpp$network <- "LTER"
 
-cap_anpp <- cap_anpp%>%dplyr::select(site, cap_location, Year, AnnBiomass)
+cap_anpp <- cap_anpp%>%dplyr::select(site_ID, cap_location, Year, AnnBiomass, network)
 
-write.csv(cdr_anpp, "G:/Shared drives/LTER-WG_Resilience-Management/data/raw_data_to_use/cap_anpp_nceas.csv")
+write.csv(cap_anpp, "G:/Shared drives/LTER-WG_Resilience-Management/data/pre_processed_data/cap_anpp_nceas.csv")
 
 
 
