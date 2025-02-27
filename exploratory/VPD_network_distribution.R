@@ -62,13 +62,14 @@ vpd.p2
 vpd.plots <- ggarrange(vpd.p1, vpd.p2)
 vpd.plots
 
-#create necessary folders:
+#create necessary folder:
 dir.create(file.path("data", "exploratory_graphs"), showWarnings = F)
 
-
+#save figure locally
 ggsave(filename = file.path("data", "exploratory_graphs", "vpd_network_histogram_dotplot_BAA.png"),
                             plot = vpd.plots, width = 12, height = 6, units = "in", dpi = 300)
 
+#upload figure to google drive
 googledrive::drive_upload(media = file.path("data", "exploratory_graphs", "vpd_network_histogram_dotplot_BAA.png"), overwrite = T,
                           path = googledrive::as_id(dir.exploratory_graphs))
 
