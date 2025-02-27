@@ -129,6 +129,7 @@ ppt <- read.csv(file = file.path("data", "environment", "precip_annual-summary.c
 
 ##Make sure all site IDs are capitalized
 combo_v2$site <- ifelse(combo_v2$network=="LTER", toupper(combo_v2$site), combo_v2$site)
+combo_v2$network <-ifelse(combo_v2$network=="lter", "LTER", combo_v2$network)
 
 ## Join
 combo_ppt <- left_join(combo_v2, ppt, by=c("network", "site","year"))
