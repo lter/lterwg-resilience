@@ -378,6 +378,8 @@ npc_pp <- npc_raw %>%
                 .before = dplyr::everything()) %>% 
   # Remove missing plant fractions / biomass
   dplyr::filter(nchar(Plant.Fraction) != 0 & !is.na(Frac.Dry.Matt.kg.ha)) %>%
+  # Get rid of growth stage
+  dplyr::select(-c("Growth.Stage"))%>%
   # Pivot wider
   tidyr::pivot_wider(names_from = Plant.Fraction,
                      values_from = Frac.Dry.Matt.kg.ha) %>% 
