@@ -92,7 +92,7 @@ sites <- read.csv(file = file.path("data", "site_summary_info.csv"), header = TR
 #   )
 
 # Open the ncdf file containing the global SPEI data
-ncfile <- nc_open(file.path("data","pre_processed_data", nc_filename))
+ncfile <- nc_open(file.path("data","spei_data", nc_filename))
 
 # Extract the main variables
 spei_var <- ncvar_get(ncfile, "spei")  # shape typically [lon, lat, time]
@@ -150,11 +150,11 @@ for(i in seq_len(n_sites)) {
 
 
 # Export final dataset
-write.csv(final_df,file=file.path("data","pre_processed_data", output_name),row.names = F)
+write.csv(final_df,file=file.path("data","spei_data", output_name),row.names = F)
 
 
 # Upload them to the drive
 purrr::walk(.x = output_name,
-            .f = ~ googledrive::drive_upload(media = file.path("data", "pre_processed_data", .x), overwrite = T, path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Sw-CdVIsCNvnS3laPn1a90WHoZsEoMif")))
+            .f = ~ googledrive::drive_upload(media = file.path("data", "spei_data", .x), overwrite = T, path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Sw-CdVIsCNvnS3laPn1a90WHoZsEoMif")))
 
 
