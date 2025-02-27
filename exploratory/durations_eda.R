@@ -6,6 +6,8 @@ library(tidyverse)
 
 `%notin%` <- Negate(`%in%`)
 
+colz <- c("wet"= "blue", "dry" = "red", "neither" = "grey90")
+
 #set up site and duration datasets
 ltar_sites <- read_excel("G:/Shared drives/LTER-WG_Resilience-Management/data/Treatment_overview_LTAR.xlsx")%>%
   dplyr::rename( site_ID = site)%>%
@@ -62,10 +64,14 @@ precip_dur <- precipdf%>%
 
 ##Plot extremes with sites filted to data period
 
-ggplot() + geom_point(precip_dur,mapping = aes(x = year, y = site_ID, color = precip_extreme ))+
+sampled_extremes <- ggplot() +
+  geom_point(precip_dur,mapping = aes(x = year, y = site_ID, color = precip_extreme ))+
   scale_color_manual(values = colz)  +
-  geom_hline(yintercept = c(21.5,7.5)) +
-  theme(panel.background = element_rect(fill = "white"))
+  geom_hline(yintercept = c(35.5, 21.5,7.5)) +
+  theme_bw()
+
+ggsave(sampled_extremes, filename = "G:/Shared drives/LTER-WG_Resilience-Management/exploratory_graphs/sampled_precip_extremes_022725.jpeg")
+
 
 
 ##checks for missing data 
@@ -98,7 +104,9 @@ precip_summary_df <- precip_dur%>%
             n_drywet  = sum(precip_extreme == 'wet' & prev_extreme == 'dry', na.rm = T),
             n_wetdry = sum(precip_extreme == 'dry' & prev_extreme == 'wet', na.rm = T))
 
-write.csv(precip_)
+#write.csv(precip_summary_df, 'G:/Shared drives/LTER-WG_Resilience-Management/data/precip_extremes_site_summary.csv')
+
+
 sum(precip_summary_df$n_extreme_dry)  
 sum(precip_summary_df$n_extreme_wet) 
 sum(precip_summary_df$n_double_dry)  
