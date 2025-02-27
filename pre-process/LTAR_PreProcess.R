@@ -614,7 +614,7 @@ ames_pp <- ames_raw %>%
   # Drop columns that are entirely NA
   dplyr::select(-dplyr::where(fn = ~ all(is.na(.) | nchar(.) == 0))) %>% 
   # Add desired column(s)
-  dplyr::mutate(network = "LTAR", site_ID = "UMRB_AMES",
+  dplyr::mutate(network = "LTAR", site_ID = "UMRB",
                 .before = dplyr::everything()) %>% 
   # Drop unwanted column(s)
   dplyr::select(-Frac.C.kgC.ha, -Frac.N.kgN.ha) %>% 
