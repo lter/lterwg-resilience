@@ -148,18 +148,15 @@ ppt_check <- tidy_v6 %>%
   group_by(site, treatment) %>%
   count()
 
-# Fix network capitilz
-
-
 # Check structure
-dplyr::glimpse(tidy_v7)
+dplyr::glimpse(tidy_v6)
 
 ## ------------------------------------------- ##
 # Export ----
 ## ------------------------------------------- ##
 
 # Final pre-export tweaks
-tidy_v99 <- tidy_v7
+tidy_v99 <- tidy_v6
 
 # Check structure
 dplyr::glimpse(tidy_v99)
