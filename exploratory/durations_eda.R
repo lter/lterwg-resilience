@@ -46,9 +46,11 @@ ggplot(all_site_duration)+
   geom_segment( aes(y = site_ID, x = start_yr, xend = end_yr))
 
 #plot length histogram 
-ggplot(all_site_duration)+
+site_lengths_hist <- ggplot(all_site_duration)+
   geom_histogram(aes(x = length), binwidth = 5)+
   facet_wrap(~network)
+ggsave(site_lengths_hist, filename = "G:/Shared drives/LTER-WG_Resilience-Management/exploratory_graphs/site_lengths_hist_022725.jpeg", width = 7, height = 2.5)
+
 
 ####bring in precip data ####
 # merge precip with  site duration
@@ -70,7 +72,7 @@ sampled_extremes <- ggplot() +
   geom_hline(yintercept = c(35.5, 21.5,7.5)) +
   theme_bw()
 
-ggsave(sampled_extremes, filename = "G:/Shared drives/LTER-WG_Resilience-Management/exploratory_graphs/sampled_precip_extremes_022725.jpeg")
+#ggsave(sampled_extremes, filename = "G:/Shared drives/LTER-WG_Resilience-Management/exploratory_graphs/sampled_precip_extremes_022725.jpeg", width = 5.5, height = 7)
 
 
 
