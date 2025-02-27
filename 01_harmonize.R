@@ -91,55 +91,11 @@ combo_v1 <- ltertools::harmonize(key = key, raw_folder = file.path("data", "pre_
 dplyr::glimpse(combo_v1)
 
 ## ------------------------------------------- ##
-# QUICK QC ---- DATES AND ANPP UNITS
-## ------------------------------------------- ##
-combo_v2 <- combo_v1 %>%
-  # ANPP - convert KG/ha to g/m2
-  dplyr::mutate(anpp_g_m2 = ifelse(is.na(anpp_g_m2), anpp_kg_ha/10, anpp_g_m2))%>%
-  # fix dates and extract year
-  dplyr::mutate(date = lubridate::as_date(date, format="%m/%d/%Y"), 
-                date_m.d.yyy = lubridate::as_date(date_m.d.yyyy, format= "%m-%d-%Y"), 
-                date_m.d.yyy2 = lubridate::as_date(date_m.d.yyyy, format= "%Y-%m-%d")) %>%
-  #make a single date column 
-  dplyr::mutate(dates =coalesce(date, date_m.d.yyy, date_m.d.yyy2))%>%
-  # add year
-  dplyr::mutate(year = ifelse(is.na(year), lubridate::year(dates), year))
-
-## ------------------------------------------- ##
-#  MERGE ANNUAL PRECIPITATION WITH ANPP DATA
-## ------------------------------------------- ##
-
-## --------------------------------------- ##
-# Download Precip Data ----
-## --------------------------------------- ##
-
-# Identify files from Drive
-drive_precip <- googledrive::drive_ls(path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/16KZhR5CGu7YDze72Y2-LaNEdGNC39Kcf"))
-
-# Look good?
-drive_precip
-
-# Download locally
-purrr::walk2(.x = drive_precip$id, .y = drive_precip$name,
-             .f = ~ googledrive::drive_download(file = .x, overwrite = T,
-                                                path = file.path("data", "environment", .y)))
-
-### Read in precipitation data
-ppt <- read.csv(file = file.path("data", "environment", "precip_annual-summary.csv"))
-
-##Make sure all site IDs are capitalized
-combo_v2$site <- ifelse(combo_v2$network=="LTER", toupper(combo_v2$site), combo_v2$site)
-combo_v2$network <-ifelse(combo_v2$network=="lter", "LTER", combo_v2$network)
-
-## Join
-combo_ppt <- left_join(combo_v2, ppt, by=c("network", "site","year"))
-
-## ------------------------------------------- ##
 # Export ----
 ## ------------------------------------------- ##
 
 # Final pre-export tweaks
-combo_v99 <- combo_ppt
+combo_v99 <- combo_v1
 
 # Check structure
 dplyr::glimpse(combo_v99)
