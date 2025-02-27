@@ -91,11 +91,27 @@ combo_v1 <- ltertools::harmonize(key = key, raw_folder = file.path("data", "pre_
 dplyr::glimpse(combo_v1)
 
 ## ------------------------------------------- ##
+# QUICK QC ---- DATES AND ANPP UNITS
+## ------------------------------------------- ##
+combo_v2 <- combo_v1 %>%
+  # ANPP - convert KG/ha to g/m2
+  dplyr::mutate(anpp_g_m2 = ifelse(is.na(anpp_g_m2), anpp_kg_ha/10, anpp_g_m2))%>%
+  # fix dates and extract year
+  dplyr::mutate(date = lubridate::as_date(date, format="%m/%d/%Y"), 
+                date_m.d.yyy = lubridate::as_date(date_m.d.yyyy, format= "%m-%d-%Y"), 
+                date_m.d.yyy2 = lubridate::as_date(date_m.d.yyyy, format= "%Y-%m-%d")) %>%
+  #make a single date column 
+  dplyr::mutate(dates =coalesce(date, date_m.d.yyy, date_m.d.yyy2))%>%
+  # add year
+  dplyr::mutate(year = ifelse(is.na(year), lubridate::year(dates), year))
+
+
+## ------------------------------------------- ##
 # Export ----
 ## ------------------------------------------- ##
 
 # Final pre-export tweaks
-combo_v99 <- combo_v1
+combo_v99 <- combo_v2
 
 # Check structure
 dplyr::glimpse(combo_v99)
