@@ -19,6 +19,9 @@ library(tidyverse)
 # read in list of sites and coordinates 
 sites <- read.csv("/Users/ingridslette/Library/CloudStorage/GoogleDrive-slett152@umn.edu/Shared drives/LTER-WG_Resilience-Management/data/raw_data/ltar_lter_site_coordinates.csv")
 
+
+unique(sites$site_id)
+
 # make that a SpatVector
 site <- sites %>% vect(geom = c("longitude", "latitude"), crs = "EPSG:4326")
 
