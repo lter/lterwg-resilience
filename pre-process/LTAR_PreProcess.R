@@ -223,7 +223,7 @@ gb_pp <- gb_raw %>%
   # Drop unwanted functional groups
   dplyr::filter(Functional.Groups != "litter") %>% 
   # Sum through unit IDs
-  dplyr::group_by(dplyr::across(dplyr::all_of(setdiff(x = names(.), y = c("Functional.Groups", "AboveGr.Bio.kg.ha..dry."))))) %>% 
+  dplyr::group_by(dplyr::across(dplyr::all_of(setdiff(x = names(.), y = c("Functional.Groups", "Species.Mix","AboveGr.Bio.kg.ha..dry."))))) %>% 
   dplyr::summarize(biomass_kg_ha = sum(AboveGr.Bio.kg.ha..dry., na.rm = T)) %>% 
   dplyr::ungroup()
 
