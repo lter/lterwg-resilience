@@ -541,7 +541,15 @@ sp_pp <- sp_raw %>%
   dplyr::select(-dplyr::where(fn = ~ all(is.na(.) | nchar(.) == 0))) %>% 
   # Add desired column(s)
   dplyr::mutate(network = "LTAR", site_ID = "SP",
-                .before = dplyr::everything())
+                .before = dplyr::everything())%>%
+  # Fix date for SP
+  # Sampling date is sometimes in the new years; if it is in jan/feb/march, move it to dec of the previous year
+  dplyr::mutate(date = lubridate::as_date(Date, format="%m/%d/%Y"))%>%
+  dplyr::mutate(year = lubridate::year(date), month= lubridate::month(date))
+
+##fix sp date
+sp_pp$year <- ifelse(sp_pp$month < 6, sp_pp$year - 1,sp_pp$year)
+sp_pp$month <- 12
 
 # Check for gained/lost columns
 supportR::diff_check(old = names(sp_raw), new = names(sp_pp))
