@@ -41,49 +41,31 @@ dplyr::glimpse(tidy_v1)
 ## --------------------------------------- ##
 # Identify Network and Fix Capitalization----
 ## --------------------------------------- ##
+tidy_v2 <- tidy_v1 %>%
+  # make LTER sites capitalized
+  dplyr::mutate(site = ifelse(network=="LTER", toupper(site), site)) %>%
+  # make lowercase lter network capitalized
+  dplyr::mutate(network = ifelse(network=="lter", "LTER", network))
 
-
-
+# make sure that every site has a netwrok
+network_nas <- tidy_v2 %>%
+  filter(is.na(network))
 
 ## --------------------------------------- ##
 # Fix Dates and Year----
 ## --------------------------------------- ##
 
-# Date data are horrible but possibly useful so we need a single 'date' column
-tidy_v4 <- tidy_v2 %>% 
-  # Relocate date columns to end
-  dplyr::relocate(dplyr::starts_with("date_"), .after = dplyr::everything()) %>% 
-  # Fill missing dates with NA instead of just 0-length characters
-  dplyr::mutate(dplyr::across(.cols = dplyr::starts_with("date_"),
-                              .fns = ~ ifelse(nchar(.) == 0, yes = NA, no = .))) %>% 
-  # Make a temp column containing some likely useful bits of date info
-  dplyr::mutate(date_temp = dplyr::case_when(
-    !is.na(date_m.d.yyyy.time) ~ stringr::str_extract(string = date_m.d.yyyy.time,
-                                                      pattern = "[:digit:]{1,2}\\/[:digit:]{1,2}\\/[:digit:]{4}"),
-    !is.na(date_m.d.yyyy) ~ date_m.d.yyyy,
-    #!is.na(date_m.d.yy) ~ date_m.d.yy, #meghan notes - this is not longer a column in the new dataset
-    !is.na(date_m) ~ paste0(date_m, "/01/", year),
-    T ~ NA)) %>% 
-  # Separate into component bits
-  tidyr::separate_wider_delim(cols = date_temp, names = c("tmp_month", "tmp_day", "tmp_year"), delim = "/", too_few = 'debug') %>% 
-  # Make them numbers
-  dplyr::mutate(dplyr::across(.cols = tmp_month:tmp_year, .fns = ~ as.numeric(.))) %>% 
-  # Do needed formatting for to assemble standardized dates
-  dplyr::mutate(tmp_month = ifelse(nchar(tmp_month) == 2,
-                                   yes = as.character(tmp_month), no = paste0("0", tmp_month)),
-                tmp_day = ifelse(nchar(tmp_day) == 2,
-                                 yes = as.character(tmp_day), no = paste0("0", tmp_day)),
-                tmp_year = dplyr::case_when(nchar(tmp_year) == 4 ~ as.character(tmp_year),
-                                            # NOTE GUESS HERE (vvv)
-                                            nchar(tmp_year) == 2 & tmp_year > 25 ~ paste0("19", tmp_year),
-                                            nchar(tmp_year) == 2 & tmp_year <= 25 ~ paste0("20", tmp_year))) %>% 
-  # Assemble into real date column!
-  dplyr::mutate(date = as.Date(paste(tmp_month, tmp_day, tmp_year, sep = "/"), format = "%m/%d/%Y"),
-                .after = year) %>% 
-    dplyr::mutate(year2=ifelse(is.na(tmp_year), year, tmp_year), .after=year) %>% 
- #Drop superseded separate 'date' columns & temporary columns
-  dplyr::select(-dplyr::starts_with(c("date_", "tmp_")))
-
+tidy_v3 <- tidy_v2 %>%
+  # fix dates and extract year
+  dplyr::mutate(date = lubridate::as_date(date, format="%m/%d/%Y"), 
+                date_m.d.yyy = lubridate::as_date(date_m.d.yyyy, format= "%m-%d-%Y"), 
+                date_m.d.yyy2 = lubridate::as_date(date_m.d.yyyy, format= "%Y-%m-%d")) %>%
+  #make a single date column 
+  dplyr::mutate(dates =coalesce(date, date_m.d.yyy, date_m.d.yyy2))%>%
+  # add year
+  dplyr::mutate(year = ifelse(is.na(year), lubridate::year(dates), year))%>%
+  #Get rid of extra date columns
+  dplyr::select(-c("date", "date_m.d.yyy", "date_m.d.yyy2"))
   
 # Check that no unexpected columns are lost/gained
 supportR::diff_check(old = names(tidy_v3), new = names(tidy_v4))
@@ -103,38 +85,18 @@ tidy_v5 <- tidy_v4 %>%
   dplyr::mutate(duration_years = length(unique(year2)),
                 .after = source) %>% 
   dplyr::ungroup() %>% 
-  filter(!is.na(year2)) %>% 
-  select(-year)
+  filter(!is.na(year2)) 
 
 # Check structure
 dplyr::glimpse(tidy_v5)
 
 ## ------------------------------------------- ##
-# Getting a site_ID ----
-## ------------------------------------------- ##
-tidy_v6<-tidy_v5 %>% 
-  mutate(site_ID=ifelse(network=='NutNet', site, ifelse(network=='LTER', lter, 'tbd')), .after=network)
-
-## ------------------------------------------- ##
 # ANPP Unit Conversions ----
 ## ------------------------------------------- ##
 
-# Need to convert ANPP variants into a single column
-tidy_v6 <- tidy_v5 %>% 
-  # NPP/biomass after everything
-  dplyr::relocate(dplyr::contains(c("biomass", "npp")), 
-                  .after = dplyr::everything()) %>% 
-  # Do unit conversion(s)
-  dplyr::mutate(anpp_actual = dplyr::case_when(
-    !is.na(biomass_kg.ha) ~ biomass_kg.ha,
-    !is.na(biomass_g) ~ biomass_g,
-    !is.na(biomass_units) ~ biomass_units,
-    !is.na(anpp_units) ~ anpp_units,
-    !is.na(npp_units) ~ npp_units,
-    # If no provided biomass value, put NA in the 'actual ANPP' column
-    T ~ NA)) %>% 
-  # Drop superseded columns
-  dplyr::select(-dplyr::starts_with("biomass_"), -anpp_units, -npp_units)
+tidy_v2 <- tidy_v1 %>%
+  # ANPP - convert KG/ha to g/m2
+  dplyr::mutate(anpp_g_m2 = ifelse(is.na(anpp_g_m2), anpp_kg_ha/10, anpp_g_m2))
 
 # Check to make sure only unwanted columns are lost
 supportR::diff_check(old = names(tidy_v5), new = names(tidy_v6))
