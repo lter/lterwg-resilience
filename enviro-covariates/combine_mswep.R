@@ -20,7 +20,10 @@ mswep2$project_id <- "NutNet"
 mswep <- dplyr::bind_rows(mswep1, mswep2)
 mswep <- mswep %>% subset(select = -c(X)) %>%
             rename("network" = "project_id")
-
+## remove sites excluded. 
+site_info <- read.csv("data/site_summary_info.csv")
+setdiff(site_info$site_id, mswep$site_id)
+setdiff(mswep$site_id, site_info$site_id)
 write.csv(mswep, file = "data/tidy_data/mswep_daily.csv", row.names = FALSE)
 
 googledrive::drive_upload(media = file.path("data", "tidy_data","mswep_daily.csv"), overwrite = T,
