@@ -15,6 +15,7 @@ library(googledrive)
 library(leaflet)
 library(ncdf4)
 library(readxl)
+library(purrr)
 
 
 
@@ -57,41 +58,41 @@ site_drive <- googledrive::drive_ls(googledrive::as_id("https://drive.google.com
 # Did that work?
 site_drive
 
-# Download the data key
+# Download the site data
 googledrive::drive_download(file = site_drive$id, overwrite = T, type = "csv",
                             path = file.path("data", site_drive$name))
 
 
 
 # Choose an output name for the final csv file  and the SPEI dataset you want to work with (the outputname and nc_filename should include the path to the right folder)
-output_name<-file.path("data", "raw", "SPEI12.csv")
-nc_filename<-file.path("data", "raw", "spei12.nc")
+output_name<-"SPEI12.csv"
+nc_filename<-"spei12.nc"
 
 
 # importing site data (coordinates and siteID)
 sites <- read.csv(file = file.path("data", "site_summary_info.csv"), header = TRUE)
 
 # Creating a leaflet map of the site locations
-leaflet(data = sites) %>%
-  addTiles() %>%  # Add default OpenStreetMap layer
-  addCircleMarkers(
-    lng = ~longitude,      # use the longitude column
-    lat = ~latitude,       # use the latitude column
-    radius = 5,            # point size
-    color = "red",         # outline color
-    fillColor = "red",     # fill color
-    fillOpacity = 0.8,
-    
-    # Option 1: Show site ID when hovering (label)
-    label = ~site_id,
-    labelOptions = labelOptions(noHide = FALSE, textsize = "12px"),
-    
-    # Option 2: Show site ID when clicked (popup)
-    popup = ~paste("Site ID:", site_id)
-  )
+# leaflet(data = sites) %>%
+#   addTiles() %>%  # Add default OpenStreetMap layer
+#   addCircleMarkers(
+#     lng = ~longitude,      # use the longitude column
+#     lat = ~latitude,       # use the latitude column
+#     radius = 5,            # point size
+#     color = "red",         # outline color
+#     fillColor = "red",     # fill color
+#     fillOpacity = 0.8,
+#     
+#     # Option 1: Show site ID when hovering (label)
+#     label = ~site_id,
+#     labelOptions = labelOptions(noHide = FALSE, textsize = "12px"),
+#     
+#     # Option 2: Show site ID when clicked (popup)
+#     popup = ~paste("Site ID:", site_id)
+#   )
 
 # Open the ncdf file containing the global SPEI data
-ncfile <- nc_open(nc_filename)
+ncfile <- nc_open(file.path("data","pre_processed_data", nc_filename))
 
 # Extract the main variables
 spei_var <- ncvar_get(ncfile, "spei")  # shape typically [lon, lat, time]
@@ -149,7 +150,11 @@ for(i in seq_len(n_sites)) {
 
 
 # Export final dataset
-write.csv(final_df,output_name,row.names = F)
+write.csv(final_df,file=file.path("data","pre_processed_data", output_name),row.names = F)
 
+
+# Upload them to the drive
+purrr::walk(.x = output_name,
+            .f = ~ googledrive::drive_upload(media = file.path("data", "pre_processed_data", .x), overwrite = T, path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Sw-CdVIsCNvnS3laPn1a90WHoZsEoMif")))
 
 
