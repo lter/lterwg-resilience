@@ -39,78 +39,15 @@ tidy_v1 <- read.csv(file = file.path("data", "tidy", focal_file))
 dplyr::glimpse(tidy_v1)
 
 ## --------------------------------------- ##
-# Identify Network ----
+# Identify Network and Fix Capitalization----
 ## --------------------------------------- ##
 
-# Identify network from which each dataset was sourced
-sort(unique(tidy_v1$source))
 
-# Begin identifying networks
-tidy_v2 <- tidy_v1 %>% 
-  dplyr::mutate(network = dplyr::case_when(
-    source %in% c("cdr_anpp_nceas.csv", "KBS-biomass-compilation-herb-systems.csv",
-                  "knz_anpp_nceas.csv", "nwt_anpp_nceas.csv", "sev_anpp_nceas.csv") ~ "LTER",
-    source %in% c("ABS_UF_BIR_NIFA_ANPP_Betsey.csv", "CAF_DET_20231218_MeasHarvestFraction.csv",
-                  "CPER_LTNPP_MeasGrazingPlants.csv",  "ECB_MeasHarvestFractionv2.csv",
-                  "GB_MeasGrazingPlants_04242024.csv", "NP_InOut_MeasGrazingPlants.csv", 
-                  "NPMA_MeasHarvestFraction.csv", "PRHPA_NEMELTCRS_MeasResidueMgnt.csv",
-                  "PRHPA_NEMERREM_MeasHarvestFraction.csv", "SP_RotGraz_MeasGrazingPlants_OLH.csv",
-                  "TG_GSWRL_LTBE_MeasHarvestFractionv2.csv", "UCB_Pahaw_MeasGrazingPlants.csv",
-                  "UCB_Pahaw_MeasResidueMgnt.csv", "UMRB_AMES_IAKFT_MeasHarvestFraction.csv",
-                  "UMRB_MeasHarvestFrac_v2.csv", 'KBS_ANPP.csv') ~ "LTAR",
-    stringr::str_detect(string = source, pattern = "NutNet") ~ "NutNet",
-    ## Combo ones
-    source %in% c("jrn_anpp_nceas.csv") ~ "LTER & LTAR",
-    T ~ "unknown"), .before = dplyr::everything()) %>% 
-  filter(source!="UCB_Pahaw_MeasGrazingPlants.csv"&source!="UCB_Pahaw_MeasResidueMgnt.csv") %>% 
-  dplyr::select(-lat, -long,-biomass_kg.ha_non.grain, -biomass_kg.ha_grain)
 
-# Did those all get identified?
-tidy_v2 %>% 
-  dplyr::filter(network == "unknown") %>% 
-  dplyr::select(source, network) %>% 
-  dplyr::distinct()
 
 ## --------------------------------------- ##
-# Consolidate Multi-Measurements ----
+# Fix Dates and Year----
 ## --------------------------------------- ##
-
-# Occasionally, some measurements were done multiple times in separate columns, need to resolve this
-#Meghan update- I no longer this this is a problem with the new datasets. So I am going to skip this step.
-# tidy_v3 <- tidy_v2 %>% 
-#   # Aggregate these multi-column observations
-#   ## Biomass
-#   dplyr::mutate(biomass_units = dplyr::case_when(
-#     any(!is.na(biomass_kg.ha_non.grain), !is.na(biomass_kg.ha_grain)) ~ biomass_kg.ha_non.grain + biomass_kg.ha_grain,
-#     T ~ NA)) %>% 
-#   # ## Species richness
-#   # dplyr::mutate(spp_richness = dplyr::case_when(
-#   #   !is.na(spp_richness) ~ spp_richness,
-#   #   any(!is.na(spp_richness.1), !is.na(spp_richness.2), !is.na(spp_richness.3), !is.na(spp_richness.4), !is.na(spp_richness.5)) ~ spp_richness.1 + spp_richness.2 + spp_richness.3 + spp_richness.4 + spp_richness.5,
-#   #   T ~ NA)) %>% 
-#   # Drop now-superseded columns
-#   dplyr::select(-dplyr::starts_with(c("spp_richness.", "biomass_units.")),
-#                 -biomass_kg.ha_non.grain, -biomass_kg.ha_grain)
-
-
-
-# Make sure we only lose expected columns
-supportR::diff_check(old = names(tidy_v2), new = names(tidy_v3))
-
-# Check number of NAs before/after doing this
-## Biomass
-supportR::count(is.na(tidy_v2$biomass_units))
-supportR::count(is.na(tidy_v3$biomass_units))
-## Species richness
-supportR::count(is.na(tidy_v2$spp_richness))
-supportR::count(is.na(tidy_v3$spp_richness))
-
-# Check structure
-dplyr::glimpse(tidy_v3)
-
-## ------------------------------------------- ##
-# Handle Date Data ----
-## ------------------------------------------- ##
 
 # Date data are horrible but possibly useful so we need a single 'date' column
 tidy_v4 <- tidy_v2 %>% 
@@ -181,13 +118,6 @@ tidy_v6<-tidy_v5 %>%
 ## ------------------------------------------- ##
 # ANPP Unit Conversions ----
 ## ------------------------------------------- ##
-
-
-#meghan notes: I am deeply uncomfortable with the b/c we don't know the units that we are dropping! so now we have a meaningless anpp_actual column
-
-test<-tidy_v5 %>% 
-  filter(!is.na(plant_fraction)&plant_fraction!="")
-#note there is a lot of stuff in here, we are going to ask Olivia about this
 
 # Need to convert ANPP variants into a single column
 tidy_v6 <- tidy_v5 %>% 
