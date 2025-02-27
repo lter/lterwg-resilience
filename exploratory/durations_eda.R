@@ -6,15 +6,12 @@ library(tidyverse)
 
 `%notin%` <- Negate(`%in%`)
 
-
+#set up site and duration datasets
 ltar_sites <- read_excel("G:/Shared drives/LTER-WG_Resilience-Management/data/Treatment_overview_LTAR.xlsx")%>%
   dplyr::rename( site_ID = site)%>%
   dplyr::select(site_ID, treatment_ID, start_yr, end_yr)%>%
   mutate(network = "LTAR")
 
-
-nutnet_sites <- read_excel("G:/Shared drives/LTER-WG_Resilience-Management/data/Treatment_overview_NutNet.xlsx")%>%
-  dplyr::select(site_ID, treatment_ID, start_yr, end_yr)
 
 nutnet_sites <- read.csv("G:/Shared drives/LTER-WG_Resilience-Management/data/pre_processed_data/nutnet_fay_2025_pre-process.csv")%>%
   filter(country %in% c('us', 'ca'))%>%
@@ -27,6 +24,7 @@ nutnet_sites <- read.csv("G:/Shared drives/LTER-WG_Resilience-Management/data/pr
 lter_sites <- read.csv("G:/Shared drives/LTER-WG_Resilience-Management/data/lter_site_duration.csv")%>%
   mutate(network = 'LTER')
 
+## merge duration datasets
 
 all_site_duration <- bind_rows(ltar_sites, nutnet_sites)%>%
   bind_rows(lter_sites)%>%
@@ -37,9 +35,10 @@ all_site_duration <- bind_rows(ltar_sites, nutnet_sites)%>%
   mutate(length = end_yr - start_yr,
          site_ID = tolower(site_ID))
 
-###find mean duration 
+##find mean duration 
 mean(all_site_duration$length, na.rm = T)
 
+##plots
 #plot site duration
 ggplot(all_site_duration)+
   geom_segment( aes(y = site_ID, x = start_yr, xend = end_yr))
@@ -49,9 +48,7 @@ ggplot(all_site_duration)+
   geom_histogram(aes(x = length), binwidth = 5)+
   facet_wrap(~network)
 
-###bring in precip data 
-precip_data <- read.csv("G:/Shared drives/LTER-WG_Resilience-Management/data/precip_tidy/precip_annual-summary.csv")
-
+####bring in precip data ####
 # merge precip with  site duration
 
 #run code from the file examinExtremeWeather.r to generate precipdf
@@ -97,5 +94,14 @@ precip_summary_df <- precip_dur%>%
             n_extreme_dry = sum(precip_extreme == 'dry'),
             n_extreme_wet = sum(precip_extreme == 'wet'),
             n_double_dry = sum(precip_extreme == 'dry' & prev_extreme == 'dry', na.rm = T),
-            n_double_wet = sum(precip_extreme == 'wet' & prev_extreme == 'wet', na.rm = T))
-  
+            n_double_wet = sum(precip_extreme == 'wet' & prev_extreme == 'wet', na.rm = T),
+            n_drywet  = sum(precip_extreme == 'wet' & prev_extreme == 'dry', na.rm = T),
+            n_wetdry = sum(precip_extreme == 'dry' & prev_extreme == 'wet', na.rm = T))
+
+write.csv(precip_)
+sum(precip_summary_df$n_extreme_dry)  
+sum(precip_summary_df$n_extreme_wet) 
+sum(precip_summary_df$n_double_dry)  
+sum(precip_summary_df$n_double_wet)
+sum(precip_summary_df$n_drywet)  
+sum(precip_summary_df$n_wetdry)
