@@ -409,84 +409,80 @@ rm(list = ls()); gc()
 ## -------------------------------------------- ## 
 
 # Needed pre-processing:
-## 
+## Add network / site ID
 
 # Read in data
-xx_raw <- read.csv(file = file.path("data", "raw", "xx.csv"))
+npr_raw <- read.csv(file = file.path("data", "raw", "NP_InOut_MeasGrazingPlants.csv"))
 
 # Check structure
-dplyr::glimpse(xx_raw)
+dplyr::glimpse(npr_raw)
 
 # Make needed repairs
-xx_pp <- xx_raw %>% 
+npr_pp <- npr_raw %>% 
   # Drop columns that are entirely NA
   dplyr::select(-dplyr::where(fn = ~ all(is.na(.) | nchar(.) == 0))) %>% 
   # Add desired column(s)
-  dplyr::mutate(network = "LTAR", site_ID = "XX",
+  dplyr::mutate(network = "LTAR", site_ID = "NP_R",
                 .before = dplyr::everything())
 
 # Check for gained/lost columns
-supportR::diff_check(old = names(xx_raw), new = names(xx_pp))
+supportR::diff_check(old = names(npr_raw), new = names(npr_pp))
 
 # Re-check structure
-dplyr::glimpse(xx_pp)
+dplyr::glimpse(npr_pp)
 
 # Export locally
-write.csv(x = xx_pp, na = '', row.names = F,
-          file = file.path("data", "pre_processed_data", "LTAR_xx_pre-process.csv"))
+write.csv(x = npr_pp, na = '', row.names = F,
+          file = file.path("data", "pre_processed_data", "LTAR_np-r_pre-process.csv"))
 
 # Clear environment
 rm(list = ls()); gc()
-
-# NP_R
-np_r <- read.csv("./data/raw/NP_InOut_MeasGrazingPlants.csv")
-np_r$site <- "NP_R_LTAR"
-
-write.csv(np_r, "./data/pre_processed_data/NP_InOut_MeasGrazingPlants.csv", row.names=FALSE)
-
-rm(list = ls()); gc()
-
 
 ## -------------------------------------------- ## 
 # Pre-Process "PRHPA_NEMERREN" ----
 ## -------------------------------------------- ## 
 
 # Needed pre-processing:
-## 
+## Sum Stover(All Grain Biomass) and Grain for Corn, Aboveground biomass is for switchgrass by unit_ID and year; use column H
+## Have a column for the AGB and the Grain
 
 # Read in data
-xx_raw <- read.csv(file = file.path("data", "raw", "xx.csv"))
+pnem_raw <- read.csv(file = file.path("data", "raw", "PRHPA_NEMERREM_MeasHarvestFraction.csv"))
 
 # Check structure
-dplyr::glimpse(xx_raw)
+dplyr::glimpse(pnem_raw)
 
 # Make needed repairs
-xx_pp <- xx_raw %>% 
+pnem_pp <- pnem_raw %>% 
   # Drop columns that are entirely NA
   dplyr::select(-dplyr::where(fn = ~ all(is.na(.) | nchar(.) == 0))) %>% 
   # Add desired column(s)
-  dplyr::mutate(network = "LTAR", site_ID = "XX",
-                .before = dplyr::everything())
+  dplyr::mutate(network = "LTAR", site_ID = "PRHPA_NEMERREM",
+                .before = dplyr::everything()) %>% 
+  # Drop unwanted column(s)
+  dplyr::select(-Frac.Moist.., -Frac.C.kgC.ha, -Frac.N.kgN.ha) %>% 
+  # Rotate to wide format
+  tidyr::pivot_wider(names_from = Plant.Fraction, 
+                     values_from = Frac.Dry.Matt.kg.ha) %>% 
+  # Assemble desired columns
+  dplyr::rename(grain_kg_ha = Grain) %>% 
+  dplyr::mutate(anpp_kg_ha = dplyr::case_when(
+    Crop == "Panicum virgatum (Switchgrass)" ~ `Aboveground biomass`,
+    Crop == "Zea mays (Corn)" ~ `Stover (all non-grain biomass)` + grain_kg_ha)) %>% 
+  # Drop superseded columns
+  dplyr::select(-`Aboveground biomass`, -`Stover (all non-grain biomass)`)
 
 # Check for gained/lost columns
-supportR::diff_check(old = names(xx_raw), new = names(xx_pp))
+supportR::diff_check(old = names(pnem_raw), new = names(pnem_pp))
 
 # Re-check structure
-dplyr::glimpse(xx_pp)
+dplyr::glimpse(pnem_pp)
 
 # Export locally
-write.csv(x = xx_pp, na = '', row.names = F,
-          file = file.path("data", "pre_processed_data", "LTAR_xx_pre-process.csv"))
+write.csv(x = pnem_pp, na = '', row.names = F,
+          file = file.path("data", "pre_processed_data", "LTAR_prhpa-nemerrem_pre-process.csv"))
 
 # Clear environment
-rm(list = ls()); gc()
-
-# PRHPA NEMERREN
-prhpa.nem <- read.csv("./data/raw/PRHPA_NEMERREM_MeasHarvestFraction.csv")
-prhpa.nem$site <- "PRHPA_LTAR"
-
-write.csv(prhpa.nem, "./data/pre_processed_data/PRHPA_NEMERREM_MeasHarvestFraction.csv", row.names=FALSE)
-
 rm(list = ls()); gc()
 
 ## -------------------------------------------- ## 
@@ -494,41 +490,33 @@ rm(list = ls()); gc()
 ## -------------------------------------------- ## 
 
 # Needed pre-processing:
-## 
+## Add site / network
 
 # Read in data
-xx_raw <- read.csv(file = file.path("data", "raw", "xx.csv"))
+pnelt_raw <- read.csv(file = file.path("data", "raw", "PRHPA_NEMELTCRS_MeasResidueMgnt.csv"))
 
 # Check structure
-dplyr::glimpse(xx_raw)
+dplyr::glimpse(pnelt_raw)
 
 # Make needed repairs
-xx_pp <- xx_raw %>% 
+pnelt_pp <- pnelt_raw %>% 
   # Drop columns that are entirely NA
   dplyr::select(-dplyr::where(fn = ~ all(is.na(.) | nchar(.) == 0))) %>% 
   # Add desired column(s)
-  dplyr::mutate(network = "LTAR", site_ID = "XX",
+  dplyr::mutate(network = "LTAR", site_ID = "PRHPA_NEMELTCRS",
                 .before = dplyr::everything())
 
 # Check for gained/lost columns
-supportR::diff_check(old = names(xx_raw), new = names(xx_pp))
+supportR::diff_check(old = names(pnelt_raw), new = names(pnelt_pp))
 
 # Re-check structure
-dplyr::glimpse(xx_pp)
+dplyr::glimpse(pnelt_pp)
 
 # Export locally
-write.csv(x = xx_pp, na = '', row.names = F,
-          file = file.path("data", "pre_processed_data", "LTAR_xx_pre-process.csv"))
+write.csv(x = pnelt_pp, na = '', row.names = F,
+          file = file.path("data", "pre_processed_data", "LTAR_prhpa-nemeltcrs_pre-process.csv"))
 
 # Clear environment
-rm(list = ls()); gc()
-
-# PRHPA NEMELTCRS
-prhpa.nemel <- read.csv("./data/raw/PRHPA_NEMELTCRS_MeasResidueMgnt.csv")
-prhpa.nemel$site <- "PRHPA_LTAR"
-
-write.csv(prhpa.nemel, "./data/pre_processed_data/PRHPA_NEMELTCRS_MeasResidueMgnt.csv", row.names=FALSE)
-
 rm(list = ls()); gc()
 
 ## -------------------------------------------- ## 
@@ -536,41 +524,33 @@ rm(list = ls()); gc()
 ## -------------------------------------------- ## 
 
 # Needed pre-processing:
-## 
+## Add site / network
 
 # Read in data
-xx_raw <- read.csv(file = file.path("data", "raw", "xx.csv"))
+sp_raw <- read.csv(file = file.path("data", "raw", "SP_RotGraz_MeasGrazingPlants_OLH.csv"))
 
 # Check structure
-dplyr::glimpse(xx_raw)
+dplyr::glimpse(sp_raw)
 
 # Make needed repairs
-xx_pp <- xx_raw %>% 
+sp_pp <- sp_raw %>% 
   # Drop columns that are entirely NA
   dplyr::select(-dplyr::where(fn = ~ all(is.na(.) | nchar(.) == 0))) %>% 
   # Add desired column(s)
-  dplyr::mutate(network = "LTAR", site_ID = "XX",
+  dplyr::mutate(network = "LTAR", site_ID = "SP",
                 .before = dplyr::everything())
 
 # Check for gained/lost columns
-supportR::diff_check(old = names(xx_raw), new = names(xx_pp))
+supportR::diff_check(old = names(sp_raw), new = names(sp_pp))
 
 # Re-check structure
-dplyr::glimpse(xx_pp)
+dplyr::glimpse(sp_pp)
 
 # Export locally
-write.csv(x = xx_pp, na = '', row.names = F,
-          file = file.path("data", "pre_processed_data", "LTAR_xx_pre-process.csv"))
+write.csv(x = sp_pp, na = '', row.names = F,
+          file = file.path("data", "pre_processed_data", "LTAR_sp_pre-process.csv"))
 
 # Clear environment
-rm(list = ls()); gc()
-
-# SP
-sp <- read.csv("./data/raw/SP_RotGraz_MeasGrazingPlants_OLH.csv")
-sp$site <- "SP_LTAR"
-
-write.csv(sp, "./data/pre_processed_data/SP_RotGraz_MeasGrazingPlants_OLH.csv", row.names=FALSE)
-
 rm(list = ls()); gc()
 
 ## -------------------------------------------- ## 
@@ -578,41 +558,33 @@ rm(list = ls()); gc()
 ## -------------------------------------------- ## 
 
 # Needed pre-processing:
-## 
+## Add site / network
 
 # Read in data
-xx_raw <- read.csv(file = file.path("data", "raw", "xx.csv"))
+tg_raw <- read.csv(file = file.path("data", "raw", "TG_GSWRL_LTBE_MeasHarvestFractionv2.csv"))
 
 # Check structure
-dplyr::glimpse(xx_raw)
+dplyr::glimpse(tg_raw)
 
 # Make needed repairs
-xx_pp <- xx_raw %>% 
+tg_pp <- tg_raw %>% 
   # Drop columns that are entirely NA
   dplyr::select(-dplyr::where(fn = ~ all(is.na(.) | nchar(.) == 0))) %>% 
   # Add desired column(s)
-  dplyr::mutate(network = "LTAR", site_ID = "XX",
+  dplyr::mutate(network = "LTAR", site_ID = "TG",
                 .before = dplyr::everything())
 
 # Check for gained/lost columns
-supportR::diff_check(old = names(xx_raw), new = names(xx_pp))
+supportR::diff_check(old = names(tg_raw), new = names(tg_pp))
 
 # Re-check structure
-dplyr::glimpse(xx_pp)
+dplyr::glimpse(tg_pp)
 
 # Export locally
-write.csv(x = xx_pp, na = '', row.names = F,
-          file = file.path("data", "pre_processed_data", "LTAR_xx_pre-process.csv"))
+write.csv(x = tg_pp, na = '', row.names = F,
+          file = file.path("data", "pre_processed_data", "LTAR_tg_pre-process.csv"))
 
 # Clear environment
-rm(list = ls()); gc()
-
-# TG
-tg <- read.csv("./data/raw/TG_GSWRL_LTBE_MeasHarvestFractionv2.csv")
-tg$site <- "TG_LTAR"
-
-write.csv(tg, "./data/pre_processed_data/TG_GSWRL_LTBE_MeasHarvestFractionv2.csv", row.names=FALSE)
-
 rm(list = ls()); gc()
 
 ## -------------------------------------------- ## 
@@ -626,41 +598,45 @@ rm(list = ls()); gc()
 ## -------------------------------------------- ## 
 
 # Needed pre-processing:
-## 
+## Add site / network
 
 # Read in data
-xx_raw <- read.csv(file = file.path("data", "raw", "xx.csv"))
+ames_raw <- read.csv(file = file.path("data", "raw", "UMRB_AMES_IAKFT_MeasHarvestFraction.csv"))
 
 # Check structure
-dplyr::glimpse(xx_raw)
+dplyr::glimpse(ames_raw)
 
 # Make needed repairs
-xx_pp <- xx_raw %>% 
+ames_pp <- ames_raw %>% 
   # Drop columns that are entirely NA
   dplyr::select(-dplyr::where(fn = ~ all(is.na(.) | nchar(.) == 0))) %>% 
   # Add desired column(s)
-  dplyr::mutate(network = "LTAR", site_ID = "XX",
-                .before = dplyr::everything())
+  dplyr::mutate(network = "LTAR", site_ID = "UMRB_AMES",
+                .before = dplyr::everything()) %>% 
+  # Drop unwanted column(s)
+  dplyr::select(-Frac.C.kgC.ha, -Frac.N.kgN.ha) %>% 
+  # Rotate to wide format
+  tidyr::pivot_wider(names_from = Plant.Fraction, 
+                     values_from = Frac.Dry.Matt.kg.ha) %>% 
+  # Assemble desired columns
+  dplyr::rename(grain_kg_ha = Grain) %>% 
+  dplyr::mutate(anpp_kg_ha = dplyr::case_when(
+    Crop == "Glycine max (Soybean)" ~ Shoot + `Stover (all non-grain biomass)` + grain_kg_ha,
+    Crop == "Zea mays (Corn)" ~ `Stover (all non-grain biomass)` + grain_kg_ha)) %>% 
+  # Drop superseded columns
+  dplyr::select(-Shoot, -Cobs, -`Stover (all non-grain biomass)`)
 
 # Check for gained/lost columns
-supportR::diff_check(old = names(xx_raw), new = names(xx_pp))
+supportR::diff_check(old = names(ames_raw), new = names(ames_pp))
 
 # Re-check structure
-dplyr::glimpse(xx_pp)
+dplyr::glimpse(ames_pp)
 
 # Export locally
-write.csv(x = xx_pp, na = '', row.names = F,
-          file = file.path("data", "pre_processed_data", "LTAR_xx_pre-process.csv"))
+write.csv(x = ames_pp, na = '', row.names = F,
+          file = file.path("data", "pre_processed_data", "LTAR_umrb-ames_pre-process.csv"))
 
 # Clear environment
-rm(list = ls()); gc()
-
-# UMRB
-umrb <- read.csv("./data/raw/UMRB_AMES_IAKFT_MeasHarvestFraction.csv")
-umrb$site <- "UMRB_LTAR"
-
-write.csv(umrb, "./data/pre_processed_data/UMRB_AMES_IAKFT_MeasHarvestFraction.csv", row.names=FALSE)
-
 rm(list = ls()); gc()
 
 ## -------------------------------------------- ## 
