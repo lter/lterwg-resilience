@@ -43,7 +43,7 @@ files_local <- dir(path = file.path("data", "pre_processed_data"))
 files_local
 
 # Overwrite local data files?
-update <- FALSE
+update <- TRUE
 
 # Identify desired files
 if(update == T) {
@@ -58,13 +58,13 @@ purrr::walk2(.x = files_wanted$id, .y = files_wanted$name,
              .f = ~ googledrive::drive_download(file = .x, overwrite = T,
                                                 path = file.path("data", "pre_processed_data", .y)))
 
-#make the key - we need to just do this once.
-key<-begin_key(raw_folder = file.path("data", "pre-processed_data"))
-
-
+# #make the key - we need to just do this once.
+# key<-begin_key(raw_folder = file.path("data", "pre-processed_data"))
+# 
+# 
 # Grab the data key
-key_drive <- googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Ty7QX7vyvD797eKJzMWbr8AwIo-GyBFO")) %>% 
-  dplyr::filter(name == "resilience_data-key.csv")
+key_drive <- googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/1/folders/1Ty7QX7vyvD797eKJzMWbr8AwIo-GyBFO")) %>%
+  dplyr::filter(name == "resilience_data_key")
 
 # Did that work?
 key_drive
@@ -78,7 +78,7 @@ googledrive::drive_download(file = key_drive$id, overwrite = T, type = "csv",
 ## ------------------------------------------- ##
 
 # Read in data key
-key <- read.csv(file = file.path("data", "resilience_data-key.csv"))
+key <- read.csv(file = file.path("data", "resilience_data_key.csv"))
 
 # Check that looks roughly right
 dplyr::glimpse(key)
@@ -95,7 +95,7 @@ dplyr::glimpse(combo_v1)
 ## ------------------------------------------- ##
 
 # Final pre-export tweaks
-combo_v99 <- combo_v2
+combo_v99 <- combo_v1
 
 # Check structure
 dplyr::glimpse(combo_v99)
