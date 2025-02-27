@@ -3,7 +3,14 @@ library(googledrive); library(dplyr)
 source("ancillary/google_drive_urls.R")
 # download raw mswep from google drive
 
-dir.create(file.path("data", "raw_data"), showWarnings = F)
+#dir.create(file.path("data", "raw_data"), showWarnings = F)
+googledrive::drive_download(file = .y, overwrite = T, type = "csv",
+                            path = file.path("data","raw_data", "site_summary_info.csv"))
+site_drive <- googledrive::drive_ls(googledrive::as_id(dir.data)) %>% 
+  dplyr::filter(name =="site_summary_info.csv")
+googledrive::drive_download(file = site_drive$id, overwrite = T, type = "csv",
+                            path = file.path("data","raw_data", site_drive$name))
+
 
 mswep_drive <- googledrive::drive_ls(googledrive::as_id(dir.raw_data)) %>% 
   dplyr::filter(grepl("mswep", name))
@@ -20,18 +27,24 @@ str(mswep2)
 mswep2$project_id <- "NutNet"
 
 mswep <- dplyr::bind_rows(mswep1, mswep2)
-mswep <- mswep %>% subset(select = -c(X)) %>%
-            rename("network" = "project_id")
+mswep <- mswep %>% subset(select = -c(X,project_id)) 
+
 ## remove sites excluded. 
 site_info <- read.csv("data/site_summary_info.csv")
-setdiff(site_info$site_id, mswep$site_id)
-setdiff(mswep$site_id, site_info$site_id)
-write.csv(mswep, file = "data/tidy_data/mswep_daily.csv", row.names = FALSE)
+setdiff(site_info$site_id, mswep$site_id)# this site was added recently
+# Ingrid is fetching the raw data.
+setdiff(mswep$site_id, site_info$site_id)# mainly international sites
+## merge. 
+daily <- left_join(site_info, mswep)
+dim(mswep)
+dim(daily)
+
+write.csv(daily, file = "data/tidy_data/mswep_daily.csv", row.names = FALSE)
 
 googledrive::drive_upload(media = file.path("data", "tidy_data","mswep_daily.csv"), overwrite = T,
                           path = googledrive::as_id(dir.tidy_data))
 
-monthly <- mswep %>% group_by(site_id, network, year, month) %>% 
+monthly <- daily %>% group_by(site_id, network, year, month) %>% 
               summarize(precip_mmmonth = sum(precip))
 annual <- monthly %>% group_by(site_id, network, year) %>%
               summarize(precip_mmyear = sum(precip_mmmonth))
