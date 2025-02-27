@@ -4,8 +4,6 @@ source("ancillary/google_drive_urls.R")
 # download raw mswep from google drive
 
 #dir.create(file.path("data", "raw_data"), showWarnings = F)
-googledrive::drive_download(file = .y, overwrite = T, type = "csv",
-                            path = file.path("data","raw_data", "site_summary_info.csv"))
 site_drive <- googledrive::drive_ls(googledrive::as_id(dir.data)) %>% 
   dplyr::filter(name =="site_summary_info.csv")
 googledrive::drive_download(file = site_drive$id, overwrite = T, type = "csv",
@@ -31,8 +29,7 @@ mswep <- mswep %>% subset(select = -c(X,project_id))
 
 ## remove sites excluded. 
 site_info <- read.csv("data/site_summary_info.csv")
-setdiff(site_info$site_id, mswep$site_id)# this site was added recently
-# Ingrid is fetching the raw data.
+setdiff(site_info$site_id, mswep$site_id)# no sites missing.
 setdiff(mswep$site_id, site_info$site_id)# mainly international sites
 ## merge. 
 daily <- left_join(site_info, mswep)
