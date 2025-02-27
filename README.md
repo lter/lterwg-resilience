@@ -4,6 +4,17 @@ Principal Investigators:
 - David Hoover
 - Olivia Hajek
 
+## Workflow Strategy
+
+1. Raw ANPP data collected in Drive
+2. `pre-process` scripts handle pernicious idiosyncrasies
+3. Pre-processed ANPP data created
+4. `01_harmonize` script + "data key" used to harmonize pre-processed data across networks
+5. `02_quality-control` script used to do QA/QC on harmonized data
+6. `03_aggregation` script used to aggregate to site/year/treatment replicates
+7. Tidy ANPP data created 
+8. Management info sheet (by site/treatment), site attributes sheet (including environmental variables), and site-year attribute sheet (similar to management info but one year per row) all joined with tidy ANPP data (see step 7) in "grand join"
+
 ## Script Explanations
 
 Briefly describe the purpose of each script (or folder of scripts) here as you create them!
