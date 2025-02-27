@@ -218,6 +218,7 @@ gb_pp <- gb_raw %>%
   # Tweak treatment ID column
   dplyr::mutate(Treatment.ID = stringr::str_sub(string = Unit.ID, 
                                                 start = 1, end = 6)) %>% 
+  dplyr::mutate(site_ID=Treatment.ID)%>%
   # Drop unwanted column(s)
   dplyr::select(-Surface.Litter.kg.ha..dry.) %>% 
   # Drop unwanted functional groups
