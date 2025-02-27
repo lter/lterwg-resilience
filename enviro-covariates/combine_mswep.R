@@ -3,6 +3,8 @@ library(googledrive); library(dplyr)
 source("ancillary/google_drive_urls.R")
 # download raw mswep from google drive
 
+dir.create(file.path("data", "raw_data"), showWarnings = F)
+
 mswep_drive <- googledrive::drive_ls(googledrive::as_id(dir.raw_data)) %>% 
   dplyr::filter(grepl("mswep", name))
 
