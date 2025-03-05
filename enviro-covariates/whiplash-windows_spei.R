@@ -154,4 +154,18 @@ ggplot(test_out, aes(x = date, y = SPEI_diff)) +
 ggsave(filename = file.path("graphs", "explore", "whiplash_demo-scatter.png"),
        width = 5, height = 5, units = "in")
 
+# Yet more exploratory graphing
+ggplot(whiplash_df, aes(x = date, y = SPEI)) +
+  geom_path() +
+  geom_point(size = 0.5, color = "black") + 
+  geom_point(data = whiplash_only, aes(x = date, y = SPEI),
+             color = "red", size = 1.2) +
+  labs(x = "Date", y = "SPEI") +
+  supportR::theme_lyon() +
+  theme(legend.position = "none")
+
+# Export locally
+ggsave(filename = file.path("graphs", "explore", "whiplash_demo-time-series.png"),
+       width = 12, height = 6, units = "in")
+
 # End ----
