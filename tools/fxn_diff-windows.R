@@ -86,10 +86,14 @@ diff_windows <- function(df = NULL, date_col = "date", enviro_col = "SPEI",
     } # Close prior months relative to focal date loop
   } # Close focal date loop
   
-  # Unlist output & drop NA enviro differences
-  ## (Where window exceeds available date range)
+  # Unlist output & process it
   diff_df <- purrr::list_rbind(x = diff_list) %>% 
-    dplyr::filter(!is.na(enviro_diff))
+    # Drop NA enviro differences (where window exceeds available date range)
+    dplyr::filter(!is.na(enviro_diff)) %>% 
+    # Within dates, keep only most extreme value
+    dplyr::group_by(date, enviro) %>% 
+    dplyr::filter(prior_enviro == max(abs(prior_enviro), na.rm = T)) %>% 
+    dplyr::ungroup()
   
   # Rename this to better match inputs
   diff_out <- supportR::safe_rename(data = diff_df,
