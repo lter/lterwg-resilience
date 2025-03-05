@@ -90,16 +90,6 @@ lower_perc = 0.006
 upper_thresh <- as.numeric(quantile(x = test_out$SPEI_diff, probs = upper_perc))
 lower_thresh <- as.numeric(quantile(x = test_out$SPEI_diff, probs = lower_perc))
 
-# Make an exploratory graph
-ggplot(test_out, aes(x = SPEI_diff)) +
-  geom_histogram(bins = 45, color = "white", fill = "gray33") +
-  geom_vline(xintercept = upper_thresh, linetype = 2, 
-             color = "blue", linewidth = 0.5) +
-  geom_vline(xintercept = lower_thresh, linetype = 2, 
-             color = "blue", linewidth = 0.5) +
-  labs(x = "SPEI Differences (from Windows)", y = "Frequency") +
-  supportR::theme_lyon()
-
 # Identify whiplash events now that window differences are known
 whiplash_df <- test_out %>% 
   # Identify maximum/minimum per date
