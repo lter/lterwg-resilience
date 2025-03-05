@@ -17,6 +17,7 @@ librarian::shelf(tidyverse, googledrive)
 
 # Make needed folder(s)
 dir.create(file.path("data", "environment"), showWarnings = F, recursive = T)
+dir.create(file.path("graphs", "explore"), showWarnings = F, recursive = T)
 
 # Clear environment
 rm(list = ls()); gc()
@@ -134,6 +135,10 @@ ggplot() +
   labs(x = "SPEI Differences (from Windows)", y = "Frequency") +
   supportR::theme_lyon()
 
+# Export locally
+ggsave(filename = file.path("graphs", "explore", "whiplash_demo-histogram.png"),
+       width = 5, height = 5, units = "in")
+
 # More exploratory graphing
 ggplot(test_out, aes(x = date, y = SPEI_diff)) +
   geom_point() + 
@@ -144,5 +149,9 @@ ggplot(test_out, aes(x = date, y = SPEI_diff)) +
              color = "blue", linewidth = 0.5) +
   labs(x = "Date", y = "SPEI Differences") +
   supportR::theme_lyon()
+
+# Export locally
+ggsave(filename = file.path("graphs", "explore", "whiplash_demo-scatter.png"),
+       width = 5, height = 5, units = "in")
 
 # End ----
