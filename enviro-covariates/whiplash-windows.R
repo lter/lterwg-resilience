@@ -78,17 +78,18 @@ dplyr::glimpse(test_df)
 window_size <- 3
 
 # Output list
-whiplash_list <- list()
+diff_list <- list()
 
 # Loop across dates in data
 for(focal_date in test_df$date){
+# for(focal_date in as.Date("1901-10-16")){
   ## focal_date <- as.Date("1901-10-16")
   
   # Coerce to real date & overwrite existing object (should be one already...)
   focal_date <- as.Date(focal_date)
   
   # Processing message  
-  message("Identify whiplash events in window relative to ", focal_date)
+  message("Identify environmental differences in window relative to ", focal_date)
   
   # Grab SPEI at that time point
   focal_spei <- dplyr::filter(test_df, date == focal_date)$SPEI
@@ -106,37 +107,53 @@ for(focal_date in test_df$date){
     # If no date exists, the difference is NA
     if(length(prior_spei) == 0){
       diff_spei <- NA_real_
+      prior_spei <- NA_real_
       # Otherwise, calculate difference
-    } else { diff_spei <- focal_spei - abs(prior_spei) }
+    } else { diff_spei <- focal_spei - prior_spei }
     
     # Assemble dataframe variant of output
     diff_out <- data.frame("date" = focal_date,
                            "spei" = focal_spei,
                            "prior_date" = prior_date,
+                           "prior_spei" = prior_spei,
                            "spei_diff" = diff_spei)
     
     # Add to output list
-    whiplash_list[[paste0(focal_date, "_", months_prior)]] <- diff_out
+    diff_list[[paste0(focal_date, "_", months_prior)]] <- diff_out
     
   } # Close prior months relative to focal date loop
 } # Close focal date loop
 
 # Process outputs
-whiplash_df <- whiplash_list %>% 
+diff_df <- diff_list %>% 
   purrr::list_rbind(x = .) %>% 
   # Drop NA SPEI differences (where window exceeds available date range)
   dplyr::filter(!is.na(spei_diff))
+
+
+# Check that out
+diff_df
+## view(diff_df)
 
 # Determine upper/lower thresholds of SPEI (for what constitutes "whiplash")
 upper_perc <- 0.994
 lower_perc <- 0.006
 
 # Calculate values at those thresholds
-upper_thresh <- as.numeric(quantile(x = whiplash_df$spei_diff, probs = upper_perc))
-lower_thresh <- as.numeric(quantile(x = whiplash_df$spei_diff, probs = lower_perc))
+upper_thresh <- as.numeric(quantile(x = diff_df$spei_diff, probs = upper_perc))
+lower_thresh <- as.numeric(quantile(x = diff_df$spei_diff, probs = lower_perc))
 
-# More processing
-whiplash_out <- whiplash_df %>% 
+# Exploratory histogram
+ggplot(diff_df, aes(x = spei_diff)) +
+  geom_histogram(bins = 45, color = "white", fill = "gray33") +
+  geom_vline(xintercept = upper_thresh, linetype = 2, 
+             color = "blue", linewidth = 0.5) +
+  geom_vline(xintercept = lower_thresh, linetype = 2, 
+             color = "blue", linewidth = 0.5) +
+  supportR::theme_lyon()
+
+# geom_histogram()# More processing
+diff_out <- diff_df %>% 
   # Identify maximum/minimum per date
   dplyr::group_by(date, spei) %>% 
   dplyr::summarize(diff_max = max(spei_diff, na.rm = T),
@@ -160,19 +177,31 @@ whiplash_out <- whiplash_df %>%
   dplyr::select(-dplyr::starts_with("diff_"))
 
 # Check structure of result
-dplyr::glimpse(whiplash_out)
-## view(whiplash_out)
+dplyr::glimpse(diff_out)
+## view(diff_out)
 
 # Any whiplash events?
-whiplash_only <- whiplash_out %>% 
+whiplash_only <- diff_out %>% 
   dplyr::filter(whiplash == "whiplash")
 
 whiplash_only
 
-# Make an exploratory graph
-ggplot(test_df, aes(x = date, y = SPEI)) +
+# Make another histogram
+ggplot() +
+  geom_histogram(data = diff_df, aes(x = spei_diff),
+                 bins = 45, color = "white", fill = "gray33") +
+  geom_histogram(data = whiplash_only, aes(x = spei_diff),
+                 bins = 50, color = "white", fill = "red") +
+  geom_vline(xintercept = upper_thresh, linetype = 2, 
+             color = "blue", linewidth = 0.5) +
+  geom_vline(xintercept = lower_thresh, linetype = 2, 
+             color = "blue", linewidth = 0.5) +
+  supportR::theme_lyon()
+
+# More exploratory graphing
+ggplot(diff_df, aes(x = date, y = spei_diff)) +
   geom_point() + 
-  geom_point(data = whiplash_only, aes(x = date, y = spei), color = "red") +
+  geom_point(data = whiplash_only, aes(x = date, y = spei_diff), color = "red") +
   geom_hline(yintercept = upper_thresh, linetype = 2, 
              color = "blue", linewidth = 0.5) +
   geom_hline(yintercept = lower_thresh, linetype = 2, 
