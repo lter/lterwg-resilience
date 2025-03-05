@@ -136,7 +136,8 @@ whiplash_df <- whiplash_list %>%
   # Identify maximum/minimum per date
   dplyr::group_by(date, spei) %>% 
   dplyr::summarize(diff_max = max(spei_diff, na.rm = T),
-                   diff_min = min(spei_diff, na.rm = T)) %>% 
+                   diff_min = min(spei_diff, na.rm = T),
+                   .groups = "keep") %>% 
   dplyr::ungroup() %>% 
   # Identify whiplash events
   dplyr::mutate(whiplash = ifelse(diff_max >= upper_thresh | 
@@ -146,7 +147,13 @@ whiplash_df <- whiplash_list %>%
   dplyr::mutate(whiplash_direction = dplyr::case_when(
     diff_max >= upper_thresh ~ "max",
     diff_min <= lower_thresh ~ "min",
-    T ~ NA))
+    T ~ NA)) %>% 
+  # Simplify max/min SPEI diff to just the difference that actually crosses the threshold
+  dplyr::mutate(spei_diff = dplyr::case_when(
+    diff_max >= upper_thresh ~ diff_max,
+    diff_min <= lower_thresh ~ diff_min,
+    T ~ NA), .after = spei) %>% 
+  dplyr::select(-dplyr::starts_with("diff_"))
 
 # Check structure of result
 dplyr::glimpse(whiplash_df)
