@@ -1,8 +1,19 @@
-
-
-
-
-
+#' @title Calculate Differences within Moving Windows
+#' 
+#' @description Calculates pairwise differences between the last month in a moving window for a user-defined number of prior months relative to the last month in the window. Returns results as a dataframe for further customization. See argument descriptions for more details. Automatically removes differences of `NA` because this is most likely caused by 'prior' months preceding the start of available data in the provided data object.
+#' 
+#' @param df (data.frame-like) tabular data object for which to apply this method
+#' @param date_col (character) name of column in 'df' containing date information. Must be granular enough to include--at least--month-level information. Must be an unambiguous date format (see `?as.Date`)
+#' @param enviro_col (character) name of column in 'df' containing environmental information. Must be a numeric column
+#' @param window_size (numeric) number of months to include in each window. Defaults to "3"
+#' @param quiet (logical) whether to print a progress message for each window. For longer time series, calculating all differences can be time-consuming so it is recommended to leave this argument as `FALSE` (the default) so that it is clear the function has not crashed
+#' 
+#' @return (data.frame) a dataframe containing a date column and environmental column as well as a column for each prior date and environmental variable at that previous date. Also returns the difference between the original environmental variable and the 'prior' one. All column names inherit conventions from the values passed to the 'date_col' and 'enviro_col' arguments.
+#' 
+#' @importFrom magrittr %>%
+#' 
+#' @export
+#' 
 diff_windows <- function(df = NULL, date_col = "date", enviro_col = "SPEI",
                          window_size = 3, quiet = FALSE){
   
@@ -92,6 +103,6 @@ diff_windows <- function(df = NULL, date_col = "date", enviro_col = "SPEI",
   
   
   # Return that to user
-  return(diff_out)
-  
-}
+  return(diff_out) }
+
+# End ----
