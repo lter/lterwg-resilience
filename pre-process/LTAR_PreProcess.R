@@ -180,7 +180,27 @@ ecb_pp <- ecb_raw %>%
   dplyr::mutate(Treatment.ID = ifelse(Treatment.ID == "ECB_B1BAU",
                                       # Note change from "_B" to "_E"
                                       yes = "ECB_E1BAU",
-                                      no = Treatment.ID))
+                                      no = Treatment.ID)) %>%
+  # Update site ID to reflect Treatment ID because they are different locations
+  dplyr::mutate(site_ID = Treatment.ID) %>%
+  # Drop unwanted column(s)
+  dplyr::select(-c("Frac.Moist..","Frac.Fresh.Matt.kg.ha", "Growth.Stage")) %>%
+  # Pivot biomass to wide format
+  tidyr::pivot_wider(names_from = Plant.Fraction, 
+                     values_from = Frac.Dry.Matt.kg.ha) %>%
+  # Make desired new column(s)
+  dplyr::rename(grain_kg_ha = Grain,
+                anpp_kg_ha = `Aboveground biomass`) %>%
+  # Merge rows stem biomass wiht rows for grain to calc ANPP for winter wheat
+  # Only two instances
+  dplyr::mutate(anpp_kg_ha = ifelse(Sampling.Date == "7/7/2014 0:00", 5202.045+4211.2, anpp_kg_ha))%>%
+  # Suspicious that the stems are the exact same biomass in these two years
+  dplyr::mutate(anpp_kg_ha = ifelse(Sampling.Date == "7/5/2019 0:00", 2716.620+4211.2, anpp_kg_ha)) %>%
+  # Drop stem column
+  dplyr::select(-Stems) %>%
+  # Drop rows that are NA for grain and anpp
+  dplyr::filter(!is.na(grain_kg_ha)| !is.na(anpp_kg_ha))
+
 
 # Check for gained/lost columns
 supportR::diff_check(old = names(ecb_raw), new = names(ecb_pp))
