@@ -326,8 +326,14 @@ kbs_pp <- kbs_raw %>%
   dplyr::rename(biomass_kg_ha = WHOLE,
                 grain_kg_ha = SEED) %>% 
   # Drop unwanted columns
-  dplyr::select(-STOVER, -LITTER, -`STOVER-NONLEAF`, -STOV_VEG, -STOV_REP)
-  
+  dplyr::select(-STOVER, -LITTER, -`STOVER-NONLEAF`, -STOV_VEG, -STOV_REP)%>%
+  # Replace 0 with NA for grain_kg_ha and biomass_kg_ha
+  dplyr::mutate(biomass_kg_ha = ifelse(biomass_kg_ha == 0, NA, biomass_kg_ha))%>%
+  dplyr::mutate(grain_kg_ha = ifelse(grain_kg_ha == 0, NA, grain_kg_ha)) %>%
+  #Get rid of Treatmetn T6 because multiple harvest dates and nto sure which one to use
+  dplyr::filter(Treatment.ID != "KBS_T6")
+
+
 # Check for gained/lost columns
 supportR::diff_check(old = names(kbs_raw), new = names(kbs_pp))
 
