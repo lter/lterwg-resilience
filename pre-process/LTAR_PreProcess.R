@@ -228,6 +228,16 @@ gb_raw <- read.csv(file = file.path("data", "raw", "GB_MeasGrazingPlants_0424202
 # Check structure
 dplyr::glimpse(gb_raw)
 
+##Determine latest clip date for each year, treatment, and unit
+dates <- gb_raw %>%
+  # Make Date a date format
+  dplyr::mutate(Date = as.Date(Date, format= "%m/%d/%Y"))%>%
+  # Create year column
+  dplyr::mutate(year=lubridate::year(Date))%>%
+  # Identify last sampling date for each unit and treatment for each year
+  dplyr::group_by(Unit.ID, Treatment.ID, year)%>%
+  dplyr::summarize(last_date=max(Date))
+
 # Make needed repairs
 gb_pp <- gb_raw %>% 
   # Drop columns that are entirely NA
@@ -235,6 +245,16 @@ gb_pp <- gb_raw %>%
   # Add desired column(s)
   dplyr::mutate(network = "LTAR", site_ID = "GB",
                 .before = dplyr::everything()) %>% 
+  # Make date a date
+  dplyr::mutate(Date = as.Date(Date, format= "%m/%d/%Y"))%>%
+  # Create year column
+  dplyr::mutate(year=lubridate::year(Date))%>%
+  # Join dates dataframe to ID a final sample date
+  left_join(dates)%>%
+  # Drop initial date column
+  dplyr::select(-Date) %>% 
+  # Rename last_date _. Date
+  dplyr::rename(Date = last_date) %>%
   # Tweak treatment ID column
   dplyr::mutate(Treatment.ID = stringr::str_sub(string = Unit.ID, 
                                                 start = 1, end = 6)) %>% 
