@@ -552,8 +552,15 @@ pnelt_pp <- pnelt_raw %>%
   # Drop columns that are entirely NA
   dplyr::select(-dplyr::where(fn = ~ all(is.na(.) | nchar(.) == 0))) %>% 
   # Add desired column(s)
-  dplyr::mutate(network = "LTAR", site_ID = "PRHPA_NEMELTCRS",
-                .before = dplyr::everything())
+  dplyr::mutate(network = "LTAR", site_ID = "PRHPA",
+                .before = dplyr::everything()) %>%
+  # Rename resulting columns
+  dplyr::rename(anpp_kg_ha = Above.G.Biomass.kg.ha,
+                grain_kg_ha = Grain.Dry.Matt.kg.ha) %>%
+  # Get rid of unnecessary columns
+  dplyr::select(-c("Harvested.Frac","Grain.C.kgC.ha","Grain.N.kgN.ha","NonHarv.NonGrain.Bio.kg.ha",
+                   "NonHarv.Res.Moist..","NonHarv.Res.C.kgC.ha","NonHarv.Res.N.kgN.ha"))
+
 
 # Check for gained/lost columns
 supportR::diff_check(old = names(pnelt_raw), new = names(pnelt_pp))
