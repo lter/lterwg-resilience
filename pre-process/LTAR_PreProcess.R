@@ -351,7 +351,75 @@ rm(list = ls()); gc()
 # Pre-Process "LCB" ----
 ## -------------------------------------------- ## 
 
-# LCB - will add/do later
+# Needed pre-processing:
+## Add "LCB_"infront of treatment numbers; sum across grain and straw to get ANPP for some of the crops
+
+# Read in data
+lcb_raw <- read.csv(file = file.path("data", "raw", "LCB_MeasHarvestFractionv2.csv"))
+
+# Check structure
+dplyr::glimpse(lcb_raw)
+
+##Determine latest clip date for each year, treatment, and unit
+dates <- lcb_raw %>%
+  # Make Date a date format
+  dplyr::mutate(Date = as.Date(Sampling.Date, format= "%m/%d/%Y"))%>%
+  # Create year column
+  dplyr::mutate(year=lubridate::year(Date))%>%
+  dplyr::mutate(Treatment.ID = paste("LCB", Treatment.ID, sep="_")) %>%
+  # Identify last sampling date for each unit and treatment for each year
+  dplyr::group_by(Unit.ID, Treatment.ID, year,Crop)%>%
+  dplyr::summarize(last_date=max(Date))
+
+
+# Make needed repairs
+lcb_pp <- lcb_raw %>% 
+  # Drop columns that are entirely NA
+  dplyr::select(-dplyr::where(fn = ~ all(is.na(.) | nchar(.) == 0))) %>% 
+  # Add desired column(s)
+  dplyr::mutate(network = "LTAR", site_ID = "LCB",
+                .before = dplyr::everything()) %>%
+  # Make Date a date format
+  dplyr::mutate(Sampling.Date = as.Date(Sampling.Date, format= "%m/%d/%Y"))%>%
+  # Create year column
+  dplyr::mutate(year=lubridate::year(Sampling.Date))%>%
+  # Get rid of unnecessary columns
+  dplyr::select(-c("Frac.Fresh.Matt.kg.ha", "Frac.Moist..")) %>%
+  # Add LCB_ infront of treatment
+  dplyr::mutate(Treatment.ID = paste("LCB", Treatment.ID, sep="_")) %>%
+  # Get rid of production values that is "."
+  dplyr::filter(Frac.Dry.Matt.kg.ha != ".") %>%
+  # Make production column numeric 
+  dplyr::mutate(Frac.Dry.Matt.kg.ha = as.numeric(Frac.Dry.Matt.kg.ha)) %>%
+  # Join dates - winter wheat is like two days off sometimes
+  left_join(dates) %>%
+  # Drop dsampling date
+  dplyr::select(-Sampling.Date)%>%
+  # Pivot wider
+  tidyr::pivot_wider(names_from = Plant.Fraction,
+                     values_from = Frac.Dry.Matt.kg.ha)%>%
+  # Sum Grain and Straw in a case when to calculate ANPP
+  dplyr::rename(grain_kg_ha = Grain) %>% 
+  dplyr::mutate(anpp_kg_ga = dplyr::case_when(
+    !is.na(`All aboveground biomass`) ~ `All aboveground biomass`,
+    !is.na(grain_kg_ha) & !is.na(Straw) ~ grain_kg_ha + Straw,
+    T ~ NA)) %>% 
+  # Drop superseded columns
+  dplyr::select(-`All aboveground biomass`, -Straw)
+
+# Check for gained/lost columns
+supportR::diff_check(old = names(lcb_raw), new = names(lcb_pp))
+
+# Re-check structure
+dplyr::glimpse(lcb_pp)
+
+# Export locally
+write.csv(x = lcb_pp, na = '', row.names = F,
+          file = file.path("data", "pre_processed_data", "LTAR_LCB_pre-process.csv"))
+
+# Clear environment
+rm(list = ls()); gc()
+
 
 ## -------------------------------------------- ## 
 # Pre-Process "NH" ----
