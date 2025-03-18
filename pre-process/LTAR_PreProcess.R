@@ -379,7 +379,7 @@ nh_pp <- nh_raw %>%
                                       yes = "Combine Harvest", no = Growth.Stage)) %>% 
   # Summarize across duplicates
   dplyr::group_by(dplyr::across(dplyr::all_of(setdiff(x = names(.), y = c("Frac.Dry.Matt.kg.ha"))))) %>%
-  dplyr::summarize(biomass = sum(Frac.Dry.Matt.kg.ha, na.rm = T)) %>%
+  dplyr::summarize(biomass = mean(Frac.Dry.Matt.kg.ha, na.rm = T)) %>%
   dplyr::ungroup() %>%
   # Rotate to wide format
   tidyr::pivot_wider(names_from = Plant.Fraction, 
