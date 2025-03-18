@@ -434,8 +434,8 @@ npc_pp <- npc_raw %>%
   dplyr::mutate(anpp_kg_ga = dplyr::case_when(
                   !is.na(`Aboveground biomass`) ~ `Aboveground biomass`,
                   !is.na(grain_kg_ha) & !is.na(`Stover (all non-grain biomass)`) ~ grain_kg_ha + `Stover (all non-grain biomass)`,
-                  is.na(grain_kg_ha) & !is.na(`Stover (all non-grain biomass)`) ~ `Stover (all non-grain biomass)`,
-                  !is.na(grain_kg_ha) & is.na(`Stover (all non-grain biomass)`) ~ grain_kg_ha,
+                  #is.na(grain_kg_ha) & !is.na(`Stover (all non-grain biomass)`) ~ `Stover (all non-grain biomass)`,
+                  #!is.na(grain_kg_ha) & is.na(`Stover (all non-grain biomass)`) ~ grain_kg_ha,
                   T ~ NA)) %>% 
   # Drop superseded columns
   dplyr::select(-`Stover (all non-grain biomass)`, -`Aboveground biomass`)
