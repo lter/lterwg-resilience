@@ -12,7 +12,7 @@
 ## -------------------------------------------- ## 
 
 # Load needed libraries
-librarian::shelf(tidyverse, googledrive, supportR)
+librarian::shelf(tidyverse, googledrive, supportR, lubridate)
 
 # Make needed folder(s)
 dir.create(file.path("data"), showWarnings = F)
@@ -720,7 +720,7 @@ write.csv(x = tg_pp, na = '', row.names = F,
 rm(list = ls()); gc()
 
 ## -------------------------------------------- ## 
-# Pre-Process "UCB" ----
+# Pre-Process "UCB Pahaw Residue" ----
 ## -------------------------------------------- ## 
 
 ##UCB Meas Residue Mgnt
@@ -761,8 +761,99 @@ write.csv(x = ucb_pp, na = '', row.names = F,
 # Clear environment
 rm(list = ls()); gc()
 
-# UCB Pastures still need to be added in
-# Have pre and post-grazed data and would sum biomass across that
+## -------------------------------------------- ## 
+# Pre-Process "UCB Pahaw Pastures" ----
+## -------------------------------------------- ## 
+
+# Needed pre-processing:
+## Have pre and post-grazed data and would sum biomass across that
+## Needs to be done within paired / consecutive dates
+## Also add network / site info
+
+# Read in data
+ucb.grz_raw <- read.csv(file = file.path("data", "raw", "UCB_Pahaw_MeasGrazingPlants.csv"))
+
+# Check structure
+dplyr::glimpse(ucb.grz_raw)
+
+# Do some general simplification moves
+ucb.grz_simp <- ucb.grz_raw %>% 
+  # Drop columns that are entirely NA
+  dplyr::select(-dplyr::where(fn = ~ all(is.na(.) | nchar(.) == 0))) %>% 
+  # Drop the 'broadleaf vs grass' column (only says "Both" in every row)
+  dplyr::select(-Broadleaf.vs.Grass) %>% 
+  # Clean up growth stage column contents
+  ## We're going to need to refer to it a bunch in a moment
+  dplyr::mutate(Growth.Stage = gsub("-graze", "", x = tolower(Growth.Stage))) %>% 
+  # Rename biomass column more simply
+  dplyr::rename(bio = AboveGr.Bio.kg.ha..dry.) %>% 
+  # Extract year from date information
+  dplyr::mutate(Date = as.Date(Date, format = "%m/%d/%Y"),
+                year = lubridate::year(Date))
+
+# Re-check structure
+dplyr::glimpse(ucb.grz_simp)
+
+# Identify pairs of dates across growth stage treatments
+ucb.grz_pairs <- ucb.grz_simp %>% 
+  # Identify pairs of dates & final post graze value
+  dplyr::group_by(Unit.ID, Treatment.ID, Species.Mix, Growth.Stage, year) %>% 
+  dplyr::mutate(date_pair = seq_along(unique(Date))) %>% 
+  dplyr::ungroup() %>% 
+  # Drop dates
+  dplyr::select(-Date)
+
+# Check structure
+dplyr::glimpse(ucb.grz_pairs)
+
+# Grab tha final post-grazing biomass for each
+ucb.grz_maxpost <- ucb.grz_pairs %>% 
+  dplyr::group_by(Unit.ID, Treatment.ID, Species.Mix, year) %>% 
+  dplyr::filter(Growth.Stage == "post" &
+                  date_pair == max(date_pair, na.rm = T)) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::select(-Growth.Stage, -date_pair)
+
+# Check structure
+dplyr::glimpse(ucb.grz_maxpost)
+
+# Do remaining needed repairs
+ucb.grz_pp <- ucb.grz_pairs %>% 
+  # Pivot wider to get pre/post in columns
+  tidyr::pivot_wider(names_from = Growth.Stage, values_from = bio) %>% 
+  # Calculate differences in biomass
+  dplyr::mutate(bio.diff = pre - post) %>% 
+  # Sum differences within groups
+  dplyr::group_by(Unit.ID, Treatment.ID, Species.Mix, year) %>% 
+  dplyr::summarize(bio.diff.sum = sum(bio.diff, na.rm = T),
+                   .groups = "keep") %>% 
+  dplyr::ungroup() %>% 
+  # Attach pre-calculated maximum post-grazing biomass
+  dplyr::left_join(y = ucb.grz_maxpost, by = c("Unit.ID", "Treatment.ID", 
+                                               "Species.Mix", "year")) %>% 
+  # Sum the 'sum of diffs' and the maximum post-grazing biomass
+  dplyr::mutate(anpp_kg_ha = bio.diff.sum + bio) %>% 
+  dplyr::select(-dplyr::starts_with("bio")) %>% 
+  # Add desired column(s)
+  dplyr::mutate(network = "LTAR", site_ID = "UCB-Pastures",
+                .before = dplyr::everything())
+
+# Check structure
+dplyr::glimpse(ucb.grz_pp)
+## view(ucb.grz_pp)
+
+# Check for gained/lost columns
+supportR::diff_check(old = names(ucb.grz_raw), new = names(ucb.grz_pp))
+
+# Re-check structure
+dplyr::glimpse(ucb.grz_pp)
+
+# Export locally
+write.csv(x = ucb.grz_pp, na = '', row.names = F,
+          file = file.path("data", "pre_processed_data", "LTAR_ucb-pastures_pre-process.csv"))
+
+# Clear environment
+rm(list = ls()); gc()
 
 ## -------------------------------------------- ## 
 # Pre-Process "UMRB" ----
