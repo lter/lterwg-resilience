@@ -723,7 +723,46 @@ rm(list = ls()); gc()
 # Pre-Process "UCB" ----
 ## -------------------------------------------- ## 
 
-# UCB - Not doing now
+##UCB Meas Residue Mgnt
+# Read in data
+ucb_raw <- read.csv(file = file.path("data", "raw", "UCB_Pahaw_MeasResidueMgnt.csv"))
+
+# Check structure
+dplyr::glimpse(ucb_raw)
+
+# Make needed repairs
+ucb_pp <- ucb_raw %>% 
+  # Drop columns that are entirely NA
+  dplyr::select(-dplyr::where(fn = ~ all(is.na(.) | nchar(.) == 0))) %>% 
+  # Add desired column(s)
+  dplyr::mutate(network = "LTAR", site_ID = "UCB",
+                .before = dplyr::everything()) %>%
+  # Rename grain column
+  dplyr::rename(grain_kg_ha = Grain.Dry.Matt.kg.ha) %>% 
+  # Assemble ANPP column
+  dplyr::mutate(anpp_kg_ga = dplyr::case_when(
+    !is.na(Above.G.Biomass.kg.ha) ~Above.G.Biomass.kg.ha,
+    !is.na(grain_kg_ha) & !is.na(Harv.NonGrain.Bio.kg.ha) ~ grain_kg_ha + (Harv.NonGrain.Bio.kg.ha * (4/3)),
+    T ~ NA)) %>% 
+  # Drop superseded columns
+  dplyr::select(-Harvested.Frac, -Above.G.Biomass.kg.ha, -Grain.Moist.., -Harv.NonGrain.Bio.kg.ha)
+  
+
+# Check for gained/lost columns
+supportR::diff_check(old = names(ucb_raw), new = names(ucb_pp))
+
+# Re-check structure
+dplyr::glimpse(ucb_pp)
+
+# Export locally
+write.csv(x = ucb_pp, na = '', row.names = F,
+          file = file.path("data", "pre_processed_data", "LTAR_ucb_pre-process.csv"))
+
+# Clear environment
+rm(list = ls()); gc()
+
+# UCB Pastures still need to be added in
+# Have pre and post-grazed data and would sum biomass across that
 
 ## -------------------------------------------- ## 
 # Pre-Process "UMRB" ----
