@@ -852,6 +852,14 @@ dplyr::glimpse(ucb.grz_pp)
 write.csv(x = ucb.grz_pp, na = '', row.names = F,
           file = file.path("data", "pre_processed_data", "LTAR_ucb-pastures_pre-process.csv"))
 
+
+##quick graph to compare
+comp <- ucb.grz_pp %>%
+  group_by(Treatment.ID, year, Species.Mix) %>%
+  summarize(mean=mean(anpp_kg_ha))
+ggplot(comp, aes(year, mean, fill=Species.Mix))+
+  geom_bar(position="dodge", stat="identity")
+
 # Clear environment
 rm(list = ls()); gc()
 
