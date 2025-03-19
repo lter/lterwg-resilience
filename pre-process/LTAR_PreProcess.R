@@ -752,11 +752,9 @@ ames_pp <- ames_raw %>%
                      values_from = Frac.Dry.Matt.kg.ha) %>% 
   # Assemble desired columns
   dplyr::rename(grain_kg_ha = Grain) %>% 
-  dplyr::mutate(anpp_kg_ha = dplyr::case_when(
-    Crop == "Glycine max (Soybean)" ~ Shoot + `Stover (all non-grain biomass)` + grain_kg_ha,
-    Crop == "Zea mays (Corn)" ~ `Stover (all non-grain biomass)` + grain_kg_ha)) %>% 
+  dplyr::rename(anpp_kg_ha = Shoot) %>% 
   # Drop superseded columns
-  dplyr::select(-Shoot, -Cobs, -`Stover (all non-grain biomass)`)
+  dplyr::select(-Cobs, -`Stover (all non-grain biomass)`)
 
 # Check for gained/lost columns
 supportR::diff_check(old = names(ames_raw), new = names(ames_pp))
