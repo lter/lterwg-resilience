@@ -12,7 +12,7 @@
 ## -------------------------------------------- ## 
 
 # Load needed libraries
-librarian::shelf(tidyverse, googledrive, supportR)
+librarian::shelf(tidyverse, googledrive, supportR, lubridate)
 
 # Make needed folder(s)
 dir.create(file.path("data"), showWarnings = F)
@@ -180,7 +180,27 @@ ecb_pp <- ecb_raw %>%
   dplyr::mutate(Treatment.ID = ifelse(Treatment.ID == "ECB_B1BAU",
                                       # Note change from "_B" to "_E"
                                       yes = "ECB_E1BAU",
-                                      no = Treatment.ID))
+                                      no = Treatment.ID)) %>%
+  # Update site ID to reflect Treatment ID because they are different locations
+  dplyr::mutate(site_ID = Treatment.ID) %>%
+  # Drop unwanted column(s)
+  dplyr::select(-c("Frac.Moist..","Frac.Fresh.Matt.kg.ha", "Growth.Stage")) %>%
+  # Pivot biomass to wide format
+  tidyr::pivot_wider(names_from = Plant.Fraction, 
+                     values_from = Frac.Dry.Matt.kg.ha) %>%
+  # Make desired new column(s)
+  dplyr::rename(grain_kg_ha = Grain,
+                anpp_kg_ha = `Aboveground biomass`) %>%
+  # Merge rows stem biomass wiht rows for grain to calc ANPP for winter wheat
+  # Only two instances
+  dplyr::mutate(anpp_kg_ha = ifelse(Sampling.Date == "7/7/2014 0:00", 5202.045+4211.2, anpp_kg_ha))%>%
+  # Suspicious that the stems are the exact same biomass in these two years
+  dplyr::mutate(anpp_kg_ha = ifelse(Sampling.Date == "7/5/2019 0:00", 2716.620+4211.2, anpp_kg_ha)) %>%
+  # Drop stem column
+  dplyr::select(-Stems) %>%
+  # Drop rows that are NA for grain and anpp
+  dplyr::filter(!is.na(grain_kg_ha)| !is.na(anpp_kg_ha))
+
 
 # Check for gained/lost columns
 supportR::diff_check(old = names(ecb_raw), new = names(ecb_pp))
@@ -208,6 +228,16 @@ gb_raw <- read.csv(file = file.path("data", "raw", "GB_MeasGrazingPlants_0424202
 # Check structure
 dplyr::glimpse(gb_raw)
 
+##Determine latest clip date for each year, treatment, and unit
+dates <- gb_raw %>%
+  # Make Date a date format
+  dplyr::mutate(Date = as.Date(Date, format= "%m/%d/%Y"))%>%
+  # Create year column
+  dplyr::mutate(year=lubridate::year(Date))%>%
+  # Identify last sampling date for each unit and treatment for each year
+  dplyr::group_by(Unit.ID, Treatment.ID, year)%>%
+  dplyr::summarize(last_date=max(Date))
+
 # Make needed repairs
 gb_pp <- gb_raw %>% 
   # Drop columns that are entirely NA
@@ -215,6 +245,16 @@ gb_pp <- gb_raw %>%
   # Add desired column(s)
   dplyr::mutate(network = "LTAR", site_ID = "GB",
                 .before = dplyr::everything()) %>% 
+  # Make date a date
+  dplyr::mutate(Date = as.Date(Date, format= "%m/%d/%Y"))%>%
+  # Create year column
+  dplyr::mutate(year=lubridate::year(Date))%>%
+  # Join dates dataframe to ID a final sample date
+  left_join(dates)%>%
+  # Drop initial date column
+  dplyr::select(-Date) %>% 
+  # Rename last_date _. Date
+  dplyr::rename(Date = last_date) %>%
   # Tweak treatment ID column
   dplyr::mutate(Treatment.ID = stringr::str_sub(string = Unit.ID, 
                                                 start = 1, end = 6)) %>% 
@@ -286,8 +326,14 @@ kbs_pp <- kbs_raw %>%
   dplyr::rename(biomass_kg_ha = WHOLE,
                 grain_kg_ha = SEED) %>% 
   # Drop unwanted columns
-  dplyr::select(-STOVER, -LITTER, -`STOVER-NONLEAF`, -STOV_VEG, -STOV_REP)
-  
+  dplyr::select(-STOVER, -LITTER, -`STOVER-NONLEAF`, -STOV_VEG, -STOV_REP)%>%
+  # Replace 0 with NA for grain_kg_ha and biomass_kg_ha
+  dplyr::mutate(biomass_kg_ha = ifelse(biomass_kg_ha == 0, NA, biomass_kg_ha))%>%
+  dplyr::mutate(grain_kg_ha = ifelse(grain_kg_ha == 0, NA, grain_kg_ha)) %>%
+  #Get rid of Treatmetn T6 because multiple harvest dates and nto sure which one to use
+  dplyr::filter(Treatment.ID != "KBS_T6")
+
+
 # Check for gained/lost columns
 supportR::diff_check(old = names(kbs_raw), new = names(kbs_pp))
 
@@ -305,7 +351,75 @@ rm(list = ls()); gc()
 # Pre-Process "LCB" ----
 ## -------------------------------------------- ## 
 
-# LCB - will add/do later
+# Needed pre-processing:
+## Add "LCB_"infront of treatment numbers; sum across grain and straw to get ANPP for some of the crops
+
+# Read in data
+lcb_raw <- read.csv(file = file.path("data", "raw", "LCB_MeasHarvestFractionv2.csv"))
+
+# Check structure
+dplyr::glimpse(lcb_raw)
+
+##Determine latest clip date for each year, treatment, and unit
+dates <- lcb_raw %>%
+  # Make Date a date format
+  dplyr::mutate(Date = as.Date(Sampling.Date, format= "%m/%d/%Y"))%>%
+  # Create year column
+  dplyr::mutate(year=lubridate::year(Date))%>%
+  dplyr::mutate(Treatment.ID = paste("LCB", Treatment.ID, sep="_")) %>%
+  # Identify last sampling date for each unit and treatment for each year
+  dplyr::group_by(Unit.ID, Treatment.ID, year,Crop)%>%
+  dplyr::summarize(last_date=max(Date))
+
+
+# Make needed repairs
+lcb_pp <- lcb_raw %>% 
+  # Drop columns that are entirely NA
+  dplyr::select(-dplyr::where(fn = ~ all(is.na(.) | nchar(.) == 0))) %>% 
+  # Add desired column(s)
+  dplyr::mutate(network = "LTAR", site_ID = "LCB",
+                .before = dplyr::everything()) %>%
+  # Make Date a date format
+  dplyr::mutate(Sampling.Date = as.Date(Sampling.Date, format= "%m/%d/%Y"))%>%
+  # Create year column
+  dplyr::mutate(year=lubridate::year(Sampling.Date))%>%
+  # Get rid of unnecessary columns
+  dplyr::select(-c("Frac.Fresh.Matt.kg.ha", "Frac.Moist..")) %>%
+  # Add LCB_ infront of treatment
+  dplyr::mutate(Treatment.ID = paste("LCB", Treatment.ID, sep="_")) %>%
+  # Get rid of production values that is "."
+  dplyr::filter(Frac.Dry.Matt.kg.ha != ".") %>%
+  # Make production column numeric 
+  dplyr::mutate(Frac.Dry.Matt.kg.ha = as.numeric(Frac.Dry.Matt.kg.ha)) %>%
+  # Join dates - winter wheat is like two days off sometimes
+  left_join(dates) %>%
+  # Drop dsampling date
+  dplyr::select(-Sampling.Date)%>%
+  # Pivot wider
+  tidyr::pivot_wider(names_from = Plant.Fraction,
+                     values_from = Frac.Dry.Matt.kg.ha)%>%
+  # Sum Grain and Straw in a case when to calculate ANPP
+  dplyr::rename(grain_kg_ha = Grain) %>% 
+  dplyr::mutate(anpp_kg_ga = dplyr::case_when(
+    !is.na(`All aboveground biomass`) ~ `All aboveground biomass`,
+    !is.na(grain_kg_ha) & !is.na(Straw) ~ grain_kg_ha + Straw,
+    T ~ NA)) %>% 
+  # Drop superseded columns
+  dplyr::select(-`All aboveground biomass`, -Straw)
+
+# Check for gained/lost columns
+supportR::diff_check(old = names(lcb_raw), new = names(lcb_pp))
+
+# Re-check structure
+dplyr::glimpse(lcb_pp)
+
+# Export locally
+write.csv(x = lcb_pp, na = '', row.names = F,
+          file = file.path("data", "pre_processed_data", "LTAR_LCB_pre-process.csv"))
+
+# Clear environment
+rm(list = ls()); gc()
+
 
 ## -------------------------------------------- ## 
 # Pre-Process "NH" ----
@@ -333,7 +447,7 @@ nh_pp <- nh_raw %>%
                                       yes = "Combine Harvest", no = Growth.Stage)) %>% 
   # Summarize across duplicates
   dplyr::group_by(dplyr::across(dplyr::all_of(setdiff(x = names(.), y = c("Frac.Dry.Matt.kg.ha"))))) %>%
-  dplyr::summarize(biomass = sum(Frac.Dry.Matt.kg.ha, na.rm = T)) %>%
+  dplyr::summarize(biomass = mean(Frac.Dry.Matt.kg.ha, na.rm = T)) %>%
   dplyr::ungroup() %>%
   # Rotate to wide format
   tidyr::pivot_wider(names_from = Plant.Fraction, 
@@ -388,8 +502,8 @@ npc_pp <- npc_raw %>%
   dplyr::mutate(anpp_kg_ga = dplyr::case_when(
                   !is.na(`Aboveground biomass`) ~ `Aboveground biomass`,
                   !is.na(grain_kg_ha) & !is.na(`Stover (all non-grain biomass)`) ~ grain_kg_ha + `Stover (all non-grain biomass)`,
-                  is.na(grain_kg_ha) & !is.na(`Stover (all non-grain biomass)`) ~ `Stover (all non-grain biomass)`,
-                  !is.na(grain_kg_ha) & is.na(`Stover (all non-grain biomass)`) ~ grain_kg_ha,
+                  #is.na(grain_kg_ha) & !is.na(`Stover (all non-grain biomass)`) ~ `Stover (all non-grain biomass)`,
+                  #!is.na(grain_kg_ha) & is.na(`Stover (all non-grain biomass)`) ~ grain_kg_ha,
                   T ~ NA)) %>% 
   # Drop superseded columns
   dplyr::select(-`Stover (all non-grain biomass)`, -`Aboveground biomass`)
@@ -506,8 +620,15 @@ pnelt_pp <- pnelt_raw %>%
   # Drop columns that are entirely NA
   dplyr::select(-dplyr::where(fn = ~ all(is.na(.) | nchar(.) == 0))) %>% 
   # Add desired column(s)
-  dplyr::mutate(network = "LTAR", site_ID = "PRHPA_NEMELTCRS",
-                .before = dplyr::everything())
+  dplyr::mutate(network = "LTAR", site_ID = "PRHPA",
+                .before = dplyr::everything()) %>%
+  # Rename resulting columns
+  dplyr::rename(anpp_kg_ha = Above.G.Biomass.kg.ha,
+                grain_kg_ha = Grain.Dry.Matt.kg.ha) %>%
+  # Get rid of unnecessary columns
+  dplyr::select(-c("Harvested.Frac","Grain.C.kgC.ha","Grain.N.kgN.ha","NonHarv.NonGrain.Bio.kg.ha",
+                   "NonHarv.Res.Moist..","NonHarv.Res.C.kgC.ha","NonHarv.Res.N.kgN.ha"))
+
 
 # Check for gained/lost columns
 supportR::diff_check(old = names(pnelt_raw), new = names(pnelt_pp))
@@ -599,10 +720,148 @@ write.csv(x = tg_pp, na = '', row.names = F,
 rm(list = ls()); gc()
 
 ## -------------------------------------------- ## 
-# Pre-Process "UCB" ----
+# Pre-Process "UCB Pahaw Residue" ----
 ## -------------------------------------------- ## 
 
-# UCB - Not doing now
+##UCB Meas Residue Mgnt
+# Read in data
+ucb_raw <- read.csv(file = file.path("data", "raw", "UCB_Pahaw_MeasResidueMgnt.csv"))
+
+# Check structure
+dplyr::glimpse(ucb_raw)
+
+# Make needed repairs
+ucb_pp <- ucb_raw %>% 
+  # Drop columns that are entirely NA
+  dplyr::select(-dplyr::where(fn = ~ all(is.na(.) | nchar(.) == 0))) %>% 
+  # Add desired column(s)
+  dplyr::mutate(network = "LTAR", site_ID = "UCB",
+                .before = dplyr::everything()) %>%
+  # Rename grain column
+  dplyr::rename(grain_kg_ha = Grain.Dry.Matt.kg.ha) %>% 
+  # Assemble ANPP column
+  dplyr::mutate(anpp_kg_ga = dplyr::case_when(
+    !is.na(Above.G.Biomass.kg.ha) ~Above.G.Biomass.kg.ha,
+    !is.na(grain_kg_ha) & !is.na(Harv.NonGrain.Bio.kg.ha) ~ grain_kg_ha + (Harv.NonGrain.Bio.kg.ha * (4/3)),
+    T ~ NA)) %>% 
+  # Drop superseded columns
+  dplyr::select(-Harvested.Frac, -Above.G.Biomass.kg.ha, -Grain.Moist.., -Harv.NonGrain.Bio.kg.ha)
+  
+
+# Check for gained/lost columns
+supportR::diff_check(old = names(ucb_raw), new = names(ucb_pp))
+
+# Re-check structure
+dplyr::glimpse(ucb_pp)
+
+# Export locally
+write.csv(x = ucb_pp, na = '', row.names = F,
+          file = file.path("data", "pre_processed_data", "LTAR_ucb_pre-process.csv"))
+
+# Clear environment
+rm(list = ls()); gc()
+
+## -------------------------------------------- ## 
+# Pre-Process "UCB Pahaw Pastures" ----
+## -------------------------------------------- ## 
+
+# Needed pre-processing:
+## Have pre and post-grazed data and would sum biomass across that
+## Needs to be done within paired / consecutive dates
+## Also add network / site info
+
+# Read in data
+ucb.grz_raw <- read.csv(file = file.path("data", "raw", "UCB_Pahaw_MeasGrazingPlants.csv"))
+
+# Check structure
+dplyr::glimpse(ucb.grz_raw)
+
+# Do some general simplification moves
+ucb.grz_simp <- ucb.grz_raw %>% 
+  # Drop columns that are entirely NA
+  dplyr::select(-dplyr::where(fn = ~ all(is.na(.) | nchar(.) == 0))) %>% 
+  # Drop the 'broadleaf vs grass' column (only says "Both" in every row)
+  dplyr::select(-Broadleaf.vs.Grass) %>% 
+  # Clean up growth stage column contents
+  ## We're going to need to refer to it a bunch in a moment
+  dplyr::mutate(Growth.Stage = gsub("-graze", "", x = tolower(Growth.Stage))) %>% 
+  # Rename biomass column more simply
+  dplyr::rename(bio = AboveGr.Bio.kg.ha..dry.) %>% 
+  # Extract year from date information
+  dplyr::mutate(Date = as.Date(Date, format = "%m/%d/%Y"),
+                year = lubridate::year(Date))
+
+# Re-check structure
+dplyr::glimpse(ucb.grz_simp)
+
+# Identify pairs of dates across growth stage treatments
+ucb.grz_pairs <- ucb.grz_simp %>% 
+  # Identify pairs of dates & final post graze value
+  dplyr::group_by(Unit.ID, Treatment.ID, Species.Mix, Growth.Stage, year) %>% 
+  dplyr::mutate(date_pair = seq_along(unique(Date))) %>% 
+  dplyr::ungroup() %>% 
+  # Drop dates
+  dplyr::select(-Date)
+
+# Check structure
+dplyr::glimpse(ucb.grz_pairs)
+
+# Grab tha final post-grazing biomass for each
+ucb.grz_maxpost <- ucb.grz_pairs %>% 
+  dplyr::group_by(Unit.ID, Treatment.ID, Species.Mix, year) %>% 
+  dplyr::filter(Growth.Stage == "post" &
+                  date_pair == max(date_pair, na.rm = T)) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::select(-Growth.Stage, -date_pair)
+
+# Check structure
+dplyr::glimpse(ucb.grz_maxpost)
+
+# Do remaining needed repairs
+ucb.grz_pp <- ucb.grz_pairs %>% 
+  # Pivot wider to get pre/post in columns
+  tidyr::pivot_wider(names_from = Growth.Stage, values_from = bio) %>% 
+  # Calculate differences in biomass
+  dplyr::mutate(bio.diff = pre - post) %>% 
+  # Sum differences within groups
+  dplyr::group_by(Unit.ID, Treatment.ID, Species.Mix, year) %>% 
+  dplyr::summarize(bio.diff.sum = sum(bio.diff, na.rm = T),
+                   .groups = "keep") %>% 
+  dplyr::ungroup() %>% 
+  # Attach pre-calculated maximum post-grazing biomass
+  dplyr::left_join(y = ucb.grz_maxpost, by = c("Unit.ID", "Treatment.ID", 
+                                               "Species.Mix", "year")) %>% 
+  # Sum the 'sum of diffs' and the maximum post-grazing biomass
+  dplyr::mutate(anpp_kg_ha = bio.diff.sum + bio) %>% 
+  dplyr::select(-dplyr::starts_with("bio")) %>% 
+  # Add desired column(s)
+  dplyr::mutate(network = "LTAR", site_ID = "UCB-Pastures",
+                .before = dplyr::everything())
+
+# Check structure
+dplyr::glimpse(ucb.grz_pp)
+## view(ucb.grz_pp)
+
+# Check for gained/lost columns
+supportR::diff_check(old = names(ucb.grz_raw), new = names(ucb.grz_pp))
+
+# Re-check structure
+dplyr::glimpse(ucb.grz_pp)
+
+# Export locally
+write.csv(x = ucb.grz_pp, na = '', row.names = F,
+          file = file.path("data", "pre_processed_data", "LTAR_ucb-pastures_pre-process.csv"))
+
+
+##quick graph to compare
+comp <- ucb.grz_pp %>%
+  group_by(Treatment.ID, year, Species.Mix) %>%
+  summarize(mean=mean(anpp_kg_ha))
+ggplot(comp, aes(year, mean, fill=Species.Mix))+
+  geom_bar(position="dodge", stat="identity")
+
+# Clear environment
+rm(list = ls()); gc()
 
 ## -------------------------------------------- ## 
 # Pre-Process "UMRB" ----
@@ -631,11 +890,9 @@ ames_pp <- ames_raw %>%
                      values_from = Frac.Dry.Matt.kg.ha) %>% 
   # Assemble desired columns
   dplyr::rename(grain_kg_ha = Grain) %>% 
-  dplyr::mutate(anpp_kg_ha = dplyr::case_when(
-    Crop == "Glycine max (Soybean)" ~ Shoot + `Stover (all non-grain biomass)` + grain_kg_ha,
-    Crop == "Zea mays (Corn)" ~ `Stover (all non-grain biomass)` + grain_kg_ha)) %>% 
+  dplyr::rename(anpp_kg_ha = Shoot) %>% 
   # Drop superseded columns
-  dplyr::select(-Shoot, -Cobs, -`Stover (all non-grain biomass)`)
+  dplyr::select(-Cobs, -`Stover (all non-grain biomass)`)
 
 # Check for gained/lost columns
 supportR::diff_check(old = names(ames_raw), new = names(ames_pp))
