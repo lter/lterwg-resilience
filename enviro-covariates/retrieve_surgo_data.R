@@ -8,7 +8,8 @@ library(ggplot2)
 library(tibble)
 library(purrr)
 library(dplyr)
-sites <- read.csv("data/site_summary_info.csv",fileEncoding = "UTF-8-BOM")
+source("ancillary/google_drive_urls.R")
+sites <- read.csv("data/SAMPLEsite_summary_info.csv",fileEncoding = "UTF-8-BOM")
 
 ## use lat lon to query mukey
 outres <- vector(mode = "list", length = nrow(sites))
@@ -31,31 +32,41 @@ for(i in 1:nrow(sites)){
 
 resdf <- do.call("bind_rows",outres)
 siteres <- left_join(sites, resdf)
-
+any(is.na(siteres$mukey)) # some are missing.
+siteres$site_id[which(is.na(siteres$mukey))]# just canada.
 
 # make a list
 surgolist <- vector(mode = "list", length = nrow(siteres))
 names(surgolist) <- siteres$site_id
 
 # composite SQL WHERE clause
-
+## this doesn't work for all mukeys. 
 for(i in 1:nrow(siteres)){
   mymukey <- siteres$mukey[i]
   if(!is.na(mymukey)){
-    fetchdf <- fetchSDA(WHERE = glue("mukey IN '{mymukey}'"),duplicates = TRUE)
-    surgolist[[i]] <- fetchdf  
+    #fetchdf <- fetchSDA(WHERE = glue("mukey IN '{mymukey}'"),duplicates = TRUE)
+    fetchdf <- try(fetchSDA(WHERE = glue("mukey = '{mymukey}'"),duplicates = TRUE))
+    surgolist[[i]] <- fetchdf 
   }
 }
-siteres$hasSURGO <- lapply(surgolist, function(x)!is.null(x)) %>% unlist()
+siteres$hasSURGO <- lapply(surgolist, function(x)!(is.null(x)| class(x)=="try-error")) %>% unlist()
+
+
+## make the site info into a dataframe. 
 
 ## get number of components per mukey
-numcomps<- purrr::map(surgolist, 
-                       function(x)if(length(x)>0){ nrow(x@site)}else{NA}
-)
+## for some reason, the @ indexer isn't being recognized
+# in map or lappy
+
+numcomps<- lapply(surgolist, 
+                       function(x)if(length(x)>0){
+                         sitedf <- x@site
+                         return(nrow(sitedf))}else{NA})
+
 siteres$numcomps <- unlist(numcomps)
 
 table(siteres$numcomps)
-
+View(siteres)
 ## save
 #save(siteres, surgolist, file = "data/surgoObjects_20250225.RData")
 
@@ -124,24 +135,39 @@ get_basic_SDA <- function(WHERE, duplicates = TRUE){
 get_basic_SDA(WHERE = WHERE_problem)# this works.
 
 ## get a new list.
-surgolist2 <- purrr::imap(siteres$mukey, ~ {get_basic_SDA(WHERE = glue::glue("mukey = '{.x}'"))}
-                            )
+surgolist2 <- purrr::map(siteres$mukey, ~ {get_basic_SDA(WHERE = glue::glue("mukey = '{.x}'"))})
+names(surgolist2) <- siteres$site_id
+## compare to info in fetch_SDA
+list2names <- names(surgolist2[[1]])
+list1names <- names(surgolist[[1]]@site)                                                    
+setdiff(list2names, list1names)
+setdiff(list1names, list2names)
+intersect(list2names, list1names)
 # convert to a data frame.
 surgodf <- do.call('rbind', surgolist2) 
+nrow(surgodf)
 surgodf <- left_join(surgodf, siteres[,c("site_id","network","mukey")],by = "mukey")
 
 ### how common is it for components in  a single map unit to have varying taxonomic order and hydrogroup?
 ## only count components that are flagged as major based on percent of total
 soilbasics <- surgodf %>% group_by(site_id, network) %>%
                 summarize(num.hg = length(unique(hydgrp[!is.na(hydgrp) & majcompflag=="Yes"])),
+                          num.hg.any = length(unique(hydgrp[!is.na(hydgrp)])),
                           num.tax = length(unique(taxorder[!is.na(taxorder)& majcompflag=="Yes"])),
+                          num.tax.any = length(unique(taxorder[!is.na(taxorder)])),
                           nummajor = sum(majcompflag=="Yes"),
-                          prvtotal = sum(comppct_r))
-table(soilbasics$num.hg)# fairly common to have >1 hydrogroup
-table(soilbasics$num.tax)# less common to have multiple taxonomic orders. 
+                          numcompsbyrow = n(),
+                          numcompsbycokey = length(unique(cokey[!is.na(cokey)])),
+                          prvtotal = sum(comppct_r,na.rm=TRUE))
+table(soilbasics$num.hg)# fairly common to have >1 hydrogroup # 
+table(soilbasics$num.hg.any)# the ones missing hydrogroup don't have it anywhere. 
+table(soilbasics$num.tax)# less common to have multiple taxonomic orders. # one is missing.
+table(soilbasics$num.tax.any)# one is still missing
 table(soilbasics$nummajor)# most sites have one major component.
+table(soilbasics$numcompsbyrow,soilbasics$numcompsbycokey)
+## the number of rows doesn't always match with the number of components. 
 table(surgodf$site_id, surgodf$hydgrp)
-
+table(surgodf$site_id, is.na(surgodf$hydgrp))
 ## filter for only major components 
 surgodf2 <- surgodf[which(surgodf$majcompflag=="Yes"),] 
 dupsites <- soilbasics$site_id[which(soilbasics$num.hg>1 | soilbasics$num.tax > 1)]
@@ -149,30 +175,32 @@ dupsites <- soilbasics$site_id[which(soilbasics$num.hg>1 | soilbasics$num.tax > 
 #View(surgodf2[which(surgodf2$site_id %in% dupsites),c("site_id","mukey","comppct_r","majcompflag","hydgrp","taxorder","taxsuborder")])
 #View(surgodf2)
 
+
 ## solution: add up component percentage with the same hydrogroup
 # and the same taxonomic order (separately). Pick the category with the highest percent. 
 hgdf <- surgodf2 %>% group_by(site_id, hydgrp)%>%
               summarize(hydgrp_comppct = sum(comppct_r))%>%
               group_by(site_id) %>%
               filter(hydgrp_comppct== max(hydgrp_comppct))
+
 taxdf <- surgodf2 %>% group_by(site_id, taxorder)%>%
   summarize(taxorder_comppct = sum(comppct_r))%>%
   group_by(site_id) %>%
-  filter(taxorder_comppct== max(taxorder_comppct))
+  filter(taxorder_comppct== max(taxorder_comppct[!is.na(taxorder)]))
 taxsubdf <- surgodf2 %>% group_by(site_id, taxsuborder)%>%
   summarize(taxsuborder_comppct = sum(comppct_r))%>%
   group_by(site_id) %>%
-  filter(taxsuborder_comppct== max(taxsuborder_comppct))
-
-soildf <- left_join(site_info, siteres[,c("site_id","mukey")]) %>%
+  filter(taxsuborder_comppct== max(taxsuborder_comppct[!is.na(taxsuborder)]))
+##warning is for one site missing for one site. it gets left out of this df anyway.
+soildf <- left_join(sites, siteres[,c("site_id","mukey","muname")]) %>%
             left_join(hgdf) %>%
             left_join(taxdf) %>%
             left_join(taxsubdf) %>%
-            subset(select = -c(start_yr,end_yr,sort))
-#write.csv(soildf, file = "data/tidy_data/soilvars.csv",row.names = FALSE)
+            subset(select = -c(start_yr,end_yr))
+#write.csv(soildf, file = "data/pre_processed_data/soilvars.csv",row.names = FALSE)
 
-# googledrive::drive_upload(media = file.path("data", "tidy_data","soilvars.csv"), overwrite = T,
-#                           path = googledrive::as_id(dir.tidy_data))
+# googledrive::drive_upload(media = file.path("data", "pre_processed_data","soilvars.csv"), overwrite = T,
+#                           path = googledrive::as_id(dir.pre_processed_data))
 
 
 ### fiddly stuff below here.
