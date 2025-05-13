@@ -17,7 +17,7 @@ librarian::shelf(tidyverse, lter/ltertools, googledrive, supportR)
 # Make needed folder(s)
 dir.create(file.path("data"), showWarnings = F)
 dir.create(file.path("data", "pre_processed_data"), showWarnings = F)
-dir.create(file.path("data", "tidy"), showWarnings = F)
+dir.create(file.path("data", "harmonized_data"), showWarnings = F)
 
 # Clear environment + collect garbage
 rm(list = ls()); gc()
