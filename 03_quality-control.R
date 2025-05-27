@@ -108,6 +108,25 @@ supportR::diff_check(old = names(tidy_v4), new = names(tidy_v5))
 dplyr::glimpse(tidy_v5)
 
 ## ------------------------------------------- ##
+# Crop Name Consistency----
+## ------------------------------------------- ##
+unique(tidy_v5$crop)
+
+tidy_v6 <- tidy_v5 %>%
+  #change the crop names to all be consistent
+  mutate(crop = fct_recode(as.factor(crop),  Mixed_grass = 'Mixed Grass',Spring_Wheat = 'Triticum aestivum (Spring Wheat)', 
+                       Winter_Wheat = 'Triticum aestivum (Winter Wheat)', Soybean = 'Glycine max (Soybean)', 
+                       Corn = 'Zea mays (Corn)',Garbanzo = 'Cicer arietinum (Garbonzo Beans)',
+                       Canola = 'Brassica napus (Canola)',Corn = 'Zea mays L. (*)', Soybean = 'Glycine max L. (*)',
+                       Oats = 'Avena sativa (Oats)', Rye = 'Secale cereale (Rye)',  
+                       Safflower='Carthamus tinctorius (Safflower)' , Millet = 'Setaria italica (Foxtail Millet)',
+                       Winter_Wheat = 'Triticum aestivum L. (*)', Alfalfa = 'Medicago sativa (Alfalfa)',
+                       Spring_Wheat = 'Triticum aestivum (Spring Spring wheat)', 
+                       Sorghum = 'Sorghum bicolor (Sorghum)', Sorghum =  'Sorghum bicolor (sorghum)',    
+                       Switchgrass = 'Panicum virgatum (Switchgrass)', Spring_Wheat = 'Triticum aestivum (Spring wheat)',
+                       Soybean = 'Soybean', Corn = 'Corn'))
+
+## ------------------------------------------- ##
 # Download Precip Data ----
 ## ------------------------------------------- ##
 
