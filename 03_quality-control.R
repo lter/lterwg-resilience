@@ -127,6 +127,15 @@ tidy_v6 <- tidy_v5 %>%
                        Soybean = 'Soybean', Corn = 'Corn'))
 
 ## ------------------------------------------- ##
+# ANPP Checks ----
+## ------------------------------------------- ##
+
+# Look at rows without ANPP or grain yield data
+anpp_na <- tidy_v6 %>%
+  filter(is.na(anpp_g_m2)) %>%
+  filter(is.na(grain_kg_ha))
+
+## ------------------------------------------- ##
 # Download Precip Data ----
 ## ------------------------------------------- ##
 
