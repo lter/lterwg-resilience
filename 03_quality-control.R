@@ -99,7 +99,9 @@ dplyr::glimpse(tidy_v4)
 ## ------------------------------------------- ##
 tidy_v5 <- tidy_v4 %>%
   # ANPP - convert KG/ha to g/m2
-  dplyr::mutate(anpp_g_m2 = ifelse(is.na(anpp_g_m2), anpp_kg_ha/10, anpp_g_m2))
+  dplyr::mutate(anpp_g_m2 = ifelse(is.na(anpp_g_m2), yes = anpp_kg_ha/10, no = anpp_g_m2)) %>%
+  # Drop kg/ha column 
+  dplyr::select(-anpp_kg_ha)
 
 # Check to make sure only unwanted columns are lost
 supportR::diff_check(old = names(tidy_v4), new = names(tidy_v5))
@@ -127,6 +129,24 @@ tidy_v6 <- tidy_v5 %>%
                        Soybean = 'Soybean', Corn = 'Corn'))
 
 ## ------------------------------------------- ##
+# Column Checks on Data ----
+## ------------------------------------------- ##
+glimpse(tidy_v6)
+
+
+# Check overlap of replicate information 
+tidy_v7 <- tidy_v6 %>%
+  group_by(network, site, treatment, location, plot, transect, subsample, web, quad) %>%
+  summarize(crops = paste(unique(crop),collapse="&"), years = paste(unique(year), collapse="&"))
+  
+
+# tidy column order
+
+# Columns wanted: site_id, network, treatment, year, anpp,location, crop + any replicate information
+  
+  
+
+## ------------------------------------------- ##
 # ANPP Checks ----
 ## ------------------------------------------- ##
 
@@ -135,6 +155,19 @@ anpp_na <- tidy_v6 %>%
   filter(is.na(anpp_g_m2)) %>%
   filter(is.na(grain_kg_ha))
 
+str(tidy_v6)
+# ANPP by network
+# Some quick visualization
+ggplot(tidy_v6, aes(anpp_g_m2, fill=network))+
+  geom_histogram()+
+  facet_wrap(~network, scales="free")
+
+ggplot(data=subset(tidy_v6, tidy_v6$network=="LTAR"), aes(anpp_g_m2, fill=crop))+
+  geom_histogram()+
+  facet_wrap(~crop)
+
+ggplot(tidy_v6, aes(network, anpp_g_m2, color=site))+
+         geom_boxplot()
 ## ------------------------------------------- ##
 # Download Precip Data ----
 ## ------------------------------------------- ##
