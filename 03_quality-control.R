@@ -16,23 +16,23 @@ librarian::shelf(tidyverse, googledrive, supportR)
 
 # Make needed folder(s)
 dir.create(file.path("data"), showWarnings = F)
-dir.create(file.path("data", "tidy"), showWarnings = F)
+dir.create(file.path("data", "harmonized_data"), showWarnings = F)
 dir.create(file.path("data", "environment"), showWarnings = F)
 
 # Clear environment + collect garbage
 rm(list = ls()); gc()
 
 # Identify relevant tidy file
-focal_file <- "01_resilience_harmonized.csv"
+focal_file <- "02_anpp_filter1.csv"
 
 # Download harmonized data file
 googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
   dplyr::filter(name == focal_file) %>% 
   googledrive::drive_download(file = .$id, overwrite = T,
-                              path = file.path("data", "tidy", .$name))
+                              path = file.path("data", "harmonized_data", .$name))
 
 # Read in harmonized data
-tidy_v1 <- read.csv(file = file.path("data", "tidy", focal_file))
+tidy_v1 <- read.csv(file = file.path("data", "harmonized_data", focal_file))
 
 
 # Check structure
@@ -47,7 +47,7 @@ tidy_v2 <- tidy_v1 %>%
   # make lowercase lter network capitalized
   dplyr::mutate(network = ifelse(network=="lter", "LTER", network))
 
-# make sure that every site has a netwrok
+# make sure that every site has a network
 network_nas <- tidy_v2 %>%
   filter(is.na(network))
 
@@ -77,7 +77,7 @@ tidy_v3 <- tidy_v2 %>%
 supportR::diff_check(old = names(tidy_v3), new = names(tidy_v4))
 
 # Check structure
-dplyr::glimpse(tidy_v4)
+dplyr::glimpse(tidy_v3)
 
 ## ------------------------------------------- ##
 # Calculate Duration ----
