@@ -129,13 +129,20 @@ tidy_v6 <- tidy_v5 %>%
                        Soybean = 'Soybean', Corn = 'Corn'))
 
 ## ------------------------------------------- ##
+# Update treatment for CPER and LTER sites without treatment----
+## ------------------------------------------- ##
+tidy_v7 <- tidy_v6 %>%
+  mutate(treatment = ifelse(site == "CPER", yes="CPER_CTRL", no= treatment)) %>%
+  mutate(treatment = ifelse(network == "LTER" & treatment=="", yes = paste(site, "CTRL", sep="_"), no = treatment))
+
+## ------------------------------------------- ##
 # Column Checks on Data ----
 ## ------------------------------------------- ##
-glimpse(tidy_v6)
+glimpse(tidy_v7)
 
 
 # Check overlap of replicate information 
-tidy_v7 <- tidy_v6 %>%
+tidy_v8 <- tidy_v7 %>%
   group_by(network, site, treatment, location, plot, transect, subsample, web, quad) %>%
   summarize(crops = paste(unique(crop),collapse="&"), years = paste(unique(year), collapse="&"))
   
