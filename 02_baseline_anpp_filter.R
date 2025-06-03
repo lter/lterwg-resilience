@@ -54,13 +54,7 @@ dplyr::glimpse(harm_anpp)
 #################################
 # 1) Remove non-USA NutNet sites
 #################################
-
-harm_anpp.2  <- harm_anpp %>%
-  # Get rid of ca sites 
-  filter(country != "ca")
-
-# check
-unique(harm_anpp.2$country)
+##already done in pre-processing
 
 #################################
 # 2) Remove unwanted LTAR treatments (irrigated, mid-season harvest)
@@ -74,7 +68,7 @@ excl_trt_drive <- googledrive::drive_ls(googledrive::as_id("https://drive.google
 excl_trt_drive
 
 # Download the excluded treatmetn file
-googledrive::drive_download(file = key_drive$id, overwrite = T, type = "csv",
+googledrive::drive_download(file = excl_trt_drive$id, overwrite = T, type = "csv",
                             path = file.path("data", excl_trt_drive$name))
 
 # Read in excluded treatment file
@@ -82,7 +76,7 @@ excl_trt <- read.csv(file = file.path("data", "excluded_treatments.csv"))
 
 # Remove treatments found in the excl_trt file
 
-harm_anpp.3 <- harm_anpp.2 %>%
+harm_anpp.3 <- harm_anpp%>%
   filter(!treatment %in% excl_trt$treatment)
 
 ## ------------------------------------------- ##
