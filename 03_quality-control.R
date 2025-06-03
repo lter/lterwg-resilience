@@ -132,8 +132,12 @@ tidy_v6 <- tidy_v5 %>%
 # Update treatment for CPER and LTER sites without treatment----
 ## ------------------------------------------- ##
 tidy_v7 <- tidy_v6 %>%
-  mutate(treatment = ifelse(site == "CPER", yes="CPER_CTRL", no= treatment)) %>%
-  mutate(treatment = ifelse(network == "LTER" & treatment=="", yes = paste(site, "CTRL", sep="_"), no = treatment))
+  # Fix CPER
+  dplyr::mutate(treatment = ifelse(site == "CPER", yes="CPER_CTRL", no= treatment)) %>%
+  # Fix LTER that are blank
+  dplyr::mutate(treatment = ifelse(network == "LTER" & treatment=="", yes = paste(site, "CTRL", sep="_"), no = treatment))%>%
+  # Fix JRN to be control
+  dplyr::mutate(treatment = ifelse(site == "JRN", yes="JRN_CTRL", no= treatment)) 
 
 ## ------------------------------------------- ##
 # Column Checks on Data ----
@@ -158,23 +162,52 @@ tidy_v8 <- tidy_v7 %>%
 ## ------------------------------------------- ##
 
 # Look at rows without ANPP or grain yield data
-anpp_na <- tidy_v6 %>%
+anpp_na <- tidy_v7 %>%
   filter(is.na(anpp_g_m2)) %>%
   filter(is.na(grain_kg_ha))
 
-str(tidy_v6)
+str(tidy_v7)
 # ANPP by network
 # Some quick visualization
-ggplot(tidy_v6, aes(anpp_g_m2, fill=network))+
+ggplot(tidy_v7, aes(anpp_g_m2, fill=network))+
   geom_histogram()+
   facet_wrap(~network, scales="free")
 
-ggplot(data=subset(tidy_v6, tidy_v6$network=="LTAR"), aes(anpp_g_m2, fill=crop))+
+ggplot(data=subset(tidy_v7, tidy_v6$network=="LTAR"), aes(anpp_g_m2, fill=crop))+
   geom_histogram()+
   facet_wrap(~crop)
 
-ggplot(tidy_v6, aes(network, anpp_g_m2, color=site))+
+ggplot(tidy_v7, aes(network, anpp_g_m2, color=site))+
          geom_boxplot()
+
+## ------------------------------------------- ##
+# QA/QC - LTAR ----
+## ------------------------------------------- ##
+# Select sites in LTAR network
+ltar <- tidy_v7 %>%
+  dplyr::filter(network=="LTAR") %>%
+  dplyr::mutate(site=as.factor(site))
+str(ltar)
+# Visualize ANPP over time for each site, colored by treatment, shaped by crop
+sites <- unique(ltar$site)
+
+for (Site in sites) {
+  # Subset data for the current species
+  data_subset <- subset(ltar, ltar$site == Site)
+  
+  # Create the plot
+  p <- ggplot(data_subset, aes(x = year, y = anpp_g_m2, color=treatment)) +
+    geom_point(size = 1.2) +
+    labs(title = paste("Scatter Plot for", Site),
+         x = "Year",
+         y = "ANPP") +
+    theme_minimal()
+  
+  # Print the plot
+  print(p)
+}
+
+
 ## ------------------------------------------- ##
 # Download Precip Data ----
 ## ------------------------------------------- ##
