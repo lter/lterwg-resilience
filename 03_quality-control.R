@@ -196,7 +196,7 @@ for (Site in sites) {
   data_subset <- subset(ltar, ltar$site == Site)
   
   # Create the plot
-  p <- ggplot(data_subset, aes(x = year, y = anpp_g_m2, color=treatment)) +
+  p <- ggplot(data_subset, aes(x = year, y = anpp_g_m2, color=treatment, shape=crop)) +
     geom_point(size = 1.2) +
     labs(title = paste("Scatter Plot for", Site),
          x = "Year",
