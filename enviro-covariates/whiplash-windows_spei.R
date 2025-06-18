@@ -60,7 +60,9 @@ spei3_v2 <- spei3_v1 %>%
   # Drop missing values
   dplyr::filter(!is.na(SPEI)) %>% 
   # Make dates 'real' dates
-  dplyr::mutate(date = as.Date(date))
+  dplyr::mutate(date = as.Date(date)) %>% 
+  # Filter to desired date range
+  dplyr::filter(year(date) >= 1940 & year(date) <= 1980)
 
 # Re-check structure
 dplyr::glimpse(spei3_v2)
@@ -71,7 +73,7 @@ dplyr::glimpse(spei3_v2)
 
 # Make a simpler dataframe
 test_df <- spei3_v2 %>% 
-  dplyr::filter(site == "CAF")
+  dplyr::filter(site == "CPER")
 
 # Check structure
 dplyr::glimpse(test_df)
@@ -84,8 +86,8 @@ test_out <- diff_windows(df = test_df, date_col = "date", enviro_col = "SPEI",
 dplyr::glimpse(test_out)
 
 # Identify whiplash percentile thresholds
-upper_perc = 0.994
-lower_perc = 0.006
+upper_perc <- 0.994
+lower_perc <- 0.006
 
 # Calculate enviromental threshold values at user-defined percentiles
 upper_thresh <- as.numeric(quantile(x = test_out$SPEI_diff, probs = upper_perc))
@@ -159,7 +161,7 @@ ggplot(whiplash_df, aes(x = date, y = SPEI)) +
   geom_path() +
   geom_point(size = 0.5, color = "black") + 
   geom_point(data = whiplash_only, aes(x = date, y = SPEI),
-             color = "red", size = 1.2) +
+             color = "red", size = 2) +
   labs(x = "Date", y = "SPEI") +
   supportR::theme_lyon() +
   theme(legend.position = "none")
