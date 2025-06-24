@@ -15,22 +15,22 @@ librarian::shelf(tidyverse, googledrive)
 
 # Make needed folder(s)
 dir.create(file.path("data"), showWarnings = F)
-dir.create(file.path("data", "tidy"), showWarnings = F)
+dir.create(file.path("data", "harmonized_data"), showWarnings = F)
 
 # Clear environment + collect garbage
 rm(list = ls()); gc()
 
 # Identify desired file
-focal_file <- "03_resilience_filtered.csv"
+focal_file <- "03_anpp_wrangled.csv"
 
 # Download harmonized data file
 googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
   dplyr::filter(name == focal_file) %>% 
   googledrive::drive_download(file = .$id, overwrite = T,
-                              path = file.path("data", "tidy", .$name))
+                              path = file.path("data", "harmonized_data", .$name))
 
 # Read in harmonized data
-site_v1 <- read.csv(file = file.path("data", "tidy", focal_file))
+site_v1 <- read.csv(file = file.path("data", "harmonized_data", focal_file))
 
 # Check structure
 dplyr::glimpse(site_v1)
@@ -40,30 +40,37 @@ dplyr::glimpse(site_v1)
 ## ------------------------------------------- ##
 
 # Reorder remaining columns more intuitively
-site_v2 <- site_v1 %>% 
+#site_v2 <- site_v1 %>% 
   # Coords near site info
-  dplyr::relocate(lat, long, .after = site) %>% 
-  dplyr::relocate(elevation_m, habitat, .before = site) %>% 
+#  dplyr::relocate(lat, long, .after = site) %>% 
+#  dplyr::relocate(elevation_m, habitat, .before = site) %>% 
   # Treatment specifics after main 'treatment' column
-  dplyr::relocate(dplyr::contains("_y.n"), .after = treatment) 
+#  dplyr::relocate(dplyr::contains("_y.n"), .after = treatment) 
 
 # Check structure
-dplyr::glimpse(site_v2)
+#dplyr::glimpse(site_v2)
 
 ## ------------------------------------------- ##
 # Summarize Within Sites ----
 ## ------------------------------------------- ##
 
 # Identify all columns at/above "site" column
-(grp_cols <- setdiff(x = names(site_v2), y = c("block", "plot", "quadrat", "date",
-                                               "anpp_actual")))
+#(grp_cols <- setdiff(x = names(site_v1), y = c("block", "plot", "quadrat", "date",
+#                                               "anpp_actual")))
 
-# Summarize within "sites"
-site_v3 <- site_v2 %>% 
-  dplyr::group_by(dplyr::across(dplyr::all_of(grp_cols))) %>% 
-  dplyr::summarize(anpp_actual = mean(anpp_actual, na.rm = T),
+# Summarize within "sites" and "locations"
+site_v2 <- site_v1 %>% 
+  dplyr::group_by(site,location, year, network,treatment,month,crop,country,duration_years) %>% 
+  dplyr::summarize(anpp_g_m2 = mean(anpp_g_m2, na.rm = T),
                    .groups = "keep") %>% 
   dplyr::ungroup()
+
+site_v3 <- site_v2 %>% 
+  dplyr::group_by(site, year, network,treatment,month,crop,country,duration_years) %>% 
+  dplyr::summarize(anpp_g_m2 = mean(anpp_g_m2, na.rm = T),
+                   .groups = "keep") %>% 
+  dplyr::ungroup()
+
 
 # Check structure
 dplyr::glimpse(site_v3)
@@ -72,20 +79,15 @@ dplyr::glimpse(site_v3)
 # Export ----
 ## ------------------------------------------- ##
 
-# Final pre-export tweaks
-site_v99 <- site_v3
-
-# Check structure
-dplyr::glimpse(site_v99)
 
 # Make nice output name
-focal_output <- "04_resilience_site-means.csv"
+focal_output <- "04_anpp_aggregated-site-crop.csv"
 
 # Export locally
-write.csv(x = site_v99, row.names = F, na = '', file = file.path("data", "tidy", focal_output))
+write.csv(x = site_v3, row.names = F, na = '', file = file.path("data", "harmonized_data", focal_output))
 
 # Upload to Drive
-googledrive::drive_upload(media = file.path("data", "tidy", focal_output), overwrite = T,
+googledrive::drive_upload(media = file.path("data", "harmonized_data", focal_output), overwrite = T,
                           path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ"))
 
 # End ----
