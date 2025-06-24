@@ -246,5 +246,4 @@ googledrive::drive_upload(media = file.path("data",  focal_name), overwrite = T,
                           path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Ty7QX7vyvD797eKJzMWbr8AwIo-GyBFO"))
 
 
-
 # End ----
