@@ -278,7 +278,7 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
 
 # Read in harmonized data
 mswep_lter.ltar <- read.csv(file = file.path("data", "raw", focal_file))%>%
-  dplyr::mutate(date = mdy(date))%>%
+  dplyr::mutate(date = ymd(date))%>%
   filter(!(site_id == "KBS" & project_id == "LTER"))
 
 
