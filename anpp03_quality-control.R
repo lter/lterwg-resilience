@@ -209,68 +209,42 @@ for (Site in sites) {
 
 
 ## ------------------------------------------- ##
-# Download Precip Data ----
-## ------------------------------------------- ##
-
-# NOTE: "enviro-covariates/precipitation.R" generates the file(s) downloaded here
-## Re-run that script if you want to update the precip data
-
-# Identify the relevant file(s) & download it/them
-drive_ppt <- googledrive::drive_ls(path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/16KZhR5CGu7YDze72Y2-LaNEdGNC39Kcf")) %>% 
-  dplyr::filter(name %in% c("precip_annual-summary.csv"))
-
-# Check identified files
-drive_ppt
-
-# Download them
-purrr::walk2(.x = drive_ppt$id, .y = drive_ppt$name,
-             .f = ~ googledrive::drive_download(file = .x, overwrite = T,
-                                                path = file.path("data", "environment", .y)))
-
-## ------------------------------------------- ##
-# Wrangle / QC Precip Data ----
-## ------------------------------------------- ##
-
-# Read in precip data
-precip_v1 <- read.csv(file = file.path("data", "environment", "precip_annual-summary.csv")) %>% 
-  mutate(site_ID=site)
-
-# Check structure
-dplyr::glimpse(precip_v1)
-
-## ------------------------------------------- ##
-# Attach Precip Data ----
-## ------------------------------------------- ##
-tidy_v6 <- left_join(tidy_v5, precip_v1, by=c("network", "site","year"))
-
-# Check missing precip data
-ppt_check <- tidy_v6 %>%
-  filter(is.na(total_annual_precip_mm))%>%
-  group_by(site, treatment) %>%
-  count()
-
-# Check structure
-dplyr::glimpse(tidy_v6)
-
-## ------------------------------------------- ##
 # Export ----
 ## ------------------------------------------- ##
 
 # Final pre-export tweaks
-tidy_v99 <- tidy_v6
+tidy_v99 <- tidy_v7
 
 # Check structure
 dplyr::glimpse(tidy_v99)
 
 # Identify nice name for exported object
-focal_output <- "02_resilience_wrangled.csv"
+focal_output <- "03_anpp_wrangled.csv"
 
 # Export locally
 write.csv(x = tidy_v99, row.names = F, na = '',
-          file = file.path("data", "tidy", focal_output))
+          file = file.path("data", "harmonized_data", focal_output))
 
 # Upload to Drive
-googledrive::drive_upload(media = file.path("data", "tidy", focal_output), overwrite = T,
+googledrive::drive_upload(media = file.path("data", "harmonized_data", focal_output), overwrite = T,
                           path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ"))
+
+# Export the treatments only to generate a table for management
+trt <- tidy_v99 %>%
+  select (c(network, site, treatment)) %>%
+  unique()
+
+# Identify nice name for exported object
+focal_name <- "treatment_table.csv"
+
+# Export locally
+write.csv(x = trt , row.names = F, na = '',
+          file = file.path("data", focal_name))
+
+# Upload to Drive
+googledrive::drive_upload(media = file.path("data",  focal_name), overwrite = T,
+                          path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Ty7QX7vyvD797eKJzMWbr8AwIo-GyBFO"))
+
+
 
 # End ----
