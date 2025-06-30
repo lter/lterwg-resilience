@@ -60,7 +60,10 @@ spei3_v2 <- spei3_v1 %>%
   # Drop missing values
   dplyr::filter(!is.na(SPEI)) %>% 
   # Make dates 'real' dates
-  dplyr::mutate(date = as.Date(date)) %>% 
+  dplyr::mutate(date = as.Date(date))
+
+# Now, get a 1940-80 version of this
+spei3_4080 <- spei3_v2 %>% 
   # Filter to desired date range
   dplyr::filter(year(date) >= 1940 & year(date) <= 1980)
 
@@ -71,16 +74,18 @@ dplyr::glimpse(spei3_v2)
 # Window Function Development ----
 ## ------------------------------------- ##
 
-# Make a simpler dataframe
-test_df <- spei3_v2 %>% 
-  dplyr::filter(site == "CPER")
+# Make a simpler dataframe for both
+test_df <- dplyr::filter(spei3_v2, site == "CPER")
+test_4080 <- dplyr::filter(spei3_4080, site == "CPER")
 
 # Check structure
 dplyr::glimpse(test_df)
 
-# Invoke function
+# Invoke function for both data objects
 test_out <- diff_windows(df = test_df, date_col = "date", enviro_col = "SPEI",
                          window_size = 3, quiet = F)
+test_4080_out <- diff_windows(df = test_4080, date_col = "date", enviro_col = "SPEI",
+                              window_size = 3, quiet = F)
 
 # Check structure
 dplyr::glimpse(test_out)
@@ -90,10 +95,12 @@ upper_perc <- 0.994
 lower_perc <- 0.006
 
 # Calculate enviromental threshold values at user-defined percentiles
-upper_thresh <- as.numeric(quantile(x = test_out$SPEI_diff, probs = upper_perc))
-lower_thresh <- as.numeric(quantile(x = test_out$SPEI_diff, probs = lower_perc))
+## NOTE: Swain et al used 40-80 values to identify thresholds for longer record
+upper_thresh <- as.numeric(quantile(x = test_4080_out$SPEI_diff, probs = upper_perc))
+lower_thresh <- as.numeric(quantile(x = test_4080_out$SPEI_diff, probs = lower_perc))
 
 # Identify whiplash events now that window differences are known
+## NOTE: Here we're using the full record
 whiplash_df <- test_out %>% 
   # Identify maximum/minimum per date
   dplyr::group_by(date, SPEI) %>% 
