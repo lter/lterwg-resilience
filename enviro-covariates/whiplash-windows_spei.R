@@ -39,22 +39,26 @@ drive_spei <- googledrive::drive_ls(googledrive::as_id("https://drive.google.com
 drive_spei
 
 # Download locally
-purrr::walk2(.x = drive_spei$id, .y = drive_spei$name,
-             .f = ~ googledrive::drive_download(file = .x, overwrite = T,
-                                                path = file.path("data", "environment", .y)))
+## Uncomment to re-download
+# purrr::walk2(.x = drive_spei$id, .y = drive_spei$name,
+#              .f = ~ googledrive::drive_download(file = .x, overwrite = T,
+#                                                 path = file.path("data", "environment", .y)))
 
 ## ------------------------------------- ##
 # Preparatory Wrangling ----
 ## ------------------------------------- ##
 
+# Identify desired SPEI file
+spei_file <- "SPEI03.csv"
+
 # Read in one of those files
-spei3_v1 <- read.csv(file.path("data", "environment", "SPEI03.csv"))
+spei_v1 <- read.csv(file.path("data", "environment", spei_file))
 
 # Check structure
-dplyr::glimpse(spei3_v1)
+dplyr::glimpse(spei_v1)
 
 # Do some wrangling to this object
-spei3_v2 <- spei3_v1 %>% 
+spei_v2 <- spei_v1 %>% 
   # Rotate to long format
   tidyr::pivot_longer(cols = -date, names_to = "site", values_to = "SPEI") %>% 
   # Drop missing values
@@ -62,84 +66,37 @@ spei3_v2 <- spei3_v1 %>%
   # Make dates 'real' dates
   dplyr::mutate(date = as.Date(date))
 
-# Now, get a 1940-80 version of this
-spei3_4080 <- spei3_v2 %>% 
-  # Filter to desired date range
-  dplyr::filter(year(date) >= 1940 & year(date) <= 1980)
-
-# Re-check structure
-dplyr::glimpse(spei3_v2)
+# Re-ceck structure
+dplyr::glimpse(spei_v2)
 
 ## ------------------------------------- ##
-# Window Function Development ----
+# Identify Whiplash Events ----
 ## ------------------------------------- ##
 
-# Make a simpler dataframe for both
-test_df <- dplyr::filter(spei3_v2, site == "CPER")
-test_4080 <- dplyr::filter(spei3_4080, site == "CPER")
+# Subset to one site
+spei_sub <- dplyr::filter(spei_v2, site == "CPER")
+
+# Invoke function
+whiplash_df <- id_whiplash(df = spei_sub, date_col = "date", enviro_col = "SPEI",
+                           window_size = 3, ref_period = c(1940, 1980),
+                           whiplash_perc = c(0.006, 0.994), quiet = FALSE)
 
 # Check structure
-dplyr::glimpse(test_df)
+glimpse(whiplash_df)
+## View(whiplash_df)
 
-# Invoke function for both data objects
-test_out <- diff_windows(df = test_df, date_col = "date", enviro_col = "SPEI",
-                         window_size = 3, quiet = F)
-test_4080_out <- diff_windows(df = test_4080, date_col = "date", enviro_col = "SPEI",
-                              window_size = 3, quiet = F)
-
-# Check structure
-dplyr::glimpse(test_out)
-
-# Identify whiplash percentile thresholds
-upper_perc <- 0.994
-lower_perc <- 0.006
-
-# Calculate enviromental threshold values at user-defined percentiles
-## NOTE: Swain et al used 40-80 values to identify thresholds for longer record
-upper_thresh <- as.numeric(quantile(x = test_4080_out$SPEI_diff, probs = upper_perc))
-lower_thresh <- as.numeric(quantile(x = test_4080_out$SPEI_diff, probs = lower_perc))
-
-# Identify whiplash events now that window differences are known
-## NOTE: Here we're using the full record
-whiplash_df <- test_out %>% 
-  # Identify maximum/minimum per date
-  dplyr::group_by(date, SPEI) %>% 
-  dplyr::summarize(diff_max = max(SPEI_diff, na.rm = T),
-                   diff_min = min(SPEI_diff, na.rm = T),
-                   .groups = "keep") %>% 
-  dplyr::ungroup() %>% 
-  # Identify whiplash events (non-inclusive of threshold value)
-  dplyr::mutate(whiplash = ifelse(diff_max > upper_thresh | 
-                                    diff_min < lower_thresh,
-                                  yes = "whiplash", no = NA)) %>% 
-  # Identify direction of whiplash
-  dplyr::mutate(whiplash_direction = dplyr::case_when(
-    diff_max > upper_thresh ~ "max",
-    diff_min < lower_thresh ~ "min",
-    T ~ NA)) %>% 
-  # Simplify max/min SPEI diff to just the difference that actually crosses the threshold
-  dplyr::mutate(SPEI_diff = dplyr::case_when(
-    diff_max >= upper_thresh ~ diff_max,
-    diff_min <= lower_thresh ~ diff_min,
-    T ~ NA), .after = SPEI) %>% 
-  dplyr::select(-dplyr::starts_with("diff_"))
-
-# Check structure of result
-dplyr::glimpse(whiplash_df)
-## view(whiplash_df)
-
-# Any whiplash events?
-(whiplash_only <- dplyr::filter(whiplash_df, whiplash == "whiplash") )
+# Get a simpler dataframe of only whiplash events
+whiplash_only <- dplyr::filter(whiplash_df, !is.na(whiplash))
 
 # Make another histogram
 ggplot() +
-  geom_histogram(data = test_out, aes(x = SPEI_diff),
+  geom_histogram(data = whiplash_df, aes(x = SPEI_diff),
                  bins = 45, color = "white", fill = "gray33") +
   geom_histogram(data = whiplash_only, aes(x = SPEI_diff),
                  bins = 50, color = "white", fill = "red") +
-  geom_vline(xintercept = upper_thresh, linetype = 2, 
+  geom_vline(xintercept = unique(whiplash_df$whiplash_thresh_upper), linetype = 2, 
              color = "blue", linewidth = 0.5) +
-  geom_vline(xintercept = lower_thresh, linetype = 2, 
+  geom_vline(xintercept = unique(whiplash_df$whiplash_thresh_lower), linetype = 2, 
              color = "blue", linewidth = 0.5) +
   labs(x = "SPEI Differences (from Windows)", y = "Frequency") +
   supportR::theme_lyon()
@@ -149,12 +106,12 @@ ggsave(filename = file.path("graphs", "explore", "whiplash_demo-histogram.png"),
        width = 5, height = 5, units = "in")
 
 # More exploratory graphing
-ggplot(test_out, aes(x = date, y = SPEI_diff)) +
+ggplot(whiplash_df, aes(x = date, y = SPEI_diff)) +
   geom_point() + 
   geom_point(data = whiplash_only, aes(x = date, y = SPEI_diff), color = "red") +
-  geom_hline(yintercept = upper_thresh, linetype = 2, 
+  geom_hline(yintercept = unique(whiplash_df$whiplash_thresh_upper), linetype = 2, 
              color = "blue", linewidth = 0.5) +
-  geom_hline(yintercept = lower_thresh, linetype = 2, 
+  geom_hline(yintercept = unique(whiplash_df$whiplash_thresh_lower), linetype = 2, 
              color = "blue", linewidth = 0.5) +
   labs(x = "Date", y = "SPEI Differences") +
   supportR::theme_lyon()
