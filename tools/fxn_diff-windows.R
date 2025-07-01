@@ -14,23 +14,23 @@
 #' 
 #' @export
 #' 
-diff_windows <- function(df = NULL, date_col = "date", enviro_col = "SPEI",
+diff_windows <- function(df = NULL, date_col = NULL, enviro_col = NULL,
                          window_size = 3, quiet = FALSE){
   
   # Error for non-dataframe 'df' or missing columns
-  if("data.frame" %in% class(df) != T || any(c(date_col, enviro_col) %in% names(df)) != T )
-    stop("'df' must be dataframe-like and have column names exactly matching 'date_col' and 'enviro_col'")
+  if(is.null(df) || "data.frame" %in% class(df) != T)
+    stop("'df' must be provided and be dataframe-like")
   
   # Errors for 'date_col' argument
-  if(is.character(date_col) != T || date_col %in% names(df) != T || length(date_col) != 1 || class(df[[date_col]]) != "Date")
+  if(is.null(date_col) || is.character(date_col) != T || date_col %in% names(df) != T || length(date_col) != 1 || class(df[[date_col]]) != "Date")
     stop("'date_col' must be a length-one character vector that exactly matches a column name in 'df' containing date information")
   
   # Errors for 'enviro_col' argument
-  if(is.character(enviro_col) != T || enviro_col %in% names(df) != T || length(enviro_col) != 1 || any(c("numeric", "integer") %in% class(df[[enviro_col]])) != T)
+  if(is.null(enviro_col) || is.character(enviro_col) != T || enviro_col %in% names(df) != T || length(enviro_col) != 1 || any(c("numeric", "integer") %in% class(df[[enviro_col]])) != T)
     stop("'enviro_col' must be a length-one character vector that exactly matches a column name in 'df' containing numeric information")
   
   # Errors for 'window_size'
-  if(length(window_size) != 1 || all(c("numeric", "integer") %in% class(window_size) != T) || window_size <= 0 || window_size - floor(window_size) != 0)
+  if(is.null(window_size) || length(window_size) != 1 || all(c("numeric", "integer") %in% class(window_size) != T) || window_size <= 0 || window_size - floor(window_size) != 0)
     stop("'window_size' must be a single integer greater than 0")
   
   # Warning for non-logical 'quiet'
