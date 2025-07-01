@@ -92,7 +92,7 @@ diff_windows <- function(df = NULL, date_col = NULL, enviro_col = NULL,
     dplyr::filter(!is.na(enviro_diff)) %>% 
     # Within dates, keep only most extreme value
     dplyr::group_by(date, enviro) %>% 
-    dplyr::filter(prior_enviro == max(abs(prior_enviro), na.rm = T)) %>% 
+    dplyr::filter(abs(prior_enviro) == max(abs(prior_enviro), na.rm = T)) %>% 
     dplyr::ungroup()
   
   # Rename this to better match inputs
