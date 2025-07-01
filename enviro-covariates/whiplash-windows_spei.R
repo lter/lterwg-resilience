@@ -213,4 +213,32 @@ for(focal_site in sort(unique(spei_v2$site))){
 dplyr::glimpse(whiplash_df)
 ## view(whiplash_df)
 
+## ------------------------------------- ##
+# Upload Outputs to Drive ----
+## ------------------------------------- ##
+
+# Want to upload data to Drive?
+upload_data <- FALSE
+
+# Upload data if desired
+if(upload_data == T){
+  purrr::walk(.x = dir(path = file.path("data", "diagnostic", "whiplash")),
+              .f = ~ googledrive::drive_upload(media = file.path("data", "diagnostic", 
+                                                                 "whiplash", .x),
+                                               overwrite = T, 
+                                               googledrive::as_id("https://drive.google.com/drive/u/0/folders/179rWnh1171GTEhb-IbTQh7gUvaJ8IOAG")))
+}
+
+# What about *graphs*?
+upload_graphs <- FALSE
+
+# Upload graphs if desired
+if(upload_graphs == T){
+  purrr::walk(.x = dir(path = file.path("graphs", "diagnostic", "whiplash")),
+              .f = ~ googledrive::drive_upload(media = file.path("graphs", "diagnostic", 
+                                                                 "whiplash", .x),
+                                               overwrite = T, 
+                                               googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Ffv8V7Fo6KrmJM9vO-IFR70pgryRF1qn")))
+}
+
 # End ----
