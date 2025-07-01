@@ -64,6 +64,8 @@ spei_v2 <- spei_v1 %>%
   tidyr::pivot_longer(cols = -date, names_to = "site", values_to = "SPEI") %>% 
   # Drop missing values
   dplyr::filter(!is.na(SPEI)) %>% 
+  # Make sure all dates have the same day number (matters for a conditional in 'diff_windows')
+  dplyr::mutate(date = gsub(pattern = "-15", replacement = "-16", x = date)) %>% 
   # Make dates 'real' dates
   dplyr::mutate(date = as.Date(date))
 
@@ -143,8 +145,8 @@ for(focal_site in sort(unique(spei_v2$site))){
     geom_point(size = 0.5, color = "black") + 
     geom_point(data = whiplash_only, aes(x = date, y = SPEI),
                color = "red", size = 2) +
-    # geom_point(data = whiplash_only, aes(x = prior_date, y = prior_SPEI),
-    #            color = "blue", size = 2) +
+    geom_point(data = whiplash_only, aes(x = prior_date, y = prior_SPEI),
+               color = "blue", size = 2) +
     labs(x = "Date", y = "SPEI") +
     supportR::theme_lyon() +
     theme(legend.position = "none")
@@ -154,67 +156,10 @@ for(focal_site in sort(unique(spei_v2$site))){
                               paste0(focal_site, "_whiplash-time-series.png")),
          width = 9, height = 5, units = "in")
   
-  
 }
-
-
 
 # Check structure of last iteration of loop
 dplyr::glimpse(whiplash_df)
-
-
-# Subset to one site
-
-
-
-
-## View(whiplash_df)
-
-
-# Make another histogram
-ggplot() +
-  geom_histogram(data = whiplash_df, aes(x = SPEI_diff),
-                 bins = 45, color = "white", fill = "gray33") +
-  geom_histogram(data = whiplash_only, aes(x = SPEI_diff),
-                 bins = 50, color = "white", fill = "red") +
-  geom_vline(xintercept = unique(whiplash_df$whiplash_thresh_upper), linetype = 2, 
-             color = "blue", linewidth = 0.5) +
-  geom_vline(xintercept = unique(whiplash_df$whiplash_thresh_lower), linetype = 2, 
-             color = "blue", linewidth = 0.5) +
-  labs(x = "SPEI Differences (from Windows)", y = "Frequency") +
-  supportR::theme_lyon()
-
-# Export locally
-ggsave(filename = file.path("graphs", "explore", "whiplash_demo-histogram.png"),
-       width = 5, height = 5, units = "in")
-
-# More exploratory graphing
-ggplot(whiplash_df, aes(x = date, y = SPEI_diff)) +
-  geom_point() + 
-  geom_point(data = whiplash_only, aes(x = date, y = SPEI_diff), color = "red") +
-  geom_hline(yintercept = unique(whiplash_df$whiplash_thresh_upper), linetype = 2, 
-             color = "blue", linewidth = 0.5) +
-  geom_hline(yintercept = unique(whiplash_df$whiplash_thresh_lower), linetype = 2, 
-             color = "blue", linewidth = 0.5) +
-  labs(x = "Date", y = "SPEI Differences") +
-  supportR::theme_lyon()
-
-# Export locally
-ggsave(filename = file.path("graphs", "explore", "whiplash_demo-scatter.png"),
-       width = 5, height = 5, units = "in")
-
-# Yet more exploratory graphing
-ggplot(whiplash_df, aes(x = date, y = SPEI)) +
-  geom_path() +
-  geom_point(size = 0.5, color = "black") + 
-  geom_point(data = whiplash_only, aes(x = date, y = SPEI),
-             color = "red", size = 2) +
-  labs(x = "Date", y = "SPEI") +
-  supportR::theme_lyon() +
-  theme(legend.position = "none")
-
-# Export locally
-ggsave(filename = file.path("graphs", "explore", "whiplash_demo-time-series.png"),
-       width = 12, height = 6, units = "in")
+## view(whiplash_df)
 
 # End ----
