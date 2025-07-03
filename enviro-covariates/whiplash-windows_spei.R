@@ -214,6 +214,26 @@ dplyr::glimpse(whiplash_df)
 ## view(whiplash_df)
 
 ## ------------------------------------- ##
+# Generate Cross-Site Whiplash Table ----
+## ------------------------------------- ##
+
+# Read in all whiplash CSVs
+whiplash_xsite <- purrr::map(.x = dir(file.path("data", "diagnostic", "whiplash"),
+                                      pattern = "_whiplash-data.csv"),
+                             .f = ~ read.csv(file.path("data", "diagnostic", "whiplash", .x))) %>% 
+  # Bind into a dataframe
+  purrr::list_rbind(x = .) %>% 
+  # Remove all dates that are not whiplash events
+  dplyr::filter(!is.na(whiplash) & nchar(whiplash) != 0)
+
+# Check structure
+dplyr::glimpse(whiplash_xsite)
+
+# Export this as well
+write.csv(x = whiplash_xsite, row.names = F, na = '',
+          file = file.path("data", "diagnostic", "whiplash", "_all-sites_whiplash-data.csv"))
+
+## ------------------------------------- ##
 # Upload Outputs to Drive ----
 ## ------------------------------------- ##
 
@@ -240,5 +260,7 @@ if(upload_graphs == T){
                                                overwrite = T, 
                                                googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Ffv8V7Fo6KrmJM9vO-IFR70pgryRF1qn")))
 }
+
+
 
 # End ----
