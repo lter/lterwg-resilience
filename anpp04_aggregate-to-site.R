@@ -90,4 +90,21 @@ write.csv(x = site_v3, row.names = F, na = '', file = file.path("data", "harmoni
 googledrive::drive_upload(media = file.path("data", "harmonized_data", focal_output), overwrite = T,
                           path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ"))
 
+# Export the treatment - year combination to generate a table for management
+trt <- site_v3 %>%
+  select (c(network, site, treatment, year, crop)) %>%
+  unique()
+
+# Identify nice name for exported object
+focal_name <- "treatment_table_year.csv"
+
+# Export locally
+write.csv(x = trt , row.names = F, na = '',
+          file = file.path("data", focal_name))
+
+# Upload to Drive
+googledrive::drive_upload(media = file.path("data",  focal_name), overwrite = T,
+                          path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Ty7QX7vyvD797eKJzMWbr8AwIo-GyBFO"))
+
+
 # End ----
