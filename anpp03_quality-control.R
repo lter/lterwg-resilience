@@ -74,7 +74,7 @@ tidy_v3 <- tidy_v2 %>%
   dplyr::select(-c("date", "date_m.d.yyy", "date_m.d.yyy2"))
   
 # Check that no unexpected columns are lost/gained
-supportR::diff_check(old = names(tidy_v3), new = names(tidy_v4))
+#supportR::diff_check(old = names(tidy_v3), new = names(tidy_v4))
 
 # Check structure
 dplyr::glimpse(tidy_v3)
@@ -230,20 +230,20 @@ googledrive::drive_upload(media = file.path("data", "harmonized_data", focal_out
                           path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ"))
 
 # Export the treatments only to generate a table for management
-trt <- tidy_v99 %>%
-  select (c(network, site, treatment)) %>%
-  unique()
-
-# Identify nice name for exported object
-focal_name <- "treatment_table.csv"
-
-# Export locally
-write.csv(x = trt , row.names = F, na = '',
-          file = file.path("data", focal_name))
-
-# Upload to Drive
-googledrive::drive_upload(media = file.path("data",  focal_name), overwrite = T,
-                          path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Ty7QX7vyvD797eKJzMWbr8AwIo-GyBFO"))
-
+# trt <- tidy_v99 %>%
+#   select (c(network, site, treatment)) %>%
+#   unique()
+# 
+# # Identify nice name for exported object
+# focal_name <- "treatment_table.csv"
+# 
+# # Export locally
+# write.csv(x = trt , row.names = F, na = '',
+#           file = file.path("data", focal_name))
+# 
+# # Upload to Drive
+# googledrive::drive_upload(media = file.path("data",  focal_name), overwrite = T,
+#                           path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Ty7QX7vyvD797eKJzMWbr8AwIo-GyBFO"))
+# 
 
 # End ----
