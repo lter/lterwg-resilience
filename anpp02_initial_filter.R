@@ -79,12 +79,43 @@ excl_trt <- read.csv(file = file.path("data", "excluded_treatments.csv"))
 harm_anpp.3 <- harm_anpp%>%
   filter(!treatment %in% excl_trt$treatment)
 
+#################################
+# 3) Remove unpublished LTAR datasets
+#################################
+
+# Grab excluded treatmetn file
+pub_trt_ltar <- googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/1/folders/1Ty7QX7vyvD797eKJzMWbr8AwIo-GyBFO")) %>%
+  dplyr::filter(name == "LTAR_published_trts.csv")
+
+# Did that work?
+pub_trt_ltar 
+
+# Download the excluded treatmetn file
+googledrive::drive_download(file = pub_trt_ltar$id, overwrite = T, type = "csv",
+                            path = file.path("data", pub_trt_ltar$name))
+
+# Read in excluded treatment file
+pub_trt2 <- read.csv(file = file.path("data", "LTAR_published_trts.csv"))
+
+# Remove treatments that aren't published
+str(harm_anpp.3)
+pubtrt <- pub_trt2$treatments
+ltar <- harm_anpp.3 %>%
+  dplyr::filter(network=="LTAR") %>%
+  dplyr::filter(treatment %in% pub_trt2$treatments)
+
+# Create dataset without LTAR 
+nutnetlter <- harm_anpp.3 %>%
+  dplyr::filter(network %in% c("LTER", "lter","NutNet", "LTAR and LTER") | site == "CPER")
+
+harm_anpp.4 <- rbind(ltar, nutnetlter)
+
 ## ------------------------------------------- ##
 # Export ----
 ## ------------------------------------------- ##
 
 # Final pre-export tweaks
-harm_anpp.99 <- harm_anpp.3
+harm_anpp.99 <- harm_anpp.4
 
 # Check structure
 dplyr::glimpse(harm_anpp.99)
