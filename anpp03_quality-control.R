@@ -63,14 +63,18 @@ tidy_v2 <- tidy_v2 %>%
 
 tidy_v3 <- tidy_v2 %>%
   # fix dates and extract year
-  dplyr::mutate(date = lubridate::as_date(date, format="%m/%d/%Y"), 
-                date_m.d.yyy = lubridate::as_date(date_m.d.yyyy, format= "%m-%d-%Y"), 
+  dplyr::mutate(date2 = lubridate::as_date(date, format="%m/%d/%Y"),
+                date3 = lubridate::mdy_hm(date),
+                date4 = lubridate::mdy_hms(date),
+                date_m.d.yyy = lubridate::as_date(date_m.d.yyyy, format= "%m-%d-%Y"),
                 date_m.d.yyy2 = lubridate::as_date(date_m.d.yyyy, format= "%Y-%m-%d")) %>%
   #make a single date column 
-  dplyr::mutate(dates =coalesce(date, date_m.d.yyy, date_m.d.yyy2))%>%
-  # add year
+  dplyr::mutate(dates =coalesce(date2, date3, date4, date_m.d.yyy, date_m.d.yyy2))%>%
+  # # add year
   dplyr::mutate(year = ifelse(is.na(year), lubridate::year(dates), year))%>%
-  #Get rid of extra date columns
+  ##add month column
+  dplyr::mutate(month2 = month(dates))%>%
+  # #Get rid of extra date columns
   dplyr::select(-c("date", "date_m.d.yyy", "date_m.d.yyy2"))
   
 # Check that no unexpected columns are lost/gained
@@ -138,6 +142,15 @@ tidy_v7 <- tidy_v6 %>%
   dplyr::mutate(treatment = ifelse(network == "LTER" & treatment=="", yes = paste(site, "CTRL", sep="_"), no = treatment))%>%
   # Fix JRN to be control
   dplyr::mutate(treatment = ifelse(site == "JRN", yes="JRN_CTRL", no= treatment)) 
+
+
+## ------------------------------------------- ##
+# Update site IDs----
+## ------------------------------------------- ##
+tidy_v8 <- tidy_v7 %>%
+  # Make UCB-Pastures just UCB
+  dplyr::mutate(treatment = ifelse(site == "CPER", yes="CPER_CTRL", no= treatment)) %>%
+
 
 ## ------------------------------------------- ##
 # Column Checks on Data ----
