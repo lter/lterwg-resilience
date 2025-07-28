@@ -71,3 +71,38 @@ merge_ANPP_climate <- left_join(mean_anpp, climate_file, by = c("site"))
 ggplot(merge_ANPP_climate, aes(x = ppt_max_event, y = mean_anpp)) +
   geom_point()
 
+ggplot(merge_ANPP_climate, aes(x = ppt_mean_event, y = mean_anpp)) +
+  geom_point()
+
+ggplot(merge_ANPP_climate, aes(x = days_half_ppt, y = mean_anpp)) +
+  geom_point()
+
+ggplot(merge_ANPP_climate, aes(x = daily_ppt_d, y = mean_anpp)) +
+  geom_point()
+
+ggplot(merge_ANPP_climate, aes(x = n_wet_days, y = mean_anpp)) +
+  geom_point()
+
+ggplot(merge_ANPP_climate, aes(x = avg_dryspell_length , y = mean_anpp)) +
+  geom_point()
+
+ggplot(merge_ANPP_climate, aes(x = ppt_95th_percentile_size , y = mean_anpp)) +
+  geom_point()
+
+ggplot(merge_ANPP_climate, aes(x = avg_dryspell_length , y = mean_anpp)) +
+  geom_point()
+
+ggplot(merge_ANPP_climate, aes(x = MAP , y = mean_anpp)) +
+  geom_point()
+
+ggplot(merge_ANPP_climate, aes(x = cv_ppt_intra, y = mean_anpp)) +
+  geom_point()
+
+ggplot(merge_ANPP_climate, aes(x = cv_ppt_inter, y = mean_anpp)) +
+  geom_point()
+
+ggplot(merge_ANPP_climate, aes(x = yearly_ppt_d , y = mean_anpp)) +
+  geom_point()
+
+ggplot(merge_ANPP_climate, aes(x = seasonality_index, y = mean_anpp)) +
+  geom_point()
