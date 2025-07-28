@@ -147,9 +147,11 @@ tidy_v7 <- tidy_v6 %>%
 ## ------------------------------------------- ##
 # Update site IDs----
 ## ------------------------------------------- ##
+str(tidy_v7)
+unique(tidy_v7$site)
 tidy_v8 <- tidy_v7 %>%
   # Make UCB-Pastures just UCB
-  dplyr::mutate(treatment = ifelse(site == "CPER", yes="CPER_CTRL", no= treatment)) %>%
+  dplyr::mutate(treatment = ifelse(site == "UCB-Pastures", yes="UCB", no= site)) %>%
 
 
 ## ------------------------------------------- ##
