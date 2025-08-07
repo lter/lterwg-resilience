@@ -52,15 +52,33 @@ anpp.cv.site.crop%>%
 
 
 anpp.cv.site.crop%>%
-  subset(n_years >= 3)%>%
-  ggplot( aes(x = cv.ppt, y = cv.anpp, color = crop))+
+  ggplot( aes(x = mean.precip, y = mean.anpp, color = crop))+
   geom_point(size = 2)+
   geom_smooth(method = "lm",se = FALSE)+
+  xlab("Mean water year precip")+
+  ylab("Mean ANPP")+
+  theme_base()
+
+anpp.cv.site.crop%>%
+  ggplot( aes(x = mean.precip, y = mean.anpp))+
+  facet_wrap(~site)+
+  geom_point(aes( color = crop),size = 2)+
+  geom_smooth(method = "lm",se = FALSE)+
+  xlab("Mean water year precip")+
+  ylab("Mean ANPP")+
   theme_base()
 
 
-mod <- lme(cv.anpp~cv.ppt, random = ~1|site, data = subset(anpp.cv.site.crop, n_years >=10))
-summary(mod)
+anpp.cv.site.crop%>%
+  subset(n_years >= 6)%>%
+  ggplot( aes(x = cv.ppt, y = cv.anpp, color = crop))+
+  geom_point(size = 2)+
+  geom_smooth(method = "lm",se = FALSE)+
+  xlab("CV water year precip")+
+  ylab("CV ANPP")+
+  theme_base()
+
+
 
 
 
