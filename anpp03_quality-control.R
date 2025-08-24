@@ -151,7 +151,15 @@ tidy_v7 <- tidy_v6 %>%
 ## ------------------------------------------- ##
 str(tidy_v7)
 unique(tidy_v7$site)
+##UCB-Pastures to UCB
 tidy_v7$site <- ifelse(tidy_v7$site == "UCB-Pastures", yes="UCB", no= tidy_v7$site)
+
+#ECB_B1bau to ECB_C1
+tidy_v7$site <- ifelse(tidy_v7$site == "ECB_B1bau", yes="ECB_C1", no= tidy_v7$site)
+
+#ECB_D2bau to ECB_D2
+tidy_v7$site <- ifelse(tidy_v7$site == "ECB_D2bau", yes="ECB_D2", no= tidy_v7$site)
+
 
 
 ## ------------------------------------------- ##
