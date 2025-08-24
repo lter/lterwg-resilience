@@ -45,7 +45,9 @@ tidy_v2 <- tidy_v1 %>%
   # make LTER sites capitalized
   dplyr::mutate(site = ifelse(network=="LTER", toupper(site), site)) %>%
   # make lowercase lter network capitalized
-  dplyr::mutate(network = ifelse(network=="lter", "LTER", network))
+  dplyr::mutate(network = ifelse(network=="lter", "LTER", network)) %>%
+  # make jornada in the "lter" network
+  dplyr::mutate(network = ifelse(site="jrn", "LTER", network))
 
 # make sure that every site has a network
 network_nas <- tidy_v2 %>%
