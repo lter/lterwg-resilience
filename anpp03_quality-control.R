@@ -47,7 +47,7 @@ tidy_v2 <- tidy_v1 %>%
   # make lowercase lter network capitalized
   dplyr::mutate(network = ifelse(network=="lter", "LTER", network)) %>%
   # make jornada in the "lter" network
-  dplyr::mutate(network = ifelse(site="jrn", "LTER", network))
+  dplyr::mutate(network = ifelse(site=="jrn", "LTER", network))
 
 # make sure that every site has a network
 network_nas <- tidy_v2 %>%
@@ -151,9 +151,7 @@ tidy_v7 <- tidy_v6 %>%
 ## ------------------------------------------- ##
 str(tidy_v7)
 unique(tidy_v7$site)
-tidy_v8 <- tidy_v7 %>%
-  # Make UCB-Pastures just UCB
-  dplyr::mutate(treatment = ifelse(site == "UCB-Pastures", yes="UCB", no= site)) %>%
+tidy_v7$site <- ifelse(tidy_v7$site == "UCB-Pastures", yes="UCB", no= tidy_v7$site)
 
 
 ## ------------------------------------------- ##
