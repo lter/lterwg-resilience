@@ -15,9 +15,15 @@
 library(terra)
 library(lubridate)
 library(tidyverse)
+library(googlesheets4)
+
+gs4_auth()
 
 # read in list of sites and coordinates 
-sites <- read.csv("/Users/ingridslette/Library/CloudStorage/GoogleDrive-slett152@umn.edu/Shared drives/LTER-WG_Resilience-Management/data/raw_data/ltar_lter_site_coordinates.csv")
+sheet_url <- 'https://docs.google.com/spreadsheets/d/1XPiisvk_ftkZRkWWDXK9dTGyIKWZ6Q87cSE_UNog3pA/edit?gid=338942080#gid=338942080'
+
+sites <- read_sheet(sheet_url)
+
 
 unique(sites$site_id)
 
@@ -52,6 +58,8 @@ out$month <- substr(out$date, 6, 7)
 
 # create a new column for the day
 out$day <- substr(out$date, 9, 10)
+
+View(out)
 
 write.csv(out, file = "/Users/ingridslette/Library/CloudStorage/GoogleDrive-slett152@umn.edu/Shared drives/LTER-WG_Resilience-Management/data/raw_data/mswep-daily-ppt-lter-ltar-sites.csv")
 
