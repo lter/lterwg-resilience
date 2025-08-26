@@ -93,14 +93,14 @@ dplyr::glimpse(site_v3)
 focal_output <- "04_anpp_aggregated-site-crop.csv"
 
 # Export locally
-write.csv(x = site_v3, row.names = F, na = '', file = file.path("data", "harmonized_data", focal_output))
+write.csv(x = site_v4, row.names = F, na = '', file = file.path("data", "harmonized_data", focal_output))
 
 # Upload to Drive
 googledrive::drive_upload(media = file.path("data", "harmonized_data", focal_output), overwrite = T,
                           path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ"))
 
 # Export the treatment - year combination to generate a table for management
-trt <- site_v3 %>%
+trt <- site_v4 %>%
   select (c(network, site, treatment, year, crop)) %>%
   unique()
 
