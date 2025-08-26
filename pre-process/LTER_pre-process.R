@@ -39,7 +39,7 @@ rm(list = ls()); gc()
 
 ##Konza
 konza_anpp <- read.csv("G:/Shared drives/LTER-WG_Resilience-Management/data/raw_data/PAB011.csv")
-konza_anpp$anpp <- (konza_anpp$LVGRASS + konza_anpp$FORBS)*10 #make per meter squared
+konza_anpp$anpp <- (konza_anpp$LVGRASS + konza_anpp$FORBS + konza_anpp$CUYRDEAD)*10 #make per meter squared
 konza_anpp <- konza_anpp%>%
               unite("date", c("RECYEAR","RECMONTH","RECDAY"), sep = "-",remove = TRUE)
 
