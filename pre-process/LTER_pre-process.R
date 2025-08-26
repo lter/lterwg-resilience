@@ -38,8 +38,9 @@ write.csv(jornada_anpp, "G:/Shared drives/LTER-WG_Resilience-Management/data/pre
 rm(list = ls()); gc()
 
 ##Konza
-konza_anpp <- read.csv("G:/Shared drives/LTER-WG_Resilience-Management/data/raw_data/PAB011.csv")
-konza_anpp$anpp <- (konza_anpp$LVGRASS + konza_anpp$FORBS + konza_anpp$CUYRDEAD)*10 #make per meter squared
+konza_anpp <- read.csv("G:/Shared drives/LTER-WG_Resilience-Management/data/raw_data/PAB011.csv")%>%
+  replace_na(list(LVGRASS = 0, FORBS = 0, CUYRDEAD = 0, WOODY = 0))
+konza_anpp$anpp <- (konza_anpp$LVGRASS + konza_anpp$FORBS + konza_anpp$CUYRDEAD + konza_anpp$WOODY)*10 #make per meter squared
 konza_anpp <- konza_anpp%>%
               unite("date", c("RECYEAR","RECMONTH","RECDAY"), sep = "-",remove = TRUE)
 
@@ -76,7 +77,8 @@ rm(list = ls()); gc()
 
 ##Cedar Creek
 cdr_anpp <- read.csv("G:/Shared drives/LTER-WG_Resilience-Management/data/raw_data/E001_Aboveground_Biomass.csv")%>%#field C whole gets burned semi-regularly #data from 
-  subset(NTrt == "9")%>%
+  subset(NTrt == "9" & Field == "C")%>%
+  subset(Species != "Miscellaneous litter" & Species != "Mosses & lichens" & Species != "Fungi"  & Species != "Mosses & lichens 2" & Species != "Pine needles" & Species != "Lichens" )%>%
   ddply(.(Year, Field, Plot),function(x)data.frame(
     anpp = sum(x$Biomass.g.m2)
   ))
