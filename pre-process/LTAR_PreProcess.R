@@ -748,6 +748,21 @@ ucb_pp <- ucb_raw %>%
   dplyr::select(-Harvested.Frac, -Above.G.Biomass.kg.ha, -Grain.Moist.., -Harv.NonGrain.Bio.kg.ha)
   
 
+# Summarize  UCB by crop for the rotational crops
+rots <- c("UCB_PAHAW_ROT1", "UCB_PAHAW_ROT2", "UCB_PAHAW_ROT3", "UCB_PAHAW_ROT4", "UCB_PAHAW_ROT5", 
+          "UCB_PAHAW_ROT6", "UCB_PAHAW_ROT7", "UCB_PAHAW_ROT8")
+
+ucb_pp_2 <- ucb_pp %>%
+  dplyr::filter(Treatment.ID %in% rots)%>%
+  dplyr::mutate(Treatment.ID  = sub("\\d+$", "", Treatment.ID )) 
+
+unique(ucb_pp$Treatment.ID)
+others <- c("UCB_PAHAW_SWG1", "UCB_PAHAW_SWG2", "UCB_PAHAW_RCG1", "UCB_PAHAW_RCG2" )
+ucb_pp_3 <- ucb_pp %>%
+  dplyr::filter(Treatment.ID %in% others)
+
+ucb_pp_4 <- rbind(ucb_pp_2, ucb_pp_3)
+
 # Check for gained/lost columns
 supportR::diff_check(old = names(ucb_raw), new = names(ucb_pp))
 
@@ -755,7 +770,7 @@ supportR::diff_check(old = names(ucb_raw), new = names(ucb_pp))
 dplyr::glimpse(ucb_pp)
 
 # Export locally
-write.csv(x = ucb_pp, na = '', row.names = F,
+write.csv(x = ucb_pp_4, na = '', row.names = F,
           file = file.path("data", "pre_processed_data", "LTAR_ucb_pre-process.csv"))
 
 # Clear environment
