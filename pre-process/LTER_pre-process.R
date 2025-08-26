@@ -67,7 +67,7 @@ rm(list = ls()); gc()
 ##Niwot
 niwot_anpp <- read.csv("G:/Shared drives/LTER-WG_Resilience-Management/data/raw_data/saddgrid_npp.hh.data.csv")%>%
   dplyr::select(LTER_site, local_site, year, collection_date,veg_class, grid_pt, subsample, NPP)%>%
-  subset(veg_class != "SB" & veg_class != "SF"& veg_class != "ST" )
+  subset(veg_class != "SB" & veg_class != "SF"& veg_class != "ST"  & veg_class != "WM") #Removing these per recommendations of Tom M.
 
 niwot_anpp$network <- "LTER"
 niwot_anpp$site_ID <- "nwt"
