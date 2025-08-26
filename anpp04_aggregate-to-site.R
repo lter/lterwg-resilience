@@ -75,14 +75,15 @@ site_v3 <- site_v2 %>%
 
 site_v4 <- site_v3 %>% 
   subset(treatment != "004b" & treatment != "020b")%>% #remove additional treatments from KNZ
-  dplyr::group_by(site, year, network,treatment,month,crop,country,duration_years) %>% 
-  dplyr::summarize(anpp_g_m2 = mean(anpp_g_m2, na.rm = T),
-                   .groups = "keep") %>% 
+  dplyr::mutate(month1 = month)%>%
+  dplyr::select(-month)%>%
+  dplyr::group_by(site, year, network,treatment,crop,country,duration_years)%>% 
+  dplyr::summarize(anpp_g_m2 = mean(anpp_g_m2, na.rm = T), month = max(month1),                   .groups = "keep") %>% #if month is screwed up, start here 
   dplyr::ungroup()
 
 
 # Check structure
-dplyr::glimpse(site_v3)
+dplyr::glimpse(site_v4)
 
 ## ------------------------------------------- ##
 # Export ----
