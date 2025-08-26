@@ -58,14 +58,22 @@ dplyr::glimpse(site_v1)
 #(grp_cols <- setdiff(x = names(site_v1), y = c("block", "plot", "quadrat", "date",
 #                                               "anpp_actual")))
 
-# Summarize within "sites" and "locations"
+# Summarize across subsamples within a plot/level
 site_v2 <- site_v1 %>% 
+  dplyr::group_by(site,location, year, network,treatment,month,crop,country,duration_years, plot) %>% 
+  dplyr::summarize(anpp_g_m2 = mean(anpp_g_m2, na.rm = T),
+                   .groups = "keep") %>% 
+  dplyr::ungroup()
+
+
+# Summarize within "sites" and "locations"
+site_v3 <- site_v2 %>% 
   dplyr::group_by(site,location, year, network,treatment,month,crop,country,duration_years) %>% 
   dplyr::summarize(anpp_g_m2 = mean(anpp_g_m2, na.rm = T),
                    .groups = "keep") %>% 
   dplyr::ungroup()
 
-site_v3 <- site_v2 %>% 
+site_v4 <- site_v3 %>% 
   subset(treatment != "004b" & treatment != "020b"& treatment != "B"& treatment != "C"& treatment != "D")%>% #remove additional treatments from KNZ and CDR
   dplyr::group_by(site, year, network,treatment,month,crop,country,duration_years) %>% 
   dplyr::summarize(anpp_g_m2 = mean(anpp_g_m2, na.rm = T),
