@@ -74,7 +74,7 @@ site_v3 <- site_v2 %>%
   dplyr::ungroup()
 
 site_v4 <- site_v3 %>% 
-  subset(treatment != "004b" & treatment != "020b"& treatment != "B"& treatment != "C"& treatment != "D")%>% #remove additional treatments from KNZ and CDR
+  subset(treatment != "004b" & treatment != "020b")%>% #remove additional treatments from KNZ
   dplyr::group_by(site, year, network,treatment,month,crop,country,duration_years) %>% 
   dplyr::summarize(anpp_g_m2 = mean(anpp_g_m2, na.rm = T),
                    .groups = "keep") %>% 

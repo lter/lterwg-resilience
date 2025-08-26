@@ -77,7 +77,8 @@ rm(list = ls()); gc()
 
 ##Cedar Creek
 cdr_anpp <- read.csv("G:/Shared drives/LTER-WG_Resilience-Management/data/raw_data/E001_Aboveground_Biomass.csv")%>%#field C whole gets burned semi-regularly #data from 
-  subset(NTrt == "9")%>%
+  subset(NTrt == "9" & Field == "C")%>%
+  subset(Species != "Miscellaneous litter" & Species != "Mosses & lichens" & Species != "Fungi"  & Species != "Mosses & lichens 2" & Species != "Pine needles" & Species != "Lichens" )%>%
   ddply(.(Year, Field, Plot),function(x)data.frame(
     anpp = sum(x$Biomass.g.m2)
   ))
