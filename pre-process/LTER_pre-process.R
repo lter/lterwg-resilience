@@ -13,8 +13,9 @@ sev_anpp <- read.csv("G:/Shared drives/LTER-WG_Resilience-Management/data/raw_da
   ddply(.(site, year, web, plot, quad), function(x)data.frame(
     anpp = sum(x$biomass.BM)
   ))
-sev_anpp$site_ID <- "sev"
-sev_anpp$network <- "lter"
+
+sev_anpp$site <- "sev"
+sev_anpp$network <- "LTER"
 
 write.csv(sev_anpp, "G:/Shared drives/LTER-WG_Resilience-Management/data/pre_processed_data/sev_anpp_nceas.csv")
 
@@ -30,7 +31,7 @@ jornada_anpp <- jornada_anpp%>%
   dplyr::select(site, zone, year, ANPP_noYUEL)
 jornada_anpp$location <- jornada_anpp$site
 
-jornada_anpp$site_D <- "jrn"
+jornada_anpp$site <- "jrn"
 jornada_anpp$network <- "LTAR and LTER"
 
 write.csv(jornada_anpp, "G:/Shared drives/LTER-WG_Resilience-Management/data/pre_processed_data/jrn_anpp_nceas.csv")
@@ -65,7 +66,8 @@ rm(list = ls()); gc()
 
 ##Niwot
 niwot_anpp <- read.csv("G:/Shared drives/LTER-WG_Resilience-Management/data/raw_data/saddgrid_npp.hh.data.csv")%>%
-  dplyr::select(LTER_site, local_site, year, collection_date,veg_class, grid_pt, subsample, NPP)
+  dplyr::select(LTER_site, local_site, year, collection_date,veg_class, grid_pt, subsample, NPP)%>%
+  subset(veg_class != "SB" & veg_class != "SF"& veg_class != "ST" )
 
 niwot_anpp$network <- "LTER"
 niwot_anpp$site_ID <- "nwt"
