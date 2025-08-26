@@ -24,10 +24,10 @@ sheet_url <- 'https://docs.google.com/spreadsheets/d/1XPiisvk_ftkZRkWWDXK9dTGyIK
 
 sites <- read_sheet(sheet_url)
 
-
+View(sites)
 unique(sites$site_id)
 
-# make that a SpatVector
+# make that file a SpatVector
 site <- sites %>% vect(geom = c("longitude", "latitude"), crs = "EPSG:4326")
 
 # list all of the monthly mswep precip data files
