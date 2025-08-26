@@ -169,9 +169,9 @@ glimpse(tidy_v7)
 
 
 # Check overlap of replicate information 
-tidy_v8 <- tidy_v7 %>%
-  group_by(network, site, treatment, location, plot, transect, subsample, web, quad) %>%
-  summarize(crops = paste(unique(crop),collapse="&"), years = paste(unique(year), collapse="&"))
+#tidy_v8 <- tidy_v7 %>%
+#  group_by(network, site, treatment, location, plot, transect, subsample, web, quad) %>%
+#  summarize(crops = paste(unique(crop),collapse="&"), years = paste(unique(year), collapse="&"))
   
 
 # tidy column order
