@@ -75,7 +75,7 @@ tidy_v3 <- tidy_v2 %>%
   # # add year
   dplyr::mutate(year = ifelse(is.na(year), lubridate::year(dates), year))%>%
   ##add month column
-  dplyr::mutate(month2 = month(dates))%>%
+  dplyr::mutate(month = month(dates))%>%
   # #Get rid of extra date columns
   dplyr::select(-c("date", "date_m.d.yyy", "date_m.d.yyy2"))
   
