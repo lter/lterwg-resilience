@@ -131,8 +131,25 @@ ggplot(data=sens, aes(x=MAP, y=cv, color=type, shape=as.factor(fertilized)))+
   geom_point(size=3)+
   geom_hline(yintercept = 0)
 
-ggplot(data=sensnostie, aes(x=type, y=cv))+
+ggplot(data=sensnostie, aes(x=type, y=sd))+
   geom_bar(stat = 'identity')
+
+###truncating to same MAP range as corn
+sensnostie_cornlimits<-dat3 %>% 
+  filter(MAP>750&MAP<1200) %>% 
+  filter(!is.na(anpp_g_m2)) %>% 
+  group_by(type, fertilized) %>% 
+  summarise(slope=lm(anpp_g_m2~wyr_ppt)$coefficient[2], nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2)) %>% 
+  #filter(nobs>5) %>% 
+  mutate(cv=sd/manpp)
+
+ggplot(data=sens, aes(x=MAP, y=cv, color=type, shape=as.factor(fertilized)))+
+  geom_point(size=3)+
+  geom_hline(yintercept = 0)
+
+ggplot(data=sensnostie_cornlimits, aes(x=type, y=sd))+
+  geom_bar(stat = 'identity')
+
 
 ggplot(data=sens, aes(x=MAP, y=manpp, color=crop2, shape=as.factor(fertilized)))+
   geom_point(size=3)+
