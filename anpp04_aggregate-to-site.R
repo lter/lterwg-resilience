@@ -74,7 +74,7 @@ site_v3 <- site_v2 %>%
   dplyr::ungroup()
 
 site_v4 <- site_v3 %>% 
-  subset(treatment != "004b" & treatment != "020b")%>% #remove additional treatments from KNZ
+  #subset(treatment != "004b" & treatment != "020b")%>% #remove additional treatments from KNZ
   dplyr::mutate(month1 = month)%>%
   dplyr::select(-month)%>%
   dplyr::group_by(site, year, network,treatment,crop,country,duration_years)%>% 
