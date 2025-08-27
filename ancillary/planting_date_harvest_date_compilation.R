@@ -3,10 +3,29 @@
 ##load libraries:
 library(tidyverse)
 
+# Make needed folder(s)
+dir.create(file.path("data"), showWarnings = F)
+dir.create(file.path("data", "pre_processed_data"), showWarnings = F)
+dir.create(file.path("data", "harmonized_data"), showWarnings = F)
+dir.create(file.path("data", "diagnostic", "anpp"), showWarnings = F)
+
 #################################
 # 1) Read in planting date and 
 #################################
-pd <- read.csv("/Users/olhajek/Desktop/nceas/planting_dates.csv")
+
+# Grab planting date file
+pd_drive <- googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1zeTZMf5kv0ZG3bJFi-qPimwgbz314m2V")) %>%
+  dplyr::filter(name == "planting_dates.csv")
+
+# Did that work?
+pd_drive
+
+# Download the excluded treatmetn file
+googledrive::drive_download(file = pd_drive$id, overwrite = T, type = "csv",
+                            path = file.path("data", "diagnostic", "anpp", pd_drive$name))
+
+# Read in excluded treatment file
+pd <- read.csv(file = file.path("data", "diagnostic", "anpp", "planting_dates.csv"))
 
 ## update the treatment column to be treatmetn
 pd <- pd %>%
