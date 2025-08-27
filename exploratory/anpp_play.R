@@ -73,10 +73,19 @@ dat2<-dat %>%
 
 sens<-dat2 %>% 
   group_by(network,site, fertilized, crop2, MAP) %>% 
-  summarise(slope=lm(anpp_g_m2~wyr_ppt)$coefficient[2], nobs=n()) %>% 
-  filter(nobs>5)
+  summarise(slope=lm(anpp_g_m2~wyr_ppt)$coefficient[2], nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2)) %>% 
+  filter(nobs>5) %>% 
+  mutate(cv=sd/manpp)
 
 
-ggplot(data=sens, aes(x=MAP, y=slope, color=crop2))+
-  geom_point()+
-  facet_grid(network~fertilized, scale='free_y')
+ggplot(data=sens, aes(x=MAP, y=slope, color=crop2, shape=as.factor(fertilized)))+
+  geom_point(size=3)+
+  geom_hline(yintercept = 0)
+
+ggplot(data=sens, aes(x=MAP, y=manpp, color=crop2, shape=as.factor(fertilized)))+
+  geom_point(size=3)+
+  geom_smooth(method = 'lm', se=F)
+
+ggplot(data=sens, aes(x=MAP, y=cv, color=crop2, shape=as.factor(fertilized)))+
+  geom_point(size=3)#+
+ # geom_smooth(method = 'lm', se=F)
