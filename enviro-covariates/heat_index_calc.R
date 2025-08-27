@@ -60,12 +60,13 @@ ggplot(max.temp.growing.season, aes(y=Tmaxc, x=year)) +
 ##################################################
 #Number of days during the growing season with daily maximum temp above the 90th-99th percentiles
 #Count number of days above the thresholds
-extreme_temp_days <- merge(daymet_daily_raw, quantile.maxtemp, by = c("network", "site_id")) %>%
+calc_hot_days <- merge(daymet_daily_raw, quantile.maxtemp, by = c("network", "site_id")) %>%
   filter(month %in% c('3', '4', '5', '6', '7', '8')) %>% 
   mutate(over_90th = ifelse(tmax_degC>per_90_quant, 1, 0),
          over_95th = ifelse(tmax_degC>per_95_quant, 1, 0),
          over_98th = ifelse(tmax_degC>per_98_quant, 1, 0),
-         over_99th = ifelse(tmax_degC>per_99_quant, 1, 0)) %>%
+         over_99th = ifelse(tmax_degC>per_99_quant, 1, 0)) 
+extreme_temp_days<- calc_hot_days%>%
   group_by(network, site_id, year) %>%
   summarise(num_days_90th = sum(over_90th),
             num_days_95th = sum(over_95th),
@@ -104,11 +105,38 @@ ggplot(warm_day_freq, aes(y=warm_day_90th, x=year, color = site_id)) +
   facet_wrap(~network)
 
 #################################################################
-#2 + consecutive days of hot days
+#Lengths of heat waves (2 + consecutive days over 95th percentile) during the growing season in days - Smith et al 2013
+calc_heat_wave_duration <- function(x) {
+  rle_result <- rle(x)
+  heat_waves <- rle_result$lengths[rle_result$values == 1]
+  ifelse(length(heat_waves) > 0, max(heat_waves), 0)
+}
+  
+rle_result <- rle((calc_hot_days%>%filter(site_id == "ABS_RCREC" & year == "1981"))$over_95th) 
+print(rle$lengths)
+print(rle$values)
+heat_waves <- rle_result$lengths[rle_result$values == 1]
+max(rle_result$lengths[rle_result$values == 1])
+
+heat_wave_duration <- calc_hot_days %>%
+  group_by(network, site_id, year) %>%
+  summarise(consecutive_days_heat_wave = calc_heat_wave_duration(over_95th))
+
+#plot heat_wave_duration (max number of consecutive days where daily max temp was over 95th percentile during the growing season) 
+ggplot(heat_wave_duration, aes(y=site_id, x=year, color=consecutive_days_heat_wave)) + 
+  geom_point() + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  scale_color_gradient2(low = "white", mid = "pink", high = "red", midpoint = 12)
 
 #################################################################
-#5 + consecutive days of hot days
+#Make a temp extreme csv
+heat_indices <- merge(max.temp.growing.season, quantile.maxtemp, by = c("network", "site_id")) %>%
+  merge(., extreme_temp_days, by = c("network", "site_id", "year")) %>%
+  left_join(., warm_day_freq, by = c("network", "site_id", "year", "num_days_90th", "num_days_95th", "num_days_98th", "num_days_99th")) %>%
+  left_join(., heat_wave_duration, by = c("network", "site_id", "year"))
 
 
-
+#Next steps: 
+#Correlation matrix of temp metrics
+#Biomass vs temp extremes
 #regional analysis of when the heat waves are happening
