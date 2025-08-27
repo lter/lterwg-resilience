@@ -106,7 +106,7 @@ ltar <- harm_anpp.3 %>%
 
 # Create dataset without LTAR 
 nutnetlter <- harm_anpp.3 %>%
-  dplyr::filter(network %in% c("LTER", "lter","NutNet", "LTAR and LTER") | site == "CPER")
+  dplyr::filter(network %in% c("LTER", "lter","NutNet", "LTAR and LTER") | site == "CPER" | site=="ABS_UF")
 
 harm_anpp.4 <- rbind(ltar, nutnetlter)
 
