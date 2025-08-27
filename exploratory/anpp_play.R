@@ -150,12 +150,24 @@ ggplot(data=sens, aes(x=MAP, y=cv, color=type, shape=as.factor(fertilized)))+
 ggplot(data=sensnostie_cornlimits, aes(x=type, y=sd))+
   geom_bar(stat = 'identity')
 
+#####looking at variation within a sit
+sitesens<-dat3 %>% 
+  filter(!is.na(anpp_g_m2)) %>%
+  group_by(network,site, type, fertilized, MAP, cv_ppt_inter) %>% 
+  summarise(slope=lm(anpp_g_m2~wyr_ppt)$coefficient[2], nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2)) %>% 
+  filter(nobs>5) %>% 
+  mutate(cv=sd/manpp)
 
-ggplot(data=sens, aes(x=MAP, y=manpp, color=crop2, shape=as.factor(fertilized)))+
+ggplot(data=sitesens, aes(x=MAP, y=manpp, color=type, shape=as.factor(fertilized)))+
   geom_point(size=3)+
-  geom_smooth(method = 'lm', se=F)
+  geom_hline(yintercept = 0)
 
-ggplot(data=sens, aes(x=crop2, y=slope, color=crop2))+
+#how many crops per year?
+yrs<-dat3 %>% 
+  group_by(network,site, type, fertilized, year) %>% 
+  summarize(n=length(anpp_g_m2))
+
+ggplot(data=sens, aes(x=crop2, y=manpp, color=crop2))+
   geom_violin(draw_quantiles = T)+
   facet_wrap(~fertilized)
 
