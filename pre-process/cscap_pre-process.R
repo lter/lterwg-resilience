@@ -11,7 +11,7 @@
 ## ------------------------------------- ##
 
 # Load needed libraries
-librarian::shelf(tidyverse, googledrive, supportR)
+librarian::shelf(tidyverse, googledrive, ltertools)
 
 # Make needed folder(s)
 source(file.path("00_create_data_folder.R"))
@@ -263,5 +263,25 @@ dplyr::glimpse(coords_v2)
 # Also export coordinate info
 write.csv(x = coords_v2, na = '', row.names = F,
           file = file.path("data", "cscap_coords.csv"))
+
+## ------------------------------------- ##
+# Prep Data Key ----
+## ------------------------------------- ##
+
+# For the ANPP data to be easily included in the harmonization workflow,
+## We need the start of the data key for this file
+
+# Begin the data key
+cscap_key <- ltertools::begin_key(raw_folder = file.path("data", "pre_processed_data")) %>% 
+  # Filter to only this data file (in case this code is ever run with other stuff in that folder)
+  dplyr::filter(source == "cscap_pre_process.csv")
+
+# Check structure
+dplyr::glimpse(cscap_key)
+
+# Export
+## Commenting out because it's unlikely this will be needed again
+# write.csv(x = cscap_key, na = '', row.names = F,
+#           file = file.path("data", "cscap_key-fragment.csv"))
 
 # End ----
