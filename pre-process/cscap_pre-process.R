@@ -267,6 +267,9 @@ dplyr::glimpse(coords_v2)
 write.csv(x = coords_v2, na = '', row.names = F,
           file = file.path("data", "cscap_coords.csv"))
 
+# Upload this to the Drive
+googledrive::drive_upload(media = file.path("data", "cscap_coords.csv"), overwrite = T, path = googledrive::as_id("https://drive.google.com/drive/folders/1zI1KYBlROyBZSgjSEYmVjsIfCmRPpUPq"))
+
 ## ------------------------------------- ##
 # Prep Data Key ----
 ## ------------------------------------- ##
