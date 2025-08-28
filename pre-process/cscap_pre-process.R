@@ -250,6 +250,9 @@ dplyr::glimpse(cap_v3)
 write.csv(x = cap_v3, na = '', row.names = F,
           file = file.path("data", "pre_processed_data", "cscap_pre_process.csv"))
 
+# Upload this to the Drive
+googledrive::drive_upload(media = file.path("data", "pre_processed_data", "cscap_pre_process.csv"), overwrite = T, path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Sw-CdVIsCNvnS3laPn1a90WHoZsEoMif"))
+
 # Final structure check of treatment info
 dplyr::glimpse(captrt_v3)
 
