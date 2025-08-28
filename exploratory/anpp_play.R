@@ -8,6 +8,8 @@ dir.create(file.path("exploratory_graphs", 'anpp_year'), showWarnings = F)
 dir.create(file.path("data"), showWarnings = F)
 dir.create(file.path("data", "harmonized_data"), showWarnings = F)
 
+###STEP 1: Make figures for each site and assess data, does it pass our smell test. Yes.
+
 # # Identify desired file
 # focal_file <- "anpp_wyr_merged.csv"
 # 
@@ -44,29 +46,54 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
   googledrive::drive_download(file = .$id, overwrite = T,
                               path = file.path("data", "harmonized_data", .$name))
 
+##read in the data and do some pre-processing. and classifying land management include crop type.
+dat<- read.csv(file = file.path("data", "harmonized_data", file2)) %>%
+  filter(site!='look.us'&site!='bnch.us') %>% #drop two odd NutNet sites
+  #filter(crop!='Garbanzo'&crop!='Canola'&crop!='Oats') %>% 
+  mutate(crop=tolower(crop)) %>% 
+  mutate(crop2=case_when(
+    crop %in% c('orchardgrass/white clover', 'orchard/fescue/clover/alfalfa/chicory', 'sorghum-sudangrass') ~ 'mixed_grass',
+  TRUE~crop)) %>% 
+  mutate(fertilized=ifelse(is.na(fertilized), 0, fertilized)) %>% 
+  mutate(keep=ifelse(network=='NutNet'&treatment=='NPK'|network=='NutNet'&treatment=='Control', 1, 0)) %>% #dropping all nutnet treatments except control and NPK
+  filter(keep==1|network !='NutNet') %>% 
+  mutate(type=case_when(
+    network=='LTER'~ 'Grassland',
+    network=='NutNet'&fertilized==0 ~ 'Grassland', 
+    network=='NutNet'&fertilized==1 ~ 'Fert. Grassland', 
+    !network %in% c('LTER', 'NutNet') & crop2=="" ~ 'Grassland',
+    !network %in% c('LTER', 'NutNet') & crop2 %in% c('mixed_grass', 'switchgrass', 'alfalfa') ~ 'Pasture', 
+    !network %in% c('LTER', 'NutNet') & crop2=='corn' ~ 'Corn', 
+    !network %in% c('LTER', 'NutNet') & crop2=='soybean' ~ 'Soybean',
+    !network %in% c('LTER', 'NutNet') & crop2 %in% c('winter_wheat', 'spring_wheat') ~ 'Wheat',
+    TRUE~'999'
+  ))
 
-dat<- read.csv(file = file.path("data", "harmonized_data", file2)) %>% 
-  filter(crop!='Garbanzo'&crop!='Canola'&crop!='Oats') %>% 
-  mutate(crop2=ifelse(crop %in% c('Orchardgrass/white clover', 'Orchard/fescue/clover/alfalfa/chicory'), 'Mixed_grass', crop)) %>% 
- mutate(fertilized=ifelse(is.na(fertilized), 0, fertilized)) %>% 
-  mutate(keep=ifelse(network=='NutNet'&treatment=='NPK'|network=='NutNet'&treatment=='Control', 1, ifelse(network %in% c('LTER', 'LTAR'),1,0))) %>% 
-  filter(keep==1) %>% 
-  filter(site!='look.us'&site!='bnch.us') %>% 
-  mutate(type=ifelse(network=='LTER', 'Grassland', 
-              ifelse(network=='NutNet'&fertilized==0, 'Grassland', 
-              ifelse(network=='NutNet'&fertilized==1, 'Fert. grassland', 
-              ifelse(network=='LTAR'& crop2=="", 'Grassland',  
-              ifelse(network=='LTAR'& crop2 %in% c('Mixed_grass', 'Switchgrass', 'Alfalfa'), 'Pasture', 
-              ifelse(network=='LTAR'& crop2=='Corn', 'Corn', 
-              ifelse(network=='LTAR'& crop2=='Soybean', 'Soybean',
-              ifelse(network=='LTAR'& crop2 %in% c('Winter_Wheat', 'Spring_Wheat'), 'Wheat', 999)))))))))
-
+#did this work?
+  dat %>%
+    select(network, crop, crop2, type) %>%
+    distinct() %>% 
+    view()
+    
 #remaking Olivia's Figure
-ggplot(data=dat, aes(x=wyr_ppt, y=anpp_g_m2, color=type, group=type))+
-  geom_point(alpha=0.1)+
-  geom_smooth(method = 'lm', se=F, aes(group=site, color=type), alpha=0.1, linewidth=0.1)+
-  geom_smooth(method= 'lm', se=T)
+ggplot(data=subset(dat, type!=999), aes(x=wyr_ppt, y=anpp_g_m2))+
+  geom_point(alpha=0.1, aes(color=type))+
+  geom_smooth(method = 'lm', se=F, aes(group=site), alpha=0.1, linewidth=0.1)+
+  geom_smooth(method= 'lm', se=T, aes(group=type, color=type))+
+  scale_color_manual()
+  facet_wrap(~fertilized)
 
+####Okay, we are going to combine to just four land management
+dat_4cat<-dat %>% 
+  mutate(type2=ifelse(type %in% c('Grassland', 'Fert. Grassland', 'Pasture'), type, 'Cropland'))
+
+#remaking Olivia's Figure but with just four categories
+ggplot(data=dat_4cat, aes(x=wyr_ppt, y=anpp_g_m2, color=type2, group=type2))+
+  geom_point(alpha=0.1)+
+  geom_smooth(method = 'lm', se=F, aes(group=site), linewidth=0.1)+
+  geom_smooth(method= 'lm', se=T)+
+  facet_wrap(~fertilized)
+  
 
 file3<-'site_climate_mswep.csv'
 googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
@@ -74,24 +101,25 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
   googledrive::drive_download(file = .$id, overwrite = T,
                               path = file.path("data", "harmonized_data", .$name))
 
-climatedat<- read.csv(file = file.path("data", "harmonized_data", file3)) %>% 
-  rename(site=site_id)
+climatedat<- read.csv(file = file.path("data", "harmonized_data", file3)) %>% rename(site=site_id)
 
-file4<-'site_summary_info.csv'
-googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
-  dplyr::filter(name == file4) %>% 
-  googledrive::drive_download(file = .$id, overwrite = T,
-                              path = file.path("data", "harmonized_data", .$name))
+# THis is the temperature data and we are missing a lot of sites
 
-tempdat<- read.csv(file = file.path("data", "harmonized_data", file4)) %>% 
-  rename(site=site_id) %>% 
-  select(site, network, mat_degc)
+# file4<-'site_summary_info.csv'
+# googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
+#   dplyr::filter(name == file4) %>% 
+#   googledrive::drive_download(file = .$id, overwrite = T,
+#                               path = file.path("data", "harmonized_data", .$name))
+# 
+# tempdat<- read.csv(file = file.path("data", "harmonized_data", file4)) %>% 
+#   rename(site=site_id) %>% 
+#   select(site, network, mat_degc)
 
 dat3<-dat %>% 
-  left_join(climatedat) %>% 
-  left_join(tempdat)
+  left_join(climatedat) 
 
 
+#looking into what range of data we have for different crops
 # ggplot(data=subset(dat3, MAP<1000&MAP>400), aes(x=wyr_ppt, y=anpp_g_m2))+
 #   geom_point()+
 #   geom_smooth(method = 'lm', se=F, aes(group=site))+
@@ -111,6 +139,9 @@ dat3<-dat %>%
 #   geom_histogram()+
 #   facet_wrap(~network)
 
+
+#calculating sensitivity to explore different ways of looking at the data, calculating for each site and then averaging or Ingrid approach and calculating overall sites and not averaging first. For our analyses, since we are interested in MAP relationships later on we are going with the site level and then averaging approach.
+
 sens<-dat3 %>% 
   filter(!is.na(anpp_g_m2)) %>%
   group_by(network,site, type, fertilized, MAP, cv_ppt_inter) %>% 
@@ -125,6 +156,7 @@ ggplot(data=sens, aes(x=precip_val, y=production_val, color=type))+
   geom_smooth(method = 'lm', se=F)+
   facet_grid(production~precip, scales='free')
 
+#making base bar graphs to explore data
 meansens<-sens %>% 
   group_by(type) %>% 
   summarise(manpp2=mean(manpp), sdanpp=sd(manpp), mstab=mean(stability), sdstab=sd(stability), n=length(manpp)) %>% 
@@ -138,37 +170,38 @@ ggplot(data=meansens, aes(x=type, y=mstab))+
   geom_bar(stat = 'identity')+
   geom_errorbar(aes(ymin=mstab-sestab, ymax=mstab+sestab), width=0.1)
 
-sensnostie<-dat3 %>% 
-  filter(!is.na(anpp_g_m2)) %>% 
-  group_by(type, fertilized) %>% 
-  summarise(slope=lm(anpp_g_m2~wyr_ppt)$coefficient[2], nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2)) %>% 
-  #filter(nobs>5) %>% 
-  mutate(cv=sd/manpp)
+# sensnostie<-dat3 %>% 
+#   filter(!is.na(anpp_g_m2)) %>% 
+#   group_by(type, fertilized) %>% 
+#   summarise(slope=lm(anpp_g_m2~wyr_ppt)$coefficient[2], nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2)) %>% 
+#   #filter(nobs>5) %>% 
+#   mutate(cv=sd/manpp)
+# 
+# ggplot(data=sens, aes(x=MAP, y=cv, color=type, shape=as.factor(fertilized)))+
+#   geom_point(size=3)+
+#   geom_hline(yintercept = 0)
+# 
+# ggplot(data=sensnostie, aes(x=type, y=sd))+
+#   geom_bar(stat = 'identity')
 
-ggplot(data=sens, aes(x=MAP, y=cv, color=type, shape=as.factor(fertilized)))+
-  geom_point(size=3)+
-  geom_hline(yintercept = 0)
+# ###truncating to same MAP range as corn - kinda similar got more corn data
+# sensnostie_cornlimits<-dat3 %>% 
+#   filter(MAP>750&MAP<1200) %>% 
+#   filter(!is.na(anpp_g_m2)) %>% 
+#   group_by(type, fertilized) %>% 
+#   summarise(slope=lm(anpp_g_m2~wyr_ppt)$coefficient[2], nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2)) %>% 
+#   #filter(nobs>5) %>% 
+#   mutate(cv=sd/manpp)
+# 
+# ggplot(data=sens, aes(x=MAP, y=cv, color=type, shape=as.factor(fertilized)))+
+#   geom_point(size=3)+
+#   geom_hline(yintercept = 0)
+# 
+# ggplot(data=sensnostie_cornlimits, aes(x=type, y=sd))+
+#   geom_bar(stat = 'identity')
 
-ggplot(data=sensnostie, aes(x=type, y=sd))+
-  geom_bar(stat = 'identity')
+#####looking at variation within a site - this is the main analyses we are focusing on. 
 
-###truncating to same MAP range as corn
-sensnostie_cornlimits<-dat3 %>% 
-  filter(MAP>750&MAP<1200) %>% 
-  filter(!is.na(anpp_g_m2)) %>% 
-  group_by(type, fertilized) %>% 
-  summarise(slope=lm(anpp_g_m2~wyr_ppt)$coefficient[2], nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2)) %>% 
-  #filter(nobs>5) %>% 
-  mutate(cv=sd/manpp)
-
-ggplot(data=sens, aes(x=MAP, y=cv, color=type, shape=as.factor(fertilized)))+
-  geom_point(size=3)+
-  geom_hline(yintercept = 0)
-
-ggplot(data=sensnostie_cornlimits, aes(x=type, y=sd))+
-  geom_bar(stat = 'identity')
-
-#####looking at variation within a site
 sitesens<-dat3 %>% 
   filter(!is.na(anpp_g_m2)) %>%
   group_by(network,site, type, fertilized, MAP, cv_ppt_inter) %>% 
@@ -176,7 +209,7 @@ sitesens<-dat3 %>%
   filter(nobs>5) %>% 
   mutate(cv=sd/manpp)
 
-ggplot(data=sitesens, aes(x=MAP, y=manpp, color=type, shape=as.factor(fertilized)))+
+ggplot(data=sitesens, aes(x=MAP, y=manpp, color=type2, shape=as.factor(fertilized)))+
   geom_point(size=3)+
   geom_hline(yintercept = 0)
 
@@ -185,14 +218,14 @@ repdata<-sitesens %>%
   group_by(site, MAP) %>% 
   summarise(n=length(cv))
 
-#try to make a MAP/MAT figure - no can do.
-climdat<-dat3 %>% 
-  select(network, site, MAP, mat_degc) %>% 
-  unique()
-
-ggplot(data=climdat, aes(x=MAP, y=mat_degc, colour = network, label=site))+
-  geom_point()+
-  geom_text()
+# #try to make a MAP/MAT figure - no can do.
+# climdat<-dat3 %>% 
+#   select(network, site, MAP, mat_degc) %>% 
+#   unique()
+# 
+# ggplot(data=climdat, aes(x=MAP, y=mat_degc, colour = network, label=site))+
+#   geom_point()+
+#   geom_text()
 
 #how many crops per year?
 yrs<-dat3 %>% 
@@ -212,7 +245,7 @@ sitelist<-dat3 %>%
   select(network, site) %>% 
   unique()
 
-write.csv(sitelist, file.path("data", 'harmonized_data', paste0('sitelist.csv')), row.names=F)
+#write.csv(sitelist, file.path("data", 'harmonized_data', paste0('sitelist.csv')), row.names=F)
 
 harmsites<-read.csv(file = file.path("data", "harmonized_data",paste0('sitelist_site2.csv')))
 
@@ -230,7 +263,7 @@ dat5<-dat4 %>%
 #redoing sensitivity analyses with harmonized data
 sens2<-dat5 %>% 
   filter(!is.na(anpp_g_m2)) %>%
-  group_by(network,site2, type, treatment, fertilized, MAP2, cv_ppt_inter2) %>% 
+  group_by(network,site2, type, type2, treatment, fertilized, MAP2, cv_ppt_inter2) %>% 
   summarise(slope=lm(anpp_g_m2~wyr_ppt)$coefficient[2], nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2)) %>% 
   #filter(nobs>5) %>% 
   mutate(cv=sd/manpp, stability=1/cv)
@@ -241,11 +274,11 @@ repdata<-sens2 %>%
   summarise(n=length(cv))
 
 
-ggplot(data=sens2, aes(x=MAP2, y=manpp, color=type))+
+ggplot(data=sens2, aes(x=MAP2, y=manpp, color=type2))+
   geom_point()+
   geom_smooth(method = 'lm', se=F)
 #mean production
-ggplot(data=sens2, aes(x=MAP2, y=manpp, color=type, group=site2))+
+ggplot(data=sens2, aes(x=MAP2, y=manpp, color=type2, group=site2))+
   geom_line(color='black')+
   geom_point(size=3)+
   geom_smooth(method = 'lm', se=F)
