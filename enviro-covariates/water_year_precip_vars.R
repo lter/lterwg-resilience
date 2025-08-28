@@ -75,15 +75,17 @@ focal_file <- "mswep-daily-ppt-nutnet-sites.csv"
 
 # Download harmonized data file
 googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1zI1KYBlROyBZSgjSEYmVjsIfCmRPpUPq")) %>% 
-  dplyr::filter(name == focal_file) %>% 
+  dplyr::filter(name == focal_file) 
   googledrive::drive_download(file = .$id, overwrite = T,
                               path = file.path("data", "raw", .$name))
 
 # Read in harmonized data
 mswep_nutnet <- read.csv(file = file.path("data", "raw", focal_file))%>%
   dplyr::mutate(project_id = "NutNet")%>%
-  dplyr::mutate(date = mdy(date))#%>%
-#  dplyr::select(-X)
+  dplyr::rename(site_id = site_code)%>%
+  #dplyr::select(site_code, project_id, date, precip, year, month, day)%>%
+  dplyr::mutate(date = ymd(date))%>%
+  dplyr::select(-X)
 
 
 
