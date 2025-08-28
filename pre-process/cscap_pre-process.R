@@ -42,6 +42,22 @@ if("cscap_20250827212711.xlsx" %in% dir(path = file.path("data", "raw_data")) !=
                                                  path = file.path("data", "raw_data", .y)))
 }
 
+# Do the same for the 'treatment table year' GoogleSheet
+if("treatment_table_year.csv" %in% dir(path = file.path("data")) != T){
+  
+  # Identify data in Drive
+  drive_trttab <- googledrive::drive_ls(path = googledrive::as_id("https://drive.google.com/drive/folders/1Ty7QX7vyvD797eKJzMWbr8AwIo-GyBFO")) %>% 
+    dplyr::filter(name == "treatment_table_year")
+  
+  # Check that worked
+  drive_trttab
+  
+  # Download it
+  purrr::walk(.x = drive_trttab$id, .y = drive_trttab$name,
+              .f = ~ googledrive::drive_download(file = .x, overwrite = T, type = "csv",
+                                                 path = file.path("data", .y)))
+}
+
 ## ------------------------------------- ##
 # Load & Tidy Data ----
 ## ------------------------------------- ##
@@ -169,10 +185,28 @@ captrt_v2 <- captrt_v1 %>%
   # Ditch old plot
   dplyr::select(-plotid) %>% 
   # Add network name
-  dplyr::mutate(network = net_name, .before = dplyr::everything()) 
+  dplyr::mutate(network = net_name, .before = dplyr::everything()) %>% 
+  # Make date back into a character
+  dplyr::mutate(dplyr::across(.cols = dplyr::starts_with("date"),
+                              .fns = as.character))
 
 # Check structure
 dplyr::glimpse(captrt_v2)
+
+# Load the full treatment table that others have been filling out
+trttab <- read.csv(file = file.path("data", "treatment_table_year.csv"))
+
+# Check structure
+dplyr::glimpse(trttab)
+
+# Bind this network's treatment info to the bottom of this
+captrt_v3 <- dplyr::bind_rows(trttab, captrt_v2) %>% 
+  # And filter to just this network
+  dplyr::filter(network == net_name)
+## This process creates all the empty columns in the right order for easy copy/pasting
+
+# Check structure
+dplyr::glimpse(captrt_v3)
 
 ## ------------------------------------- ##
 # Extract Site Coordinates ----
@@ -217,10 +251,10 @@ write.csv(x = cap_v3, na = '', row.names = F,
           file = file.path("data", "pre_processed_data", "cscap_pre_process.csv"))
 
 # Final structure check of treatment info
-dplyr::glimpse(captrt_v2)
+dplyr::glimpse(captrt_v3)
 
 # Also export treatment info
-write.csv(x = captrt_v2, na = '', row.names = F,
+write.csv(x = captrt_v3, na = '', row.names = F,
           file = file.path("data", "cscap_treatments.csv"))
 
 # Final structure check of coordinates
