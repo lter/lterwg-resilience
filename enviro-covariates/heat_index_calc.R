@@ -105,7 +105,7 @@ ggplot(warm_day_freq, aes(y=warm_day_90th, x=year, color = site_id)) +
   facet_wrap(~network)
 
 #################################################################
-#Lengths of heat waves (2 + consecutive days over 95th percentile) during the growing season in days - Smith et al 2013
+#Lengths of heat waves (max consecutive days over 95th percentile) during the growing season in days - Smith et al 2013
 calc_heat_wave_duration <- function(x) {
   rle_result <- rle(x)
   heat_waves <- rle_result$lengths[rle_result$values == 1]
@@ -129,14 +129,106 @@ ggplot(heat_wave_duration, aes(y=site_id, x=year, color=consecutive_days_heat_wa
   scale_color_gradient2(low = "white", mid = "pink", high = "red", midpoint = 12)
 
 #################################################################
+#Mean and max daily Tmax of heat waves (2+ consecutive days over 95th percentile)
+heat_wave_meanT <- left_join(calc_hot_days, heat_wave_duration, by = c("network", "site_id", "year")) %>%
+  filter(consecutive_days_heat_wave >= 2) %>%
+  filter(over_95th == 1) %>%
+  group_by(network, site_id, year) %>%
+  summarise(meanTmax_95th = mean(tmax_degC), 
+            Tmax_95th = max(tmax_degC))
+
+#################################################################
 #Make a temp extreme csv
 heat_indices <- merge(max.temp.growing.season, quantile.maxtemp, by = c("network", "site_id")) %>%
   merge(., extreme_temp_days, by = c("network", "site_id", "year")) %>%
   left_join(., warm_day_freq, by = c("network", "site_id", "year", "num_days_90th", "num_days_95th", "num_days_98th", "num_days_99th")) %>%
-  left_join(., heat_wave_duration, by = c("network", "site_id", "year"))
+  left_join(., heat_wave_duration, by = c("network", "site_id", "year")) %>%
+  left_join(., heat_wave_meanT, by = c("network", "site_id", "year"))
 
-
-#Next steps: 
 #Correlation matrix of temp metrics
-#Biomass vs temp extremes
+library(corrplot)
+heat_matrix <- cor(heat_indices[,c(4,9, 10, 11, 12, 13, 14 )])
+corrplot(heat_matrix, type = "upper", order = "hclust", tlcol = "black", tlsrt = 45)
+
+##################################################################
+##Biomass vs temp extreme
+
+#Read in ANPP DATA
+# Identify desired file
+biomass_file <- "04_anpp_aggregated-site-crop.csv"
+
+# Download harmonized data file
+googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
+  dplyr::filter(name == biomass_file) %>% 
+  googledrive::drive_download(file = .$id, overwrite = T,
+                              path = file.path("data", "harmonized_data", .$name))
+
+# Read in harmonized data
+anpp_v1 <- read.csv(file = file.path("data", "harmonized_data", biomass_file))
+
+# Check structure
+dplyr::glimpse(anpp_v1)
+
+#Join biomass and temp metrics
+anpp_v2 <- anpp_v1 %>% dplyr::rename(site_id = site)
+anpp_heat <- left_join(anpp_v2, heat_indices, by = c("network", "site_id", "year"))
+
+#plot Tmax and biomass
+ggplot(anpp_heat %>% drop_na(Tmaxc, anpp_g_m2), aes(x = Tmaxc, y = anpp_g_m2))+
+  geom_point()+
+  theme_bw()
+ggplot(anpp_heat%>% drop_na(Tmaxc, anpp_g_m2), aes(x = Tmaxc, y = anpp_g_m2))+
+  geom_point()+
+  theme_bw()+
+  facet_wrap(~site_id)
+
+#plot number of days over the 95th percentile during the growing season and biomass
+ggplot(anpp_heat%>%drop_na(num_days_95th, anpp_g_m2), aes(x = num_days_95th, y = anpp_g_m2, na.rm = TRUE))+
+  geom_point()+
+  theme_bw()
+ggplot(anpp_heat%>%drop_na(num_days_95th, anpp_g_m2), aes(x = num_days_95th, y = anpp_g_m2, na.rm = TRUE))+
+  geom_point()+
+  theme_bw()+
+  facet_wrap(~site_id)
+
+#plot warm day frequency (percentage of days during the growing season with daily max temp above 90th percentile) and biomass
+ggplot(anpp_heat%>%drop_na(warm_day_90th, anpp_g_m2), aes(x = warm_day_90th, y = anpp_g_m2, na.rm = TRUE))+
+  geom_point()+
+  theme_bw()
+ggplot(anpp_heat%>%drop_na(warm_day_90th, anpp_g_m2), aes(x = warm_day_90th, y = anpp_g_m2, na.rm = TRUE))+
+  geom_point()+
+  theme_bw()+
+  facet_wrap(~site_id)
+
+#plot consecutive days heat wave length and biomass
+ggplot(anpp_heat%>%drop_na(consecutive_days_heat_wave, anpp_g_m2), aes(x = consecutive_days_heat_wave, y = anpp_g_m2, na.rm = TRUE))+
+  geom_point()+
+  theme_bw()
+ggplot(anpp_heat%>%drop_na(consecutive_days_heat_wave, anpp_g_m2), aes(x = consecutive_days_heat_wave, y = anpp_g_m2, na.rm = TRUE))+
+  geom_point()+
+  theme_bw()+
+  facet_wrap(~site_id)
+
+#plot mean Tmax 2+ consecutive days, 95th percentile and biomass
+ggplot(anpp_heat%>%drop_na(meanTmax_95th, anpp_g_m2), aes(x = meanTmax_95th, y = anpp_g_m2, na.rm = TRUE))+
+  geom_point()+
+  theme_bw()
+ggplot(anpp_heat%>%drop_na(meanTmax_95th, anpp_g_m2), aes(x = meanTmax_95th, y = anpp_g_m2, na.rm = TRUE))+
+  geom_point()+
+  theme_bw()+
+  facet_wrap(~site_id)
+
+#plot max Tmax 2+ consecutive days, 95th percentile and biomass
+ggplot(anpp_heat%>%drop_na(Tmax_95th, anpp_g_m2), aes(x = Tmax_95th, y = anpp_g_m2, na.rm = TRUE))+
+  geom_point()+
+  theme_bw()
+ggplot(anpp_heat%>%drop_na(Tmax_95th, anpp_g_m2), aes(x = Tmax_95th, y = anpp_g_m2, na.rm = TRUE))+
+  geom_point()+
+  theme_bw()+
+  facet_wrap(~site_id)
+###################################################################
+#Next steps: 
 #regional analysis of when the heat waves are happening
+
+
+
