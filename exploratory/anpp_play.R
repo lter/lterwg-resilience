@@ -39,6 +39,8 @@ dir.create(file.path("data", "harmonized_data"), showWarnings = F)
 #   
 # }
 
+#STEP 2: Starting the Analyses
+
 #read in annp, precip, and trt info
 file2<-'anpp_wyr_trt_merged.csv'
 googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
@@ -54,7 +56,7 @@ dat<- read.csv(file = file.path("data", "harmonized_data", file2)) %>%
   mutate(crop2=case_when(
     crop %in% c('orchardgrass/white clover', 'orchard/fescue/clover/alfalfa/chicory', 'sorghum-sudangrass') ~ 'mixed_grass',
   TRUE~crop)) %>% 
-  mutate(fertilized=ifelse(is.na(fertilized), 0, fertilized)) %>% 
+  mutate(fertilized=ifelse(is.na(fertilized), 0, fertilized)) %>% #this is wrong b/c it is making CSCAP and ISI... 0 when should prob be 1.
   mutate(keep=ifelse(network=='NutNet'&treatment=='NPK'|network=='NutNet'&treatment=='Control', 1, 0)) %>% #dropping all nutnet treatments except control and NPK
   filter(keep==1|network !='NutNet') %>% 
   mutate(type=case_when(
@@ -76,25 +78,37 @@ dat<- read.csv(file = file.path("data", "harmonized_data", file2)) %>%
     view()
     
 #remaking Olivia's Figure
-ggplot(data=subset(dat, type!=999), aes(x=wyr_ppt, y=anpp_g_m2))+
-  geom_point(alpha=0.1, aes(color=type))+
-  geom_smooth(method = 'lm', se=F, aes(group=site), alpha=0.1, linewidth=0.1)+
-  geom_smooth(method= 'lm', se=T, aes(group=type, color=type))+
-  scale_color_manual()
+ggplot(data=subset(dat, type!=999&!is.na(anpp_g_m2)&!is.na(wyr_ppt)), aes(x=wyr_ppt, y=anpp_g_m2))+
+  geom_point(alpha = 0.1, aes(color=type)) +
+  geom_smooth(aes(shape = as.factor(site), color = type), 
+              method = 'lm', formula = 'y ~ x', se = F,
+              alpha = 0.1, linewidth = 0.2) +
+  geom_smooth(aes(color = type), method = 'lm', formula = 'y ~ x', se = T)+
+  scale_color_manual(name='Land Management', values=c('orange', 'green', 'green4', 'skyblue1', 'darkgoldenrod', 'chocolate2' ))+
+  xlab('Precipitation (mm)')+
+  ylab(expression(paste('ANPP (g ', m^-2,')')))+
+  theme(panel.grid = element_blank())
   facet_wrap(~fertilized)
+  
 
 ####Okay, we are going to combine to just four land management
 dat_4cat<-dat %>% 
   mutate(type2=ifelse(type %in% c('Grassland', 'Fert. Grassland', 'Pasture'), type, 'Cropland'))
 
 #remaking Olivia's Figure but with just four categories
-ggplot(data=dat_4cat, aes(x=wyr_ppt, y=anpp_g_m2, color=type2, group=type2))+
-  geom_point(alpha=0.1)+
-  geom_smooth(method = 'lm', se=F, aes(group=site), linewidth=0.1)+
-  geom_smooth(method= 'lm', se=T)+
+ggplot(data=dat_4cat, aes(x=wyr_ppt, y=anpp_g_m2))+
+  geom_point(alpha = 0.1, aes(color=type2)) +
+  geom_smooth(aes(shape = as.factor(site), color = type2), 
+              method = 'lm', formula = 'y ~ x', se = F,
+              alpha = 0.1, linewidth = 0.2) +
+  geom_smooth(aes(color = type2), method = 'lm', formula = 'y ~ x', se = T)+
+  scale_color_manual(name='Land Management', values=c('orange', 'green', 'green4', 'skyblue'))+
+  xlab('Precipitation (mm)')+
+  ylab(expression(paste('ANPP (g ', m^-2,')')))+
+  theme(panel.grid = element_blank())
   facet_wrap(~fertilized)
   
-
+##STEP 3: Read in MAP data
 file3<-'site_climate_mswep.csv'
 googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
   dplyr::filter(name == file3) %>% 
@@ -115,8 +129,18 @@ climatedat<- read.csv(file = file.path("data", "harmonized_data", file3)) %>% re
 #   rename(site=site_id) %>% 
 #   select(site, network, mat_degc)
 
-dat3<-dat %>% 
+dat3<-dat_4cat %>% 
   left_join(climatedat) 
+
+
+
+####SKIP THIS WHOLE SECTION 
+####
+#Go to Line in the 262
+####
+
+
+
 
 
 #looking into what range of data we have for different crops
@@ -206,10 +230,10 @@ sitesens<-dat3 %>%
   filter(!is.na(anpp_g_m2)) %>%
   group_by(network,site, type, fertilized, MAP, cv_ppt_inter) %>% 
   summarise(slope=lm(anpp_g_m2~wyr_ppt)$coefficient[2], nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2)) %>% 
-  filter(nobs>5) %>% 
+  filter(nobs>3) %>% 
   mutate(cv=sd/manpp)
 
-ggplot(data=sitesens, aes(x=MAP, y=manpp, color=type2, shape=as.factor(fertilized)))+
+ggplot(data=sitesens, aes(x=MAP, y=manpp, color=type, shape=as.factor(fertilized)))+
   geom_point(size=3)+
   geom_hline(yintercept = 0)
 
@@ -271,23 +295,30 @@ sens2<-dat5 %>%
 #how many obs per site? All but 5 sites have two types of data obs.
 repdata<-sens2 %>% 
   group_by(site2) %>% 
-  summarise(n=length(cv))
+  summarise(n=length(cv)) %>% 
+  filter(n>1)
+# 
+# ggplot(data=sens2, aes(x=MAP2, y=manpp, color=type2))+
+#   geom_point()+
+#   geom_smooth(method = 'lm', se=F)
 
-
-ggplot(data=sens2, aes(x=MAP2, y=manpp, color=type2))+
-  geom_point()+
-  geom_smooth(method = 'lm', se=F)
 #mean production
 ggplot(data=sens2, aes(x=MAP2, y=manpp, color=type2, group=site2))+
   geom_line(color='black')+
   geom_point(size=3)+
-  geom_smooth(method = 'lm', se=F)
+  scale_color_manual(name='Land Management', values=c('orange', 'green', 'green4', 'skyblue'))+
+  xlab('MAP (mm)')+
+  ylab(expression(paste('ANPP (g ', m^-2,')')))+
+  theme(panel.grid = element_blank())
 
 #stability of production
-ggplot(data=sens2, aes(x=MAP2, y=stability, color=type, group=site2))+
+ggplot(data=sens2, aes(x=MAP2, y=stability, color=type2, group=site2))+
   geom_line(color='black')+
   geom_point(size=3)+
-  geom_smooth(method = 'lm', se=F)
+  scale_color_manual(name='Land Management', values=c('orange', 'green', 'green4', 'skyblue'))+
+  xlab('MAP (mm)')+
+  ylab(expression(paste('Stability of Production (1/CV)')))+
+  theme(panel.grid = element_blank())
   
 ##for each site what is the variability in ANPP
 
@@ -300,7 +331,7 @@ for (i in 1:length(sites2)){
 sub<-sens2 %>%
   filter(site2==sites2[i]) %>% 
   ungroup() %>% 
-  select(site2, type, treatment, manpp)
+  select(site2, type, type2, treatment, manpp)
 
 comparison_df <- sub %>%
   mutate(row_id = row_number()) %>%
@@ -308,8 +339,9 @@ comparison_df <- sub %>%
   filter(row_id != row_id2) %>%
   mutate(
     manpp_diff = abs(manpp.x - manpp.y),
-    comparison_type = paste(type.x, "vs", type.y))%>%
-  select(site2.x, comparison_type, manpp_diff) %>% 
+    comparison_type = paste(type.x, "vs", type.y),
+    comparison_type2= paste(type2.x, 'vs', type2.y))%>%
+  select(site2.x, comparison_type, comparison_type2, manpp_diff) %>% 
   distinct(.keep_all=T, manpp_diff) %>% 
   rename(site2=site2.x)
 
@@ -318,21 +350,27 @@ deltaprod<-deltaprod %>%
 }
 
 mean_deltaprod<-deltaprod %>% 
-  mutate(comparison_type2=ifelse(comparison_type=='Fert. grassland vs Grassland', 'Grassland vs Fert. grassland', comparison_type)) %>% 
-  group_by(comparison_type2) %>% 
+  filter(!site2 %in% c('CAF', 'LCB')) %>% #we are dropping these b/c so little data and comparisions
+  mutate(compare3=case_when(
+    comparison_type2 %in% c('Grassland vs Fert. Grassland','Fert. Grassland vs Grassland') ~ 'Grassland vs Fert. Grassland',
+    comparison_type2 %in% c('Cropland vs Grassland','Grassland vs Cropland') ~ 'Grassland vs Cropland',
+    comparison_type2 %in% c('Cropland vs Pasture','Pasture vs Cropland') ~ 'Cropland vs Pasture',
+    TRUE ~ comparison_type2
+  )) %>% 
+  group_by(compare3) %>% 
   summarise(means=mean(manpp_diff), sd=sd(manpp_diff), n=n()) %>% 
   mutate(se=sd/sqrt(n)) %>% 
-  filter(n>1) %>% 
-  mutate(compare=ifelse(comparison_type2 %in% c('Wheat vs Wheat', 'Corn vs Wheat', 'Corn vs Soybean'), 'Cropping', ifelse(comparison_type2 %in% c('Grassland vs Grassland', 'Grassland vs Fert. grassland'), 'Grassland', 'Pasture to Other')))
-
-ggplot(data=mean_deltaprod, aes(x=comparison_type2, y=means, fill=compare))+
+  filter(n>4) %>% 
+  mutate(compare=ifelse(compare3 %in% c('Grassland vs Grassland', 'Grassland vs Fert. Grassland'), 'Grassland', compare3))
+           
+ggplot(data=mean_deltaprod, aes(x=compare3, y=means, fill=compare))+
   geom_bar(stat = 'identity')+
   geom_errorbar(aes(ymin=means-se, ymax=means+se), width=0.1)+
   coord_flip()+
-  scale_fill_manual(name='Management Type', values=c('orange', 'green2', 'skyblue'))+
-  ylab('Difference in Mean ANPP')+
+  scale_fill_manual(name='Management Type', values=c('#D55E00', '#AA4499','#009E73', '#0072B2'))+
+  ylab(expression(paste('Difference in Mean ANPP (g ', m^-2,')')))+
   xlab('Management Comparison')+
-  theme(legend.position = 'top')
+  theme(panel.grid = element_blank())
 
 deltaprodMAP<-deltaprod %>% 
   left_join(MAPMAT)
@@ -396,7 +434,7 @@ for (i in 1:length(sites2)){
   sub<-sens2 %>%
     filter(site2==sites2[i]) %>% 
     ungroup() %>% 
-    select(site2, type, treatment, stability)
+    select(site2, type, type2, treatment, stability)
   
   comparison_df_stab <- sub %>%
     mutate(row_id = row_number()) %>%
@@ -404,8 +442,9 @@ for (i in 1:length(sites2)){
     filter(row_id != row_id2) %>%
     mutate(
       stab_diff = abs(stability.x - stability.y),
-      comparison_type = paste(type.x, "vs", type.y))%>%
-    select(site2.x, comparison_type, stab_diff) %>% 
+      comparison_type = paste(type.x, "vs", type.y),
+      comparison_type2= paste(type2.x, 'vs', type2.y))%>%
+    select(site2.x, comparison_type,comparison_type2, stab_diff) %>% 
     distinct(.keep_all=T, stab_diff) %>% 
     rename(site2=site2.x)
   
@@ -414,21 +453,28 @@ for (i in 1:length(sites2)){
 }
 
 mean_deltastab<-deltastab %>% 
-  mutate(comparison_type2=ifelse(comparison_type=='Fert. grassland vs Grassland', 'Grassland vs Fert. grassland', comparison_type)) %>% 
-  group_by(comparison_type2) %>% 
+  filter(!site2 %in% c('CAF', 'LCB')) %>% #we are dropping these b/c so little data and comparisions
+  mutate(compare3=case_when(
+    comparison_type2 %in% c('Grassland vs Fert. Grassland','Fert. Grassland vs Grassland') ~ 'Grassland vs Fert. Grassland',
+    comparison_type2 %in% c('Cropland vs Grassland','Grassland vs Cropland') ~ 'Grassland vs Cropland',
+    comparison_type2 %in% c('Cropland vs Pasture','Pasture vs Cropland') ~ 'Cropland vs Pasture',
+    TRUE ~ comparison_type2
+  )) %>% 
+  group_by(compare3) %>% 
   summarise(means=mean(stab_diff, na.rm=T), sd=sd(stab_diff, na.rm = T), n=n()) %>% 
   mutate(se=sd/sqrt(n)) %>% 
-  filter(n>1)%>% 
-  mutate(compare=ifelse(comparison_type2 %in% c('Wheat vs Wheat', 'Corn vs Wheat', 'Corn vs Soybean'), 'Cropping', ifelse(comparison_type2 %in% c('Grassland vs Grassland', 'Grassland vs Fert. grassland'), 'Grassland', 'Pasture to Other')))
+  filter(n>4)%>% 
+  mutate(compare=ifelse(compare3 %in% c('Grassland vs Grassland', 'Grassland vs Fert. Grassland'), 'Grassland', compare3))
 
-ggplot(data=mean_deltastab, aes(x=comparison_type2, y=means, fill = compare))+
+ggplot(data=mean_deltastab, aes(x=compare3, y=means, fill=compare))+
   geom_bar(stat = 'identity')+
   geom_errorbar(aes(ymin=means-se, ymax=means+se), width=0.1)+
   coord_flip()+
-  scale_fill_manual(name='Management Type', values=c('orange', 'green2', 'skyblue'))+
-  xlab('Managment Comparison')+
+  scale_fill_manual(name='Management Type', values=c('#D55E00', '#AA4499','#009E73', '#0072B2'))+
   ylab('Difference in Stability (1/CV)')+
-  theme(legend.position = 'top')
+  xlab('Management Comparison')+
+  theme(panel.grid = element_blank())
+
 
 deltaprodMAP<-deltaprod %>% 
   left_join(MAPMAT)
