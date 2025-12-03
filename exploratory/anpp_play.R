@@ -183,7 +183,7 @@ ggplot(data=sens, aes(x=precip_val, y=production_val, color=type))+
 #making base bar graphs to explore data
 meansens<-sens %>% 
   group_by(type) %>% 
-  summarise(manpp2=mean(manpp), sdanpp=sd(manpp), mstab=mean(stability), sdstab=sd(stability), n=length(manpp)) %>% 
+  summarise(manpp2=mean(manpp, na.rm=TRUE), sdanpp=sd(manpp), mstab=mean(stability, na.rm=T), sdstab=sd(stability), n=length(manpp)) %>% 
   mutate(seanpp=sdanpp/sqrt(n), sestab=sdstab/sqrt(n))
 
 ggplot(data=meansens, aes(x=type, y=manpp2))+
