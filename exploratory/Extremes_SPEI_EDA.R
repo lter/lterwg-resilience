@@ -9,6 +9,7 @@ library(tidyverse)
 library(lubridate)
 library(lme4)
 library(emmeans)
+library(ggpubr)
 
 
 # Clear environment + collect garbage
@@ -122,7 +123,58 @@ ggplot(clean_data, aes(x = scaled_ppt, y = scaled_anpp, color = type))+
   labs(x = 'water year ppt z-score', y = 'ANPP z-score')+
   theme_bw()
 
+#bin extreme dry, extreme wet, and normal
+binned_data <- clean_data %>%
+  mutate(extreme_10 = case_when(
+    scaled_ppt <= -1.282 ~ "extreme dry",
+    scaled_ppt >= 1.282 ~ "extreme wet",
+    TRUE ~ "normal"
+    ),
+    extreme_15 = case_when(
+      scaled_ppt <= -1.036 ~ "extreme dry",
+      scaled_ppt >= 1.036 ~ "extreme wet",
+      TRUE ~ "normal"
+    ),
+    extreme_20 = case_when(
+      scaled_ppt <= -0.84 ~ "extreme dry",
+      scaled_ppt >= 0.84 ~ "extreme wet",
+      TRUE ~ "normal"
+    )) %>%
+  filter(type != "999") 
 
+binned_data$extreme_20 <- factor(binned_data$extreme_20, 
+                                 levels = c("extreme dry", "normal", "extreme wet"))
+binned_data$extreme_15 <- factor(binned_data$extreme_15, 
+                                 levels = c("extreme dry", "normal", "extreme wet"))
+binned_data$extreme_10 <- factor(binned_data$extreme_10, 
+                                 levels = c("extreme dry", "normal", "extreme wet"))
+
+extreme10 <- ggplot(binned_data, aes(x = extreme_10, y = scaled_anpp, color = type, fil = type))+
+  geom_boxplot()+
+  geom_jitter()+
+  facet_grid(~type)+
+  theme_bw()
+
+extreme15 <- ggplot(binned_data, aes(x = extreme_15, y = scaled_anpp, color = type, fil = type))+
+  geom_boxplot()+
+  geom_jitter()+
+  facet_grid(~type)+
+  theme_bw()
+
+extreme20 <- ggplot(binned_data, aes(x = extreme_20, y = scaled_anpp, color = type, fil = type))+
+  geom_boxplot()+
+  geom_jitter()+
+  facet_grid(~type)+
+  theme_bw()
+
+ggarrange(extreme10, extreme15, extreme20, ncol = 1)
+
+###response ratio
+response_ratios_extreme10 <- binned_data %>%
+  group_by(type, extreme_10)
+
+
+###filter out grasslands
 clean_data%>%
   filter(!(type %in% c('Grassland', 'Fert. Grassland')))%>%
   ggplot(aes(x = scaled_ppt, y = scaled_anpp, color = type))+
