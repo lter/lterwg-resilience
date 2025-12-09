@@ -264,6 +264,9 @@ ggplot(data=sens, aes(x=MAP, y=cv, color=crop2, shape=as.factor(fertilized)))+
   geom_point(size=3)#+
  # geom_smooth(method = 'lm', se=F)
 
+
+#STEP 4
+
 ###okay, we realized that we need to get a site column that is harmonized acorss dataset. We will write a datset with site and then add a site2 and region info
 sitelist<-dat3 %>% 
   select(network, site) %>% 
@@ -284,6 +287,7 @@ MAPMAT<-dat4 %>%
 dat5<-dat4 %>% 
   left_join(MAPMAT)
 
+#STEP 5
 #redoing sensitivity analyses with harmonized data
 sens2<-dat5 %>% 
   filter(!is.na(anpp_g_m2)) %>%
@@ -319,7 +323,9 @@ ggplot(data=sens2, aes(x=MAP2, y=stability, color=type2, group=site2))+
   xlab('MAP (mm)')+
   ylab(expression(paste('Stability of Production (1/CV)')))+
   theme(panel.grid = element_blank())
-  
+
+
+##STEP 6
 ##for each site what is the variability in ANPP
 
 sites2<-unique(sens2$site2)
@@ -424,6 +430,7 @@ ggplot(data=deltaprodMAP, aes(x=MAP2, y=manpp_diff, color=comparison_type))+
 # ggplot(data=deltaprodMAP, aes(x=MAP2, y=manpp_diff, color=comparison_type))+
 #   geom_point()
 
+#STEP 7
 ##for each site what is the variability in 1/CV
 sites2<-unique(sens2$site2)
 
@@ -453,7 +460,7 @@ for (i in 1:length(sites2)){
 }
 
 mean_deltastab<-deltastab %>% 
-  filter(!site2 %in% c('CAF', 'LCB')) %>% #we are dropping these b/c so little data and comparisions
+  filter(!site2 %in% c('CAF', 'LCB')) %>% #we are dropping these b/c so little data and comparisons
   mutate(compare3=case_when(
     comparison_type2 %in% c('Grassland vs Fert. Grassland','Fert. Grassland vs Grassland') ~ 'Grassland vs Fert. Grassland',
     comparison_type2 %in% c('Cropland vs Grassland','Grassland vs Cropland') ~ 'Grassland vs Cropland',
