@@ -180,10 +180,53 @@ ggplot(data=sens, aes(x=precip_val, y=production_val, color=type))+
   geom_smooth(method = 'lm', se=F)+
   facet_grid(production~precip, scales='free')
 
+ggplot(data=sens, aes(x=cv_ppt_inter, y=cv, color=type))+
+  geom_point()+
+  geom_smooth(method = 'lm', se=F)
+
+ggplot(data=dat3, aes(x=avg_dryspell_length, y=anpp_g_m2, color=type))+
+  geom_point()+
+  geom_smooth(method = 'lm', se=F)
+
+#########################################################
+# Look at correlations between variables 
+# Annual level
+str(dat3)
+cor.data <- dat3[ ,c(8,11, 30:41)]
+# Remove NAs
+cor.data <- cor.data %>%
+  filter(!is.na(anpp_g_m2))
+cors <- cor(cor.data)
+corrplot(cors)
+
+# Site-Level - summarized across years
+site_level_vars<-dat3 %>% 
+  filter(!is.na(anpp_g_m2)) %>%
+  group_by(network,site, type, fertilized, MAP, cv_ppt_inter) %>% 
+  summarise(slope=lm(anpp_g_m2~wyr_ppt)$coefficient[2], nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2),
+            dry_spell = mean(avg_dryspell_length), daily_ppt = mean(daily_ppt_d)) %>% 
+  #filter(nobs>5) %>% 
+  mutate(cv=sd/manpp, stability=1/cv)
+
+cor.data <- site_level_vars[ ,c(5:14)]
+# Remove NAs
+cor.data <- cor.data %>%
+  filter(!is.na(slope))
+cors <- cor(cor.data)
+corrplot(cors)
+
+# Plot
+ggplot(site_level_vars, aes(daily_ppt, manpp, color=MAP, shape=type))+
+  geom_point()
+
+ggplot(site_level_vars, aes(dry_spell, manpp, color=type))+
+  geom_point()
+
+
 #making base bar graphs to explore data
 meansens<-sens %>% 
   group_by(type) %>% 
-  summarise(manpp2=mean(manpp), sdanpp=sd(manpp), mstab=mean(stability), sdstab=sd(stability), n=length(manpp)) %>% 
+  summarise(manpp2=mean(manpp, na.rm=TRUE), sdanpp=sd(manpp), mstab=mean(stability, na.rm=T), sdstab=sd(stability), n=length(manpp)) %>% 
   mutate(seanpp=sdanpp/sqrt(n), sestab=sdstab/sqrt(n))
 
 ggplot(data=meansens, aes(x=type, y=manpp2))+
@@ -194,6 +237,28 @@ ggplot(data=meansens, aes(x=type, y=mstab))+
   geom_bar(stat = 'identity')+
   geom_errorbar(aes(ymin=mstab-sestab, ymax=mstab+sestab), width=0.1)
 
+
+# Merge site-level averages back into the dat3 and then calculate the differences
+# Can look at RUE max and diff with dry spell increases, etc
+dat4 <- left_join(dat3, site_level_vars)
+dat5 <- dat4 %>%
+  # Calculate diff in anpp from mean
+  #filter(nobs>4) %>%
+  dplyr::mutate(anpp_diff = ((anpp_g_m2 - manpp)/manpp) *100)%>%
+  #new column for whether it is above or below mean ppt
+  dplyr::mutate(ppt_diff = ((wyr_ppt - MAP)/MAP)*100) %>%
+  # select the min precip row for each site/network/type combo
+  group_by(site, network, treatment, type) %>%
+  slice(which.min(wyr_ppt))
+
+min <- ggplot(dat5, aes(wyr_ppt, log(anpp_g_m2), color=type, shape=as.factor(fertilized)))+
+  geom_point() 
+min
+
+ggplot(dat4, aes(log(manpp), log(sd^2)))+
+  geom_point(aes(color=type))+
+  geom_smooth(method='lm')+
+  geom_abline(slope=2)
 # sensnostie<-dat3 %>% 
 #   filter(!is.na(anpp_g_m2)) %>% 
 #   group_by(type, fertilized) %>% 
