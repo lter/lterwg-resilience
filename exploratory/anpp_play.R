@@ -237,23 +237,58 @@ ggplot(data=meansens, aes(x=type, y=mstab))+
   geom_bar(stat = 'identity')+
   geom_errorbar(aes(ymin=mstab-sestab, ymax=mstab+sestab), width=0.1)
 
-
 # Merge site-level averages back into the dat3 and then calculate the differences
 # Can look at RUE max and diff with dry spell increases, etc
 dat4 <- left_join(dat3, site_level_vars)
-dat5 <- dat4 %>%
+dat5.max <- dat4 %>%
   # Calculate diff in anpp from mean
   #filter(nobs>4) %>%
   dplyr::mutate(anpp_diff = ((anpp_g_m2 - manpp)/manpp) *100)%>%
   #new column for whether it is above or below mean ppt
   dplyr::mutate(ppt_diff = ((wyr_ppt - MAP)/MAP)*100) %>%
   # select the min precip row for each site/network/type combo
-  group_by(site, network, treatment, type) %>%
-  slice(which.min(wyr_ppt))
+  group_by(site, network, type, type2) %>%
+  slice(which.max(anpp_g_m2)) %>%
+  mutate(class.type = "Max")
 
-min <- ggplot(dat5, aes(wyr_ppt, log(anpp_g_m2), color=type, shape=as.factor(fertilized)))+
+dat5.min <- dat4 %>%
+  # Calculate diff in anpp from mean
+  #filter(nobs>4) %>%
+  dplyr::mutate(anpp_diff = ((anpp_g_m2 - manpp)/manpp) *100)%>%
+  #new column for whether it is above or below mean ppt
+  dplyr::mutate(ppt_diff = ((wyr_ppt - MAP)/MAP)*100) %>%
+  # select the min precip row for each site/network/type combo
+  group_by(site, network, type, type2) %>%
+  slice(which.min(anpp_g_m2))%>%
+  mutate(class.type = "Min") %>%
+  rbind(dat5.max) %>%
+  ungroup()
+
+dat5.min2 <- dat5.min %>%
+  select(c(site, network, type, type2, class.type, anpp_g_m2)) %>%
+  pivot_wider(names_from = class.type, values_from = anpp_g_m2) %>%
+  left_join(site_level_vars) %>%
+  mutate(ai = (((Max - manpp)/manpp) - ((manpp - Min)/manpp)))  %>%
+  ungroup()%>%
+  group_by(type, type2) %>%
+  summarize(mean = mean(ai, na.rm=T), se = sd(ai, na.rm=T)/sqrt(n()))
+
+ggplot(dat5.min2, aes(ai, group = type)) +
+  geom_histogram()+
+  facet_wrap(~type)
+
+ggplot(dat5.min2, aes(type, mean))+
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = mean - se, ymax = mean+se), position = position_dodge(0.2))
+
+min <- ggplot(dat5, aes(wyr_ppt, (anpp_g_m2), color=type, shape=as.factor(fertilized)))+
   geom_point() 
 min
+
+ggplot(dat5, aes(ppt_diff, anpp_diff))+
+  geom_point(aes(color=MAP), alpha = 0.5) +
+  geom_smooth(method='lm', se= F)+
+  geom_abline(slope=1)
 
 ggplot(dat4, aes(log(manpp), log(sd^2)))+
   geom_point(aes(color=type))+
