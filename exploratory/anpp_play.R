@@ -374,7 +374,7 @@ sitelist<-dat3 %>%
 
 #write.csv(sitelist, file.path("data", 'harmonized_data', paste0('sitelist.csv')), row.names=F)
 
-harmsites<-read.csv(file = file.path("data", "harmonized_data",paste0('sitelist_site2.csv')))
+harmsites<-read.csv(file = file.path("data", "harmonized_data",paste0('sitelist.csv')))
 
 dat4<-dat3 %>% 
   left_join(harmsites) %>% 
