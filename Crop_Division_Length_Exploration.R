@@ -60,9 +60,9 @@ ggplot(data = subset(sum2, sum2$type != "Other_Crops"), aes(sum))+
   geom_vline(xintercept = 4, color = "red")+
   facet_wrap(~type, scales="free")
 
-count <- sum2 %>%
+count <- sum2.filter %>%
   ungroup()%>%
-  #filter(sum > 4) %>%
+  filter(sum > 4) %>%
   group_by(type) %>%
   summarize(number = n())
 
@@ -88,7 +88,7 @@ ggplot(data =sum2.2, aes(sum))+
   facet_wrap(~type2, scales="free")
 
 
-count.2 <- sum2.2 %>%
+count.2 <- sum2.2filter %>%
   ungroup()%>%
   filter(sum > 4) %>%
   group_by(type2) %>%
@@ -109,12 +109,19 @@ ppt <- ppt %>%
 ## Join with teh two different summaries
 sum2 <- left_join(sum2, ppt, by = "site")
 
+# 
+sum2.filter <- sum2 %>%
+  filter(MAP > 450)
+
 ggplot(data = subset(sum2, sum2$type != "Other_Crops"), aes(MAP))+
   geom_histogram( binwidth = 50)+
   scale_x_continuous(breaks = seq(0, max(sum2$MAP, na.rm = TRUE), by = 200))+
   facet_wrap(~type)
 
 sum2.2 <- left_join(sum2.2, ppt, by = "site")
+# 
+sum2.2filter <- sum2.2 %>%
+  filter(MAP > 450)
 
 ggplot(data = subset(sum2.2, sum2.2$type2 != "Pasture"), aes(MAP))+
   geom_histogram( binwidth = 50)+
