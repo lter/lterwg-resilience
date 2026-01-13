@@ -10,38 +10,7 @@ dir.create(file.path("exploratory_graphs", 'anpp_year'), showWarnings = F)
 dir.create(file.path("data"), showWarnings = F)
 dir.create(file.path("data", "harmonized_data"), showWarnings = F)
 
-###STEP 1: Make figures for each site and assess data, does it pass our smell test. Yes.
 
-# # Identify desired file
-# focal_file <- "anpp_wyr_merged.csv"
-# 
-# # Download harmonized data file
-# googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
-#   dplyr::filter(name == focal_file) %>% 
-#   googledrive::drive_download(file = .$id, overwrite = T,
-#                               path = file.path("data", "harmonized_data", .$name))
-# 
-# 
-# # Read in harmonized data
-# anpp_v1 <- read.csv(file = file.path("data", "harmonized_data", focal_file))
-# 
-# sites<-unique(anpp_v1$site)
-# 
-# for (i in 1:length(sites)){
-#   
-# sub<-anpp_v1 %>% 
-#   filter(site==sites[i])
-# 
-# plot<-ggplot(data=sub, aes(x=year, y = anpp_g_m2, color=crop, shape=treatment))+
-#   geom_point()+
-#   geom_smooth(method = 'lm', se=F)+
-#   ggtitle(paste(sites[i]))
-# 
-# ggsave(filename = file.path("exploratory_graphs", 'anpp_year', paste0(sites[i],'.jpg')),device='jpeg', plot = plot, height=10, width=10, units='in')
-#   
-# }
-
-#STEP 2: Starting the Analyses
 
 #read in annp, precip, and trt info
 file2<-'anpp_wyr_trt_merged.csv'
@@ -53,7 +22,9 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
 ##read in the data and do some pre-processing. and classifying land management include crop type.
 dat<- read.csv(file = file.path("data", "harmonized_data", file2)) %>%
   filter(site!='look.us'&site!='bnch.us') %>% #drop two odd NutNet sites
+  filter(treatment!="PRHPA_NEMERREM_CCN4N")%>%#removing second treatment for PRHPA
   #filter(crop!='Garbanzo'&crop!='Canola'&crop!='Oats') %>% 
+  filter(!is.na(anpp_g_m2))%>% #this removes sites with grain yield but not anpp
   mutate(crop=tolower(crop)) %>% 
   mutate(crop2=case_when(
     crop %in% c('orchardgrass/white clover', 'orchard/fescue/clover/alfalfa/chicory', 'sorghum-sudangrass') ~ 'mixed_grass',
@@ -78,37 +49,12 @@ dat<- read.csv(file = file.path("data", "harmonized_data", file2)) %>%
     select(network, crop, crop2, type) %>%
     distinct() %>% 
     view()
-    
-#remaking Olivia's Figure
-ggplot(data=subset(dat, type!=999&!is.na(anpp_g_m2)&!is.na(wyr_ppt)), aes(x=wyr_ppt, y=anpp_g_m2))+
-  geom_point(alpha = 0.1, aes(color=type)) +
-  geom_smooth(aes(shape = as.factor(site), color = type), 
-              method = 'lm', formula = 'y ~ x', se = F,
-              alpha = 0.1, linewidth = 0.2) +
-  geom_smooth(aes(color = type), method = 'lm', formula = 'y ~ x', se = T)+
-  scale_color_manual(name='Land Management', values=c('orange', 'green', 'green4', 'skyblue1', 'darkgoldenrod', 'chocolate2' ))+
-  xlab('Precipitation (mm)')+
-  ylab(expression(paste('ANPP (g ', m^-2,')')))+
-  theme(panel.grid = element_blank())+
-  facet_wrap(~fertilized)
-  
+
 
 ####Okay, we are going to combine to just four land management
 dat_4cat<-dat %>% 
   mutate(type2=ifelse(type %in% c('Grassland', 'Fert. Grassland', 'Pasture'), type, 'Cropland'))
 
-#remaking Olivia's Figure but with just four categories
-#ggplot(data=dat_4cat, aes(x=wyr_ppt, y=anpp_g_m2))+
-#  geom_point(alpha = 0.1, aes(color=type2)) +
-#  geom_smooth(aes(shape = as.factor(site), color = type2), 
-#              method = 'lm', formula = 'y ~ x', se = F,
-#              alpha = 0.1, linewidth = 0.2) +
-#  geom_smooth(aes(color = type2), method = 'lm', formula = 'y ~ x', se = T)+
-#  scale_color_manual(name='Land Management', values=c('orange', 'green', 'green4', 'skyblue'))+
-#  xlab('Precipitation (mm)')+
-#  ylab(expression(paste('ANPP (g ', m^-2,')')))+
-#  theme(panel.grid = element_blank())+
-#  facet_wrap(~fertilized)
   
 ##STEP 3: Read in MAP data
 file3<-'site_climate_mswep.csv'
@@ -119,158 +65,49 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
 
 climatedat<- read.csv(file = file.path("data", "harmonized_data", file3)) %>% rename(site=site_id)
 
-# THis is the temperature data and we are missing a lot of sites
 
-# file4<-'site_summary_info.csv'
-# googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
-#   dplyr::filter(name == file4) %>% 
-#   googledrive::drive_download(file = .$id, overwrite = T,
-#                               path = file.path("data", "harmonized_data", .$name))
-# 
-# tempdat<- read.csv(file = file.path("data", "harmonized_data", file4)) %>% 
-#   rename(site=site_id) %>% 
-#   select(site, network, mat_degc)
-
-#dat3<-dat_4cat %>% 
-#  left_join(climatedat) 
-
-
-
-####SKIP THIS WHOLE SECTION 
-####
-#Go to Line in the 262
-####
-
-
-
-
-
-#looking into what range of data we have for different crops
-# ggplot(data=subset(dat3, MAP<1000&MAP>400), aes(x=wyr_ppt, y=anpp_g_m2))+
-#   geom_point()+
-#   geom_smooth(method = 'lm', se=F, aes(group=site))+
-#   geom_smooth(method= 'lm', se=T, color='red')+
-#   facet_grid(crop2~fertilized)
-# 
-# dat2<-dat %>% 
-#   left_join(climatedat) %>% 
-#   filter(!is.na(anpp_g_m2)) %>% 
-#   filter(site!='look.us'&site!='bnch.us'&site!='CAP'&site!='NWT')
-# 
-# maprange<-dat2 %>% 
-#   group_by(network) %>% 
-#   summarise(min=min(MAP), max=max(MAP))
-# 
-# ggplot(data=dat2, aes(x=MAP))+
-#   geom_histogram()+
-#   facet_wrap(~network)
-
-
-#calculating sensitivity to explore different ways of looking at the data, calculating for each site and then averaging or Ingrid approach and calculating overall sites and not averaging first. For our analyses, since we are interested in MAP relationships later on we are going with the site level and then averaging approach.
-
-#sens<-dat3 %>% 
-#  filter(!is.na(anpp_g_m2)) %>%
-#  group_by(network,site, type, fertilized, MAP, cv_ppt_inter) %>% 
-#  summarise(slope=lm(anpp_g_m2~wyr_ppt)$coefficient[2], nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2)) %>% 
-  #filter(nobs>5) %>% 
-#  mutate(cv=sd/manpp, stability=1/cv)# %>% 
- # pivot_longer(manpp:cv, names_to = 'production', values_to = 'production_val') %>% 
- # pivot_longer(MAP:cv_ppt_inter, names_to = 'precip', values_to = 'precip_val')
-
-#ggplot(data=sens, aes(x=precip_val, y=production_val, color=type))+
-#  geom_point()+
-#  geom_smooth(method = 'lm', se=F)+
-#  facet_grid(production~precip, scales='free')
-
-#ggplot(data=sens, aes(x=cv_ppt_inter, y=cv, color=type))+
-#  geom_point()+
-#  geom_smooth(method = 'lm', se=F)
-
-#ggplot(data=dat3, aes(x=avg_dryspell_length, y=anpp_g_m2, color=type))+
-#  geom_point()+
- # geom_smooth(method = 'lm', se=F)
-
-#########################################################
-# Look at correlations between variables 
-# Annual level
-#str(dat3)
-#cor.data <- dat3[ ,c(8,11, 30:41)]
-# Remove NAs
-#cor.data <- cor.data %>%
-#  filter(!is.na(anpp_g_m2))
-#cors <- cor(cor.data)
-#corrplot(cors)
-
-# Site-Level - summarized across years
-#site_level_vars<-dat3 %>% 
-#  filter(!is.na(anpp_g_m2)) %>%
-#  group_by(network,site, type, fertilized, MAP, cv_ppt_inter) %>% 
-#  summarise(slope=lm(anpp_g_m2~wyr_ppt)$coefficient[2], nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2),
-#            dry_spell = mean(avg_dryspell_length), daily_ppt = mean(daily_ppt_d)) %>% 
-#  #filter(nobs>5) %>% 
-#  mutate(cv=sd/manpp, stability=1/cv)
-
-#cor.data <- site_level_vars[ ,c(5:14)]
-# Remove NAs
-#cor.data <- cor.data %>%
-#  filter(!is.na(slope))
-#cors <- cor(cor.data)
-#corrplot(cors)
-
-# Plot
-#ggplot(site_level_vars, aes(daily_ppt, manpp, color=MAP, shape=type))+
-#  geom_point()
-
-#ggplot(site_level_vars, aes(dry_spell, manpp, color=type))+
-#  geom_point()
-
-
-#making base bar graphs to explore data
-#meansens<-sens %>% 
-#  group_by(type) %>% 
-#  summarise(manpp2=mean(manpp, na.rm=TRUE), sdanpp=sd(manpp), mstab=mean(stability, na.rm=T), sdstab=sd(stability), n=length(manpp)) %>% 
-#  mutate(seanpp=sdanpp/sqrt(n), sestab=sdstab/sqrt(n))
-
-#ggplot(data=meansens, aes(x=type, y=manpp2))+
-#  geom_bar(stat = 'identity')+
-#  geom_errorbar(aes(ymin=manpp2-seanpp, ymax=manpp2+seanpp), width=0.1)
-
-#ggplot(data=meansens, aes(x=type, y=mstab))+
-#  geom_bar(stat = 'identity')+
-#  geom_errorbar(aes(ymin=mstab-sestab, ymax=mstab+sestab), width=0.1)
-
-
-# Merge site-level averages back into the dat3 and then calculate the differences
-# Can look at RUE max and diff with dry spell increases, etc
-#dat4 <- left_join(dat3, site_level_vars)
-#dat5 <- dat4 %>%
-  # Calculate diff in anpp from mean
-  #filter(nobs>4) %>%
-#  dplyr::mutate(anpp_diff = ((anpp_g_m2 - manpp)/manpp) *100)%>%
-  #new column for whether it is above or below mean ppt
-#  dplyr::mutate(ppt_diff = ((wyr_ppt - MAP)/MAP)*100) %>%
-  # select the min precip row for each site/network/type combo
-#  group_by(site, network, treatment, type) %>%
-#  slice(which.min(wyr_ppt))
-
-#min <- ggplot(dat5, aes(wyr_ppt, log(anpp_g_m2), color=type, shape=as.factor(fertilized)))+
-#  geom_point() 
-#min
-
-#ggplot(dat4, aes(log(manpp), log(sd^2)))+
-#  geom_point(aes(color=type))+
-#  geom_smooth(method='lm')+
-#  geom_abline(slope=2)
 #############################
-#DLH 12/3/25
+#Testing how filtering by time and grouping by type affects sample size and results
   
+  #check for multiple treatments within a site
+  treat.check<-dat_4cat%>%
+    mutate(test = 1)%>%
+    group_by(type2, site, treatment)%>%
+    summarize(count = n() ) 
+  
+  crop.1<-filter(dat_4cat, type2 == "Cropland") #just testing this for crops
+  
+  #filter by site x crop, group by crop 
+  crop_sitexcrop_grpcrop.1<-crop.1%>%
+    filter(type != "999")%>% #removing odd crops that have small sample size
+    group_by(type, site) %>%
+    summarise(count = n())%>%
+    filter(count > 4)%>% #need 5 or more years
+    group_by(type)%>%
+    summarize(count = n())
+  
+  
+  
+  #filter by site, group by across crops
+  crop_site_grpxcrop<-crop.1%>%
+    group_by(type2, site)%>%
+    summarise(count = n())%>% #sites with rotations get extra years b/c a site with two crops n=2 for a given year
+    filter(count > 4)%>%
+    group_by(type2)%>%
+    summarize(count = n())
+
+
+
+
+
+
+
   dat4.1<-dat_4cat%>%
-  filter(duration_years > 4)%>% #sites must have 5 or more years of data, might need to up to 15 based on Doring 2018 paper?
-  filter(!is.na(anpp_g_m2)) %>%
-  group_by(network, site, type, type2, fertilized)%>%
-  summarize(nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2), anpp_pulse = (max(anpp_g_m2)-mean(anpp_g_m2))/mean(anpp_g_m2))%>%
-  filter(nobs > 4)%>% #crops within a site must have 5 or more years of data
-  filter(type != "Pasture") #removing pasture due to sample size
+    filter(duration_years > 4)%>% #sites must have 5 or more years of data, might need to up to 15 based on Doring 2018 paper?
+    group_by(network, site, type, type2, fertilized)%>%
+    summarize(nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2), anpp_pulse = (max(anpp_g_m2)-mean(anpp_g_m2))/mean(anpp_g_m2))%>%
+    filter(nobs > 4)%>% #crops within a site must have 5 or more years of data
+    filter(type != "Pasture") #removing pasture due to sample size
 
 
   #calc some stability metrics - taking mean across site (not Ingrids approach, which calcs across all sites within a type)
