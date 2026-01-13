@@ -84,8 +84,9 @@ climatedat<- read.csv(file = file.path("data", "harmonized_data", file3)) %>% re
     group_by(type, site) %>%
     summarise(count = n())%>%
     filter(count > 4)%>% #need 5 or more years
-    group_by(type)%>%
-    summarize(count = n())
+    # group_by(type)%>%
+    # summarize(count = n()) %>%
+    mutate(site_type = paste(site, type, sep="_"))
   
   
   
@@ -93,38 +94,80 @@ climatedat<- read.csv(file = file.path("data", "harmonized_data", file3)) %>% re
   crop_site_grpxcrop<-crop.1%>%
     group_by(type2, site)%>%
     summarise(count = n())%>% #sites with rotations get extra years b/c a site with two crops n=2 for a given year
-    filter(count > 4)%>%
-    group_by(type2)%>%
-    summarize(count = n())
+    filter(count > 4)#%>%
+    # group_by(type2)%>%
+    # summarize(count = n())
 
 
+# Trying to group by what is identified above
 
+crop.gp1.st <- crop.1 %>%
+  mutate(site_type = paste(site, type, sep="_")) %>%
+  filter(site_type %in%   crop_sitexcrop_grpcrop.1$site_type) %>%
+  left_join(crop_sitexcrop_grpcrop.1, by = c("site", "type", "site_type"))%>%
+  group_by(site, type, type2)%>%
+  summarize(nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2), anpp_pulse = (max(anpp_g_m2)-mean(anpp_g_m2))/mean(anpp_g_m2)) %>%
+  mutate(cv = sd/manpp)%>%
+  mutate(stab = 1/cv)
 
+means.1<-crop.gp1.st%>%
+  select(-nobs)%>%
+  pivot_longer(cols = c(manpp:stab), names_to = "var", values_to = "val")%>%
+  group_by(type2, var)%>%
+  summarise(nobs=n(), 
+            mean=mean(val), 
+            sd=sd(val),
+            se = sd/sqrt(nobs))%>%
+  mutate(type2 = "Croplands_by_Crop")
 
-
-
-  dat4.1<-dat_4cat%>%
-    filter(duration_years > 4)%>% #sites must have 5 or more years of data, might need to up to 15 based on Doring 2018 paper?
-    group_by(network, site, type, type2, fertilized)%>%
-    summarize(nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2), anpp_pulse = (max(anpp_g_m2)-mean(anpp_g_m2))/mean(anpp_g_m2))%>%
-    filter(nobs > 4)%>% #crops within a site must have 5 or more years of data
-    filter(type != "Pasture") #removing pasture due to sample size
-
-
-  #calc some stability metrics - taking mean across site (not Ingrids approach, which calcs across all sites within a type)
-  dat4.2<-dat4.1%>%
-    mutate(cv = sd/manpp)%>%
-    mutate(stab = 1/cv)
   
-  means.1<-dat4.2%>%
-    select(-nobs)%>%
-    pivot_longer(cols = c(manpp:stab), names_to = "var", values_to = "val")%>%
-    group_by(type2, var)%>%
-    summarise(nobs=n(), 
-              mean=mean(val), 
-              sd=sd(val),
-              se = sd/sqrt(nobs))
-  
+crop.gp2.st <- crop.1 %>%
+  filter(site %in%  crop_site_grpxcrop$site) %>%
+  left_join(crop_site_grpxcrop, by = c("site", "type2"))%>%
+  group_by(site,type2)%>%
+  summarize(nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2), anpp_pulse = (max(anpp_g_m2)-mean(anpp_g_m2))/mean(anpp_g_m2)) %>%
+  mutate(cv = sd/manpp)%>%
+  mutate(stab = 1/cv)
+
+means.2<-crop.gp2.st%>%
+  select(-nobs)%>%
+  pivot_longer(cols = c(manpp:stab), names_to = "var", values_to = "val")%>%
+  group_by(type2, var)%>%
+  summarise(nobs=n(), 
+            mean=mean(val), 
+            sd=sd(val),
+            se = sd/sqrt(nobs))%>%
+  mutate(type2 = "Croplands_Overall")
+
+means <- rbind(means.1, means.2)
+
+ggplot(data=means, aes(x=type2, y=mean, fill = type2))+
+  geom_bar(stat = 'identity')+
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.1)+
+  facet_wrap(~var, scales = "free")
+
+  # dat4.1<-dat_4cat%>%
+  #   filter(duration_years > 4)%>% #sites must have 5 or more years of data, might need to up to 15 based on Doring 2018 paper?
+  #   group_by(network, site, type, type2, fertilized)%>%
+  #   summarize(nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2), anpp_pulse = (max(anpp_g_m2)-mean(anpp_g_m2))/mean(anpp_g_m2))%>%
+  #   filter(nobs > 4)%>% #crops within a site must have 5 or more years of data
+  #   filter(type != "Pasture") #removing pasture due to sample size
+  # 
+  # 
+  # #calc some stability metrics - taking mean across site (not Ingrids approach, which calcs across all sites within a type)
+  # dat4.2<-dat4.1%>%
+  #   mutate(cv = sd/manpp)%>%
+  #   mutate(stab = 1/cv)
+  # 
+  # means.1<-dat4.2%>%
+  #   select(-nobs)%>%
+  #   pivot_longer(cols = c(manpp:stab), names_to = "var", values_to = "val")%>%
+  #   group_by(type2, var)%>%
+  #   summarise(nobs=n(), 
+  #             mean=mean(val), 
+  #             sd=sd(val),
+  #             se = sd/sqrt(nobs))
+  # 
   
   ggplot(data=means.1, aes(x=type2, y=mean, fill = type2))+
      geom_bar(stat = 'identity')+
