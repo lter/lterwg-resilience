@@ -17,7 +17,7 @@ rm(list = ls()); gc()
 # Identify relevant tidy file
 focal_file <- "anpp_wyr_trt_merged.csv"
 
-# Download harmonized data file
+2# Download harmonized data file
 googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
   dplyr::filter(name == focal_file) %>% 
   googledrive::drive_download(file = .$id, overwrite = T,
@@ -35,7 +35,7 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
   googledrive::drive_download(file = .$id, overwrite = T,
                               path = file.path("data", "tidy", .$name))
 
-#Dave couldn't get file to upload from gdrive, so importing manually 
+2#Dave couldn't get file to upload from gdrive, so importing manually 
 spei.12 <- read.csv(file = file.path("data", "tidy", focal_file))
 
 #extract 12 month values for August; categorize extreme
@@ -108,14 +108,35 @@ clean_data <- merged_data%>%
   ))
 
 
+clean_data_lag <- clean_data%>%
+  group_by(site, network, crop, fertilized, N, P, K, grazed, burned, burn_freq, seeded, till)%>%
+  arrange(w_yr)%>%
+  mutate(lag.spei.cat = lag(spei.cat))%>%
+  unite(compound, lag.spei.cat, spei.cat, remove = F)
+  
+clean_data_lag%>%
+  group_by(type, compound)%>%
+  summarise(n.obs = n())%>%
+  filter(!(compound %in% c('NA_NA', 'normal_normal', 'NA_dry', 'NA_normal', 'NA_wet')))%>%
+  ggplot(aes(x = type, y = n.obs, fill = compound))+
+  geom_bar(stat = 'identity', position = position_dodge())+
+  coord_cartesian(ylim = c(0, 30))
+
+
 ggplot(merged_data, aes(x = per_dev_anpp))+
   geom_density()
 
+#plot SPEI split by type and dry vs wet
 ggplot(clean_data, aes(x = SPEI, y = scaled_anpp, color = type))+
   geom_point(alpha = 0.5)+
   geom_smooth(aes(shape = spei.cat), method = 'lm', se = F, linewidth = 1.4)+
   labs(x = 'SPEI', y = 'ANPP z-score')+
   theme_bw()
+
+#generally plots less sensitive to wet years than dry years
+
+
+
 
 ggplot(clean_data, aes(x = scaled_ppt, y = scaled_anpp, color = type))+
   geom_point()+
@@ -131,39 +152,15 @@ clean_data%>%
   theme_bw()
 
 
-# ggplot(merged_data, aes(x = scaled_ppt, y = scaled_anpp, color = crop))+
-#   geom_point()
-# merged_data%>%
-#   filter(crop != '')%>%
-#   mutate(crop = ifelse(crop == 'Soybean', 'soybean', ifelse(crop == 'Orchard/fescue/clover/alfalfa/chicory', 'Mixed_grass', ifelse(crop == 'Orchardgrass/white clover', 'Mixed_grass', ifelse (co))))%>%
-#   ggplot( aes(x = scaled_ppt, y = scaled_anpp, color = crop))+
-#   geom_point()
+clean_data%>%
+  filter(!is.na(anpp_g_m2))%>%
+  filter(!(type == '999'))%>%
+  ggplot( aes(x = w_yr, y = scaled_ppt, group = interaction(site, network, crop,  N, P, K, grazed, burned, burn_freq, type)))+
+  geom_line()+
+  geom_point( size = 3, shape = 21, aes(fill = scaled_anpp))+
+  labs(x = 'water year ', y = 'PPT z-score')+
+  theme_bw()+
+  scale_fill_viridis_c(option = 'H')+
+  facet_wrap(~type, scale = 'free_x')
 
-# Identify relevant tidy file
-focal_file <- "_all-sites_whiplash-data.csv"
-
-# Download harmonized data file
-googledrive::drive_ls(googledrive::as_id("http://drive.google.com/drive/u/0/folders/179rWnh1171GTEhb-IbTQh7gUvaJ8IOAG")) %>% 
-  dplyr::filter(name == focal_file) %>% 
-  googledrive::drive_download(file = .$id, overwrite = T,
-                              path = file.path("data", "tidy", .$name))
-
-
-whiplash_data  <- read.csv(file = file.path("data", "tidy", focal_file))%>%
-  mutate(date = date(date),
-         year = year(date))
-
-whiplash_data%>%
-  group_by(site, year)%>%
-  summarise(n.yr = n())%>%
-  filter(n.yr > 1)%>%
-  filter(year > 1990)
-
-#relativize ANPP data
-anpp_data_rel <- clean_data%>%
-  group_by(site, network, crop, fertilized, N, P, K, grazed, burned, burn_freq, seeded, till, type) %>%
-  mutate(mean_anpp = mean(anpp_g_m2, na.rm = T),
-         per_dev_anpp = (anpp_g_m2 - mean_anpp)/mean_anpp,
-         scaled_anpp  = (anpp_g_m2 - mean_anpp)/sd(anpp_g_m2, na.rm  = TRUE),
-         n.obs = n())
 
