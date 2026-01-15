@@ -84,8 +84,8 @@ climatedat<- read.csv(file = file.path("data", "harmonized_data", file3)) %>% re
     group_by(type, site) %>%
     summarise(count = n())%>%
     filter(count > 4)%>% #need 5 or more years
-    # group_by(type)%>%
-    # summarize(count = n()) %>%
+    #group_by(type)%>%
+    #summarize(count = n()) %>%
     mutate(site_type = paste(site, type, sep="_"))
   
   
@@ -118,7 +118,7 @@ means.1<-crop.gp1.st%>%
             mean=mean(val), 
             sd=sd(val),
             se = sd/sqrt(nobs))%>%
-  mutate(type2 = "Croplands_by_Crop")
+  mutate(type2 = "Avg by crop")
 
   
 crop.gp2.st <- crop.1 %>%
@@ -137,14 +137,21 @@ means.2<-crop.gp2.st%>%
             mean=mean(val), 
             sd=sd(val),
             se = sd/sqrt(nobs))%>%
-  mutate(type2 = "Croplands_Overall")
+  mutate(type2 = "Avg by site")
 
 means <- rbind(means.1, means.2)
+
+means$var<-factor(means$var, levels = c("manpp", "sd", "anpp_pulse", "cv", "stab"))
 
 ggplot(data=means, aes(x=type2, y=mean, fill = type2))+
   geom_bar(stat = 'identity')+
   geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.1)+
   facet_wrap(~var, scales = "free")
+
+#deciding to filter duration by crop x site, combine crops by grouping by crop, but also show specific crop means
+
+
+
 
   # dat4.1<-dat_4cat%>%
   #   filter(duration_years > 4)%>% #sites must have 5 or more years of data, might need to up to 15 based on Doring 2018 paper?
