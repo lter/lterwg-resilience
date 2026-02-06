@@ -78,6 +78,34 @@ anpp_few <- anpp_dat %>%
 # 4) SPEI: Import all scales -> stack long -> harvest-align lags
 # ============================================================
 
+## download the SPEI data if not already downloaded
+
+dir.create(file.path("data", "spei_data"), showWarnings = F)
+# Identify wanted files
+files_drive <- googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1JtFMD4IAizjNGd0wbLLZIBdgqnk4YR97")) %>% 
+  dplyr::filter(stringr::str_detect(string = .$name, pattern = "\\.csv"))
+
+# Identify local files
+files_local <- dir(path = file.path("data", "spei_data"))
+files_local
+
+# Overwrite local data files?
+update <- TRUE
+
+# Identify desired files
+if(update == T) {
+  files_wanted <- files_drive 
+} else {
+  files_wanted <- files_drive %>%
+    dplyr::filter(!name %in% files_local)
+}
+
+# Download them!
+purrr::walk2(.x = files_wanted$id, .y = files_wanted$name,
+             .f = ~ googledrive::drive_download(file = .x, overwrite = T,
+                                                path = file.path("data", "spei_data", .y)))
+
+
 # 4A) Reader: one SPEI file (scale-specific)
 read_spei_long <- function(path, scale_chr) {
   x <- read.csv(path, check.names = FALSE, stringsAsFactors = FALSE)
