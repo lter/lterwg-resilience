@@ -18,7 +18,7 @@ rm(list = ls()); gc()
 # Identify relevant tidy file
 focal_file <- "anpp_wyr_trt_merged.csv"
 
-2# Download harmonized data file
+# Download harmonized data file
 googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
   dplyr::filter(name == focal_file) %>% 
   googledrive::drive_download(file = .$id, overwrite = T,
@@ -28,7 +28,7 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
 anpp_data  <- read.csv(file = file.path("data", "tidy", focal_file))
 
 # Identify desired file
-focal_file <- "SPEI12.csv"
+focal_file <- "spei12.csv"
 
 # Download harmonized data file
 googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1JtFMD4IAizjNGd0wbLLZIBdgqnk4YR97")) %>% 
@@ -36,14 +36,14 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
   googledrive::drive_download(file = .$id, overwrite = T,
                               path = file.path("data", "tidy", .$name))
 
-2#Dave couldn't get file to upload from gdrive, so importing manually 
+#Dave couldn't get file to upload from gdrive, so importing manually 
 spei.12 <- read.csv(file = file.path("data", "tidy", focal_file))
 
 #extract 12 month values for August; categorize extreme
 spei.12.clean <- spei.12%>%
   mutate(month = month(as.Date(date)))%>%
   mutate(year = year(as.Date(date)))%>%
-  filter(month == '8')%>%
+  filter(month == '10')%>%
   filter(year < 2025 & year > 1981)%>%
   pivot_longer(cols = 2:56, names_to = "site", values_to = "SPEI")%>%
   mutate(spei.cat = ifelse(SPEI>0.99, "wet", ifelse (SPEI <(-0.99), "dry", "normal")))%>%
@@ -106,8 +106,9 @@ clean_data <- merged_data%>%
     !network %in% c('LTER', 'NutNet') & crop2=='soybean' ~ 'Soybean',
     !network %in% c('LTER', 'NutNet') & crop2 %in% c('winter_wheat', 'spring_wheat') ~ 'Wheat',
     TRUE~'999'
-  ))
-
+  ))%>%
+  mutate(category = ifelse(type %in% c('Soybean', 'Corn', 'Wheat'), 'Crop', type))%>%
+  filter(!(type %in% '999'))
 
 clean_data_lag <- clean_data%>%
   group_by(site, network, crop, fertilized, N, P, K, grazed, burned, burn_freq, seeded, till)%>%
@@ -199,6 +200,7 @@ response_ratios_extreme10 <- binned_data %>%
 clean_data%>%
   filter(!(type %in% c('Grassland', 'Fert. Grassland')))%>%
   ggplot(aes(x = scaled_ppt, y = scaled_anpp, color = type))+
+  geom_smooth(method = 'lm')+
   geom_point()+
   labs(title = 'demeanded (zscore) anpp x ppt no grassland', x = 'water year ppt z-score', y = 'ANPP z-score')+
   theme_bw()
@@ -215,4 +217,43 @@ clean_data%>%
   scale_fill_viridis_c(option = 'H')+
   facet_wrap(~type, scale = 'free_x')
 
+
+#grassland
+grass_data <- clean_data%>%
+  filter((type %in% c('Grassland', 'Fert. Grassland')))
+
+ggplot(grass_data, aes(x = scaled_ppt, y = scaled_anpp, color = type))+
+  geom_smooth(method = 'lm')+
+  geom_point()+
+  labs(title = 'demeanded (zscore) anpp x ppt no grassland', x = 'water year ppt z-score', y = 'ANPP z-score')+
+  theme_bw()
+
+
+
+###
+
+library(segmented)
+subset(cleancategory == 'Grassland')
+
+grass.anpp.spei.lm <- lm(scaled_anpp ~ SPEI , data = subset(clean_data, category == 'Grassland'))
+
+summary(anpp.spei.lm)
+
+grass.anpp.seg <- segmented(anpp.spei.lm, 
+          seg.Z = ~SPEI,
+          psi = list (SPEI = c(-1, 1)),
+          by = category)
+
+summary(grass.anpp.seg)
+
+crop.anpp.spei.lm <- lmer(scaled_anpp ~ SPEI + (1|site) + (1|year), data = subset(clean_data, category == 'Crop'))
+
+summary(crop.anpp.spei.lm)
+
+crop.anpp.seg <- segmented(crop.anpp.spei.lm, 
+                            seg.Z = ~SPEI,
+                            psi = list (SPEI = c(-1, 1))
+                            )
+
+summary(crop.anpp.seg)
 
