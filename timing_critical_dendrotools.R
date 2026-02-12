@@ -324,4 +324,7 @@ all_plots <- map(site_list, process_site_climate)
 
 # 4. View a specific plot (e.g., the first one)
 all_plots[[1]]
+all_plots[[2]]
+all_plots[[3]]
+all_plots[[4]]
 
