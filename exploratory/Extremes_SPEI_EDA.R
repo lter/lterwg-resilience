@@ -161,8 +161,15 @@ binned_data <- clean_data %>%
       scaled_ppt <= -0.84 ~ "extreme dry",
       scaled_ppt >= 0.84 ~ "extreme wet",
       TRUE ~ "normal"
-    )) %>%
+    ),
+    extreme_30 = case_when(
+      scaled_ppt <= -0.524 ~ "dry",
+      scaled_ppt >= 0.524 ~ "wet",
+      TRUE ~ "normal")) %>%
   filter(type != "999") 
+
+binned_data$extreme_30 <- factor(binned_data$extreme_30, 
+                                 levels = c("dry", "normal", "wet"))
 
 binned_data$extreme_20 <- factor(binned_data$extreme_20, 
                                  levels = c("extreme dry", "normal", "extreme wet"))
@@ -189,7 +196,13 @@ extreme20 <- ggplot(binned_data, aes(x = extreme_20, y = scaled_anpp, color = ty
   facet_grid(~type)+
   theme_bw()
 
-ggarrange(extreme10, extreme15, extreme20, ncol = 1)
+extreme30 <- ggplot(binned_data, aes(x = extreme_30, y = scaled_anpp, color = type, fil = type))+
+  geom_boxplot()+
+  geom_jitter()+
+  facet_grid(~type)+
+  theme_bw()
+
+ggarrange(extreme10,  extreme20, extreme30, ncol = 1)
 
 ###response ratio
 response_ratios_extreme10 <- binned_data %>%
