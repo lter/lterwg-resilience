@@ -239,21 +239,171 @@ grass.anpp.spei.lm <- lm(scaled_anpp ~ SPEI , data = subset(clean_data, category
 
 summary(anpp.spei.lm)
 
-grass.anpp.seg <- segmented(anpp.spei.lm, 
+grass.anpp.seg.2 <- segmented(grass.anpp.spei.lm, 
           seg.Z = ~SPEI,
-          psi = list (SPEI = c(-1, 1)),
-          by = category)
+          #psi = list (SPEI = c(-1, 1)),
+          type = 'aic',
+          check.dslope = T)
 
-summary(grass.anpp.seg)
+grass.anpp.seg.1 <- segmented(grass.anpp.spei.lm, 
+                            seg.Z = ~SPEI,
+                            #psi = list (SPEI = c(-1, 1)),
+                            type = 'aic',
+                            Kmax = 1,
+                            check.dslope = T)
 
-crop.anpp.spei.lm <- lmer(scaled_anpp ~ SPEI + (1|site) + (1|year), data = subset(clean_data, category == 'Crop'))
+summary(grass.anpp.seg.2)
+
+#AIC comparison 
+MuMIn::AICc(grass.anpp.seg.2, grass.anpp.seg.1, grass.anpp.spei.lm )
+
+
+#plot pred
+newdat <- data.frame(SPEI = seq(min(clean_data$SPEI, na.rm = T),
+                                max(clean_data$SPEI, na.rm = T),
+                                length.out = 300))
+
+# Predict from segmented model
+newdat$fit <- predict(grass.anpp.seg.1, newdata = newdat)
+
+# Extract breakpoints
+bp <- grass.anpp.seg.1$psi[, "Est."]
+
+# Plot
+ggplot(subset(clean_data, category == "Grassland"),
+       aes(x = SPEI, y = scaled_anpp)) +
+  geom_point(alpha = 0.4) +
+  geom_line(data = newdat, aes(y = fit), color = "blue", size = 1.2) +
+  geom_vline(xintercept = bp, color = "red", linetype = "dashed", size = 1) +
+  theme_minimal(base_size = 14) +
+  labs(title = "Segmented Regression: ANPP ~ SPEI",
+       y = "Scaled ANPP",
+       x = "SPEI")
+
+#### clip grasslands to crop
+
+clean_data%>%
+  filter(category == 'Crop')%>%
+  summarise(min.map = min(mean_ppt, na.rm = T),
+            max.map = max(mean_ppt, na.rm = T))
+
+#minimum crop map = 453.2325
+
+wetgrassland <- clean_data%>%
+  filter(category == 'Grassland')%>%
+  filter(mean_ppt > 453 &  mean_ppt < 1106)
+
+
+##run segmented regression on grasslands within crop climate
+
+wetgrass.anpp.spei.lm <- lm(scaled_anpp ~ SPEI , data = wetgrassland)
+
+summary(wetgrass.anpp.spei.lm)
+
+wetgrass.anpp.seg <- segmented(wetgrass.anpp.spei.lm, 
+                              seg.Z = ~SPEI,
+                              #psi = list (SPEI = c(-1, 1)),
+                              type = 'aic',
+                              check.dslope = T)
+
+summary(wetgrass.anpp.seg)
+#plot prediction fro crop climate grasslands
+newdat <- data.frame(SPEI = seq(min(clean_data$SPEI, na.rm = T),
+                                max(clean_data$SPEI, na.rm = T),
+                                length.out = 300))
+
+# Predict from segmented model
+newdat$fit <- predict(wetgrass.anpp.seg, newdata = newdat)
+
+# Extract breakpoints
+bp <- wetgrass.anpp.seg$psi[, "Est."]
+
+# Plot
+ggplot(data =wetgrassland,
+       aes(x = SPEI, y = scaled_anpp)) +
+  geom_point(alpha = 0.4) +
+  geom_line(data = newdat, aes(y = fit), color = "blue", size = 1.2) +
+  geom_vline(xintercept = bp, color = "red", linetype = "dashed", size = 1) +
+  theme_minimal(base_size = 14) +
+  labs(title = "Segmented Regression: ANPP ~ SPEI",
+       y = "Scaled ANPP",
+       x = "SPEI")
+
+#### crops segemented
+
+crop.anpp.spei.lm <- lm(scaled_anpp ~ SPEI  , data = subset(clean_data, category == 'Crop'))
 
 summary(crop.anpp.spei.lm)
 
 crop.anpp.seg <- segmented(crop.anpp.spei.lm, 
-                            seg.Z = ~SPEI,
-                            psi = list (SPEI = c(-1, 1))
-                            )
+                           seg.Z = ~SPEI,
+                           #psi = list (SPEI = c(-1, 1)),
+                           type = 'aic',
+                           check.dslope = T)
 
 summary(crop.anpp.seg)
+
+AIC(crop.anpp.seg, crop.anpp.spei.lm)
+#plot pAICc()#plot prediction fro crop
+newdat <- data.frame(SPEI = seq(min(clean_data$SPEI, na.rm = T),
+                                max(clean_data$SPEI, na.rm = T),
+                                length.out = 300))
+
+# Predict from segmented model
+newdat$fit <- predict(crop.anpp.seg, newdata = newdat)
+
+# Extract breakpoints
+bp <- crop.anpp.seg$psi[, "Est."]
+
+# Plot
+ggplot(data =wetgrassland,
+       aes(x = SPEI, y = scaled_anpp)) +
+  geom_point(alpha = 0.4) +
+  geom_line(data = newdat, aes(y = fit), color = "blue", size = 1.2) +
+  geom_vline(xintercept = bp, color = "red", linetype = "dashed", size = 1) +
+  theme_minimal(base_size = 14) +
+  labs(title = "Segmented Regression: ANPP ~ SPEI",
+       y = "Scaled ANPP",
+       x = "SPEI")
+
+
+
+#### corn only  segemented
+
+corn.anpp.spei.lm <- lm(scaled_anpp ~ SPEI  , data = subset(clean_data, type == 'Corn'))
+
+summary(crop.anpp.spei.lm)
+
+corn.anpp.seg <- segmented(corn.anpp.spei.lm, 
+                           seg.Z = ~SPEI,
+                           #psi = list (SPEI = c(-1, 1)),
+                           type = 'aic',
+                           check.dslope = T)
+
+summary(corn.anpp.seg)
+
+AIC(corn.anpp.seg, corn.anpp.spei.lm)
+#plot pAICc()#plot prediction fro crop
+newdat <- data.frame(SPEI = seq(min(clean_data$SPEI, na.rm = T),
+                                max(clean_data$SPEI, na.rm = T),
+                                length.out = 300))
+
+# Predict from segmented model
+newdat$fit <- predict(corn.anpp.seg, newdata = newdat)
+newdat$lmfit <- predict(corn.anpp.spei.lm, newdata = newdat)
+
+# Extract breakpoints
+bp <- corn.anpp.seg$psi[, "Est."]
+
+# Plot
+ggplot(data = subset(clean_data, type == 'Corn'),
+       aes(x = SPEI, y = scaled_anpp)) +
+  geom_point(alpha = 0.4) +
+  geom_line(data = newdat, aes(y = fit), color = "blue", size = 1.2) +
+  geom_line(data = newdat, aes(y = lmfit), color = "green", size = 1.2) +
+  geom_vline(xintercept = bp, color = "red", linetype = "dashed", size = 1) +
+  theme_minimal(base_size = 14) +
+  labs(title = "Segmented Regression: ANPP ~ SPEI",
+       y = "Scaled ANPP",
+       x = "SPEI")
 
