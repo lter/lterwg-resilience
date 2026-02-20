@@ -419,4 +419,4 @@ ggplot(data = subset(clean_data, type == 'Corn'),
   labs(title = "Segmented Regression: ANPP ~ SPEI",
        y = "Scaled ANPP",
        x = "SPEI")
-
+ 
