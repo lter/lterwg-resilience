@@ -1,5 +1,7 @@
 library(tidyverse)
 library(googledrive)
+library(broom)
+library(corrplot)
 
 theme_set(theme_bw(12))
 
@@ -8,38 +10,8 @@ dir.create(file.path("exploratory_graphs", 'anpp_year'), showWarnings = F)
 dir.create(file.path("data"), showWarnings = F)
 dir.create(file.path("data", "harmonized_data"), showWarnings = F)
 
-###STEP 1: Make figures for each site and assess data, does it pass our smell test. Yes.
 
-# # Identify desired file
-# focal_file <- "anpp_wyr_merged.csv"
-# 
-# # Download harmonized data file
-# googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
-#   dplyr::filter(name == focal_file) %>% 
-#   googledrive::drive_download(file = .$id, overwrite = T,
-#                               path = file.path("data", "harmonized_data", .$name))
-# 
-# 
-# # Read in harmonized data
-# anpp_v1 <- read.csv(file = file.path("data", "harmonized_data", focal_file))
-# 
-# sites<-unique(anpp_v1$site)
-# 
-# for (i in 1:length(sites)){
-#   
-# sub<-anpp_v1 %>% 
-#   filter(site==sites[i])
-# 
-# plot<-ggplot(data=sub, aes(x=year, y = anpp_g_m2, color=crop, shape=treatment))+
-#   geom_point()+
-#   geom_smooth(method = 'lm', se=F)+
-#   ggtitle(paste(sites[i]))
-# 
-# ggsave(filename = file.path("exploratory_graphs", 'anpp_year', paste0(sites[i],'.jpg')),device='jpeg', plot = plot, height=10, width=10, units='in')
-#   
-# }
 
-#STEP 2: Starting the Analyses
 
 #read in annp, precip, and trt info
 file2<-'anpp_wyr_trt_merged.csv'
@@ -51,7 +23,9 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
 ##read in the data and do some pre-processing. and classifying land management include crop type.
 dat<- read.csv(file = file.path("data", "harmonized_data", file2)) %>%
   filter(site!='look.us'&site!='bnch.us') %>% #drop two odd NutNet sites
+  filter(treatment!="PRHPA_NEMERREM_CCN4N")%>%#removing second treatment for PRHPA
   #filter(crop!='Garbanzo'&crop!='Canola'&crop!='Oats') %>% 
+  filter(!is.na(anpp_g_m2))%>% #this removes sites with grain yield but not anpp
   mutate(crop=tolower(crop)) %>% 
   mutate(crop2=case_when(
     crop %in% c('orchardgrass/white clover', 'orchard/fescue/clover/alfalfa/chicory', 'sorghum-sudangrass') ~ 'mixed_grass',
@@ -76,37 +50,12 @@ dat<- read.csv(file = file.path("data", "harmonized_data", file2)) %>%
     select(network, crop, crop2, type) %>%
     distinct() %>% 
     view()
-    
-#remaking Olivia's Figure
-ggplot(data=subset(dat, type!=999&!is.na(anpp_g_m2)&!is.na(wyr_ppt)), aes(x=wyr_ppt, y=anpp_g_m2))+
-  geom_point(alpha = 0.1, aes(color=type)) +
-  geom_smooth(aes(shape = as.factor(site), color = type), 
-              method = 'lm', formula = 'y ~ x', se = F,
-              alpha = 0.1, linewidth = 0.2) +
-  geom_smooth(aes(color = type), method = 'lm', formula = 'y ~ x', se = T)+
-  scale_color_manual(name='Land Management', values=c('orange', 'green', 'green4', 'skyblue1', 'darkgoldenrod', 'chocolate2' ))+
-  xlab('Precipitation (mm)')+
-  ylab(expression(paste('ANPP (g ', m^-2,')')))+
-  theme(panel.grid = element_blank())
-  facet_wrap(~fertilized)
-  
+
 
 ####Okay, we are going to combine to just four land management
 dat_4cat<-dat %>% 
   mutate(type2=ifelse(type %in% c('Grassland', 'Fert. Grassland', 'Pasture'), type, 'Cropland'))
 
-#remaking Olivia's Figure but with just four categories
-ggplot(data=dat_4cat, aes(x=wyr_ppt, y=anpp_g_m2))+
-  geom_point(alpha = 0.1, aes(color=type2)) +
-  geom_smooth(aes(shape = as.factor(site), color = type2), 
-              method = 'lm', formula = 'y ~ x', se = F,
-              alpha = 0.1, linewidth = 0.2) +
-  geom_smooth(aes(color = type2), method = 'lm', formula = 'y ~ x', se = T)+
-  scale_color_manual(name='Land Management', values=c('orange', 'green', 'green4', 'skyblue'))+
-  xlab('Precipitation (mm)')+
-  ylab(expression(paste('ANPP (g ', m^-2,')')))+
-  theme(panel.grid = element_blank())
-  facet_wrap(~fertilized)
   
 ##STEP 3: Read in MAP data
 file3<-'site_climate_mswep.csv'
@@ -117,183 +66,359 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
 
 climatedat<- read.csv(file = file.path("data", "harmonized_data", file3)) %>% rename(site=site_id)
 
-# THis is the temperature data and we are missing a lot of sites
 
-# file4<-'site_summary_info.csv'
-# googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
-#   dplyr::filter(name == file4) %>% 
-#   googledrive::drive_download(file = .$id, overwrite = T,
-#                               path = file.path("data", "harmonized_data", .$name))
-# 
-# tempdat<- read.csv(file = file.path("data", "harmonized_data", file4)) %>% 
-#   rename(site=site_id) %>% 
-#   select(site, network, mat_degc)
-
-dat3<-dat_4cat %>% 
-  left_join(climatedat) 
-
-
-
-####SKIP THIS WHOLE SECTION 
-####
-#Go to Line in the 262
-####
-
-
-
-
-
-#looking into what range of data we have for different crops
-# ggplot(data=subset(dat3, MAP<1000&MAP>400), aes(x=wyr_ppt, y=anpp_g_m2))+
-#   geom_point()+
-#   geom_smooth(method = 'lm', se=F, aes(group=site))+
-#   geom_smooth(method= 'lm', se=T, color='red')+
-#   facet_grid(crop2~fertilized)
-# 
-# dat2<-dat %>% 
-#   left_join(climatedat) %>% 
-#   filter(!is.na(anpp_g_m2)) %>% 
-#   filter(site!='look.us'&site!='bnch.us'&site!='CAP'&site!='NWT')
-# 
-# maprange<-dat2 %>% 
-#   group_by(network) %>% 
-#   summarise(min=min(MAP), max=max(MAP))
-# 
-# ggplot(data=dat2, aes(x=MAP))+
-#   geom_histogram()+
-#   facet_wrap(~network)
+#############################
+#Testing how filtering by time and grouping by type affects sample size and results
+  
+  #check for multiple treatments within a site
+  treat.check<-dat_4cat%>%
+    mutate(test = 1)%>%
+    group_by(type2, site, treatment)%>%
+    summarize(count = n() ) 
+  
+  crop.1<-filter(dat_4cat, type2 == "Cropland") #just testing this for crops
+  
+  #filter by site x crop, group by crop 
+  crop_sitexcrop_grpcrop.1<-crop.1%>%
+    filter(type != "999")%>% #removing odd crops that have small sample size
+    group_by(type, site) %>%
+    summarise(count = n())%>%
+    filter(count > 4)%>% #need 5 or more years
+    #group_by(type)%>%
+    #summarize(count = n()) %>%
+    mutate(site_type = paste(site, type, sep="_"))
+  
+  
+  
+  #filter by site, group by across crops
+  crop_site_grpxcrop<-crop.1%>%
+    group_by(type2, site)%>%
+    summarise(count = n())%>% #sites with rotations get extra years b/c a site with two crops n=2 for a given year
+    filter(count > 4)#%>%
+    # group_by(type2)%>%
+    # summarize(count = n())
 
 
-#calculating sensitivity to explore different ways of looking at the data, calculating for each site and then averaging or Ingrid approach and calculating overall sites and not averaging first. For our analyses, since we are interested in MAP relationships later on we are going with the site level and then averaging approach.
+# Trying to group by what is identified above
 
-sens<-dat3 %>% 
-  filter(!is.na(anpp_g_m2)) %>%
-  group_by(network,site, type, fertilized, MAP, cv_ppt_inter) %>% 
-  summarise(slope=lm(anpp_g_m2~wyr_ppt)$coefficient[2], nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2)) %>% 
-  #filter(nobs>5) %>% 
-  mutate(cv=sd/manpp, stability=1/cv)# %>% 
- # pivot_longer(manpp:cv, names_to = 'production', values_to = 'production_val') %>% 
- # pivot_longer(MAP:cv_ppt_inter, names_to = 'precip', values_to = 'precip_val')
+crop.gp1.st <- crop.1 %>%
+  mutate(site_type = paste(site, type, sep="_")) %>%
+  filter(site_type %in%   crop_sitexcrop_grpcrop.1$site_type) %>%
+  left_join(crop_sitexcrop_grpcrop.1, by = c("site", "type", "site_type"))%>%
+  group_by(site, type, type2)%>%
+  summarize(nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2), anpp_pulse = (max(anpp_g_m2)-mean(anpp_g_m2))/mean(anpp_g_m2)) %>%
+  mutate(cv = sd/manpp)%>%
+  mutate(stab = 1/cv)
 
-ggplot(data=sens, aes(x=precip_val, y=production_val, color=type))+
-  geom_point()+
-  geom_smooth(method = 'lm', se=F)+
-  facet_grid(production~precip, scales='free')
+means.1<-crop.gp1.st%>%
+  select(-nobs)%>%
+  pivot_longer(cols = c(manpp:stab), names_to = "var", values_to = "val")%>%
+  group_by(type2, var)%>%
+  summarise(nobs=n(), 
+            mean=mean(val), 
+            sd=sd(val),
+            se = sd/sqrt(nobs))%>%
+  mutate(type2 = "Avg by crop")
 
-ggplot(data=sens, aes(x=cv_ppt_inter, y=cv, color=type))+
-  geom_point()+
-  geom_smooth(method = 'lm', se=F)
+  
+crop.gp2.st <- crop.1 %>%
+  filter(site %in%  crop_site_grpxcrop$site) %>%
+  left_join(crop_site_grpxcrop, by = c("site", "type2"))%>%
+  group_by(site,type2)%>%
+  summarize(nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2), anpp_pulse = (max(anpp_g_m2)-mean(anpp_g_m2))/mean(anpp_g_m2)) %>%
+  mutate(cv = sd/manpp)%>%
+  mutate(stab = 1/cv)
 
-ggplot(data=dat3, aes(x=avg_dryspell_length, y=anpp_g_m2, color=type))+
-  geom_point()+
-  geom_smooth(method = 'lm', se=F)
+means.2<-crop.gp2.st%>%
+  select(-nobs)%>%
+  pivot_longer(cols = c(manpp:stab), names_to = "var", values_to = "val")%>%
+  group_by(type2, var)%>%
+  summarise(nobs=n(), 
+            mean=mean(val), 
+            sd=sd(val),
+            se = sd/sqrt(nobs))%>%
+  mutate(type2 = "Avg by site")
 
-#########################################################
-# Look at correlations between variables 
-# Annual level
-str(dat3)
-cor.data <- dat3[ ,c(8,11, 30:41)]
-# Remove NAs
-cor.data <- cor.data %>%
-  filter(!is.na(anpp_g_m2))
-cors <- cor(cor.data)
-corrplot(cors)
+means <- rbind(means.1, means.2)
 
-# Site-Level - summarized across years
-site_level_vars<-dat3 %>% 
-  filter(!is.na(anpp_g_m2)) %>%
-  group_by(network,site, type, fertilized, MAP, cv_ppt_inter) %>% 
-  summarise(slope=lm(anpp_g_m2~wyr_ppt)$coefficient[2], nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2),
-            dry_spell = mean(avg_dryspell_length), daily_ppt = mean(daily_ppt_d)) %>% 
-  #filter(nobs>5) %>% 
-  mutate(cv=sd/manpp, stability=1/cv)
+means$var<-factor(means$var, levels = c("manpp", "sd", "anpp_pulse", "cv", "stab"))
 
-cor.data <- site_level_vars[ ,c(5:14)]
-# Remove NAs
-cor.data <- cor.data %>%
-  filter(!is.na(slope))
-cors <- cor(cor.data)
-corrplot(cors)
-
-# Plot
-ggplot(site_level_vars, aes(daily_ppt, manpp, color=MAP, shape=type))+
-  geom_point()
-
-ggplot(site_level_vars, aes(dry_spell, manpp, color=type))+
-  geom_point()
-
-
-#making base bar graphs to explore data
-meansens<-sens %>% 
-  group_by(type) %>% 
-  summarise(manpp2=mean(manpp, na.rm=TRUE), sdanpp=sd(manpp), mstab=mean(stability, na.rm=T), sdstab=sd(stability), n=length(manpp)) %>% 
-  mutate(seanpp=sdanpp/sqrt(n), sestab=sdstab/sqrt(n))
-
-ggplot(data=meansens, aes(x=type, y=manpp2))+
+ggplot(data=means, aes(x=type2, y=mean, fill = type2))+
   geom_bar(stat = 'identity')+
-  geom_errorbar(aes(ymin=manpp2-seanpp, ymax=manpp2+seanpp), width=0.1)
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.1)+
+  facet_wrap(~var, scales = "free")
 
-ggplot(data=meansens, aes(x=type, y=mstab))+
-  geom_bar(stat = 'identity')+
-  geom_errorbar(aes(ymin=mstab-sestab, ymax=mstab+sestab), width=0.1)
+#deciding to filter duration by crop x site, combine crops by grouping by crop, but also show specific crop means
 
-# Merge site-level averages back into the dat3 and then calculate the differences
-# Can look at RUE max and diff with dry spell increases, etc
-dat4 <- left_join(dat3, site_level_vars)
-dat5.max <- dat4 %>%
-  # Calculate diff in anpp from mean
-  #filter(nobs>4) %>%
-  dplyr::mutate(anpp_diff = ((anpp_g_m2 - manpp)/manpp) *100)%>%
-  #new column for whether it is above or below mean ppt
-  dplyr::mutate(ppt_diff = ((wyr_ppt - MAP)/MAP)*100) %>%
-  # select the min precip row for each site/network/type combo
-  group_by(site, network, type, type2) %>%
-  slice(which.max(anpp_g_m2)) %>%
-  mutate(class.type = "Max")
 
-dat5.min <- dat4 %>%
-  # Calculate diff in anpp from mean
-  #filter(nobs>4) %>%
-  dplyr::mutate(anpp_diff = ((anpp_g_m2 - manpp)/manpp) *100)%>%
-  #new column for whether it is above or below mean ppt
-  dplyr::mutate(ppt_diff = ((wyr_ppt - MAP)/MAP)*100) %>%
-  # select the min precip row for each site/network/type combo
-  group_by(site, network, type, type2) %>%
-  slice(which.min(anpp_g_m2))%>%
-  mutate(class.type = "Min") %>%
-  rbind(dat5.max) %>%
-  ungroup()
 
-dat5.min2 <- dat5.min %>%
-  select(c(site, network, type, type2, class.type, anpp_g_m2)) %>%
-  pivot_wider(names_from = class.type, values_from = anpp_g_m2) %>%
-  left_join(site_level_vars) %>%
-  mutate(ai = (((Max - manpp)/manpp) - ((manpp - Min)/manpp)))  %>%
-  ungroup()%>%
-  group_by(type, type2) %>%
-  summarize(mean = mean(ai, na.rm=T), se = sd(ai, na.rm=T)/sqrt(n()))
 
-ggplot(dat5.min2, aes(ai, group = type)) +
-  geom_histogram()+
-  facet_wrap(~type)
+  # dat4.1<-dat_4cat%>%
+  #   filter(duration_years > 4)%>% #sites must have 5 or more years of data, might need to up to 15 based on Doring 2018 paper?
+  #   group_by(network, site, type, type2, fertilized)%>%
+  #   summarize(nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2), anpp_pulse = (max(anpp_g_m2)-mean(anpp_g_m2))/mean(anpp_g_m2))%>%
+  #   filter(nobs > 4)%>% #crops within a site must have 5 or more years of data
+  #   filter(type != "Pasture") #removing pasture due to sample size
+  # 
+  # 
+  # #calc some stability metrics - taking mean across site (not Ingrids approach, which calcs across all sites within a type)
+  # dat4.2<-dat4.1%>%
+  #   mutate(cv = sd/manpp)%>%
+  #   mutate(stab = 1/cv)
+  # 
+  # means.1<-dat4.2%>%
+  #   select(-nobs)%>%
+  #   pivot_longer(cols = c(manpp:stab), names_to = "var", values_to = "val")%>%
+  #   group_by(type2, var)%>%
+  #   summarise(nobs=n(), 
+  #             mean=mean(val), 
+  #             sd=sd(val),
+  #             se = sd/sqrt(nobs))
+  # 
+  
+  ggplot(data=means.1, aes(x=type2, y=mean, fill = type2))+
+     geom_bar(stat = 'identity')+
+     geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.1)+
+     facet_wrap(~var, scales = "free")
+  
+  #limiting range of MAP to fit croplands - didn't make a huge difference but worth considering
+  dat4.2b<-left_join(dat4.2, climatedat, by = "site")
+  
+  means.2<-dat4.2b%>%
+    filter(MAP > 450 & MAP <1130)%>%
+    select(site, type2, manpp, sd, anpp_pulse, cv, stab)%>%
+    pivot_longer(cols = c(manpp:stab), names_to = "var", values_to = "val")%>%
+    group_by(type2, var)%>%
+    summarise(nobs=n(), 
+              mean=mean(val), 
+              sd=sd(val),
+              se = sd/sqrt(nobs))
+  
+  ggplot(data=means.2, aes(x=type2, y=mean))+
+    geom_bar(stat = 'identity')+
+    geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.1)+
+    facet_wrap(~var, scales = "free")
+  
+  #combine with precip metrics and explore relationships
+  dat4.2b.crop<-dat4.2b%>%
+    filter(type2 == "Fert. Grassland")%>%
+    ungroup()%>%
+    select(manpp, sd, anpp_pulse, cv, MAP, cv_ppt_inter)
+    
+  #crop correlations
+  cors.crop <- cor(dat4.2b.crop)
+  corrplot.mixed( cors.crop)  
+  
+  cor.mtest <- function(mat, ...) {
+    mat <- as.matrix(mat)
+    n <- ncol(mat)
+    p.mat<- matrix(NA, n, n)
+    diag(p.mat) <- 0
+    for (i in 1:(n - 1)) {
+      for (j in (i + 1):n) {
+        tmp <- cor.test(mat[, i], mat[, j], ...)
+        p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+      }
+    }
+    colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
+    p.mat
+  }
 
-ggplot(dat5.min2, aes(type, mean))+
-  geom_bar(stat = "identity") +
-  geom_errorbar(aes(ymin = mean - se, ymax = mean+se), position = position_dodge(0.2))
+    # matrix of the p-value of the correlation
+  p.mat <- cor.mtest(dat4.2b.crop)
+  head(p.mat[, 1:5])
+  
+  corrplot(cors.crop, type="upper", order="hclust", 
+           p.mat = p.mat, sig.level = 0.05, insig = "blank")  
+  
+  #graph correlations
+  ggplot(dat4.2b, aes(x = cv_ppt_inter, y = cv, color = type2)) +
+    geom_point() +                                           # Add scatter plot points, colored by Species
+    geom_smooth(method = "lm", se = FALSE)
+ 
+    
+  ###########################################################
+  #run linear models for Taylor's power law calc 
+  dat4.2<-dat4.1%>%
+    mutate(var = sd^2)%>%
+    mutate(mi = log10(manpp))%>%
+    mutate(vi = log10(var))
+  
+   ##Combining all types to calc aCV#####
+  ggplot(dat4.2, aes(mi, vi))+
+    geom_point(aes(color=type2))+
+    geom_smooth(method='lm')+
+    geom_abline(slope=2)+
+    xlab('Log(Mean ANPP)')+
+    ylab('Log(sd^2 ANPP)')
+  
+  
+  mod.1<-lm(vi ~ mi, data = dat4.2)
+  summary(mod.1)
+  coef(mod.1)
+  b<-coef(mod.1)["mi"]
+  a<-coef(mod.1)["(Intercept)"]
 
-min <- ggplot(dat5, aes(wyr_ppt, (anpp_g_m2), color=type, shape=as.factor(fertilized)))+
-  geom_point() 
-min
+  #calculate adjusted coefficent of variaion based on Doring and Recking 2018
+  dat4.2<-dat4.2%>%
+    mutate(ui = vi - (a +b*mi)) #calculate residuals from regression line (Power Law Residuals, POLAR) 
+  
+  a2<-a + (b-2)*mean(dat4.2$mi, na.rm=T)
+  
+  dat4.2<-dat4.2%>%
+    mutate(vi2 = a2 + 2*mi + ui)%>%
+    mutate(aCV = (sqrt(10^vi2)/manpp)*100)%>%
+    mutate(CV = (sd/manpp)*100)
+  
+  ggplot(dat4.2, aes(CV, aCV))+
+    geom_point(aes(color=type2))+
+    geom_smooth(method='lm')
+  
+  data4.3<-dat4.2%>%
+    pivot_longer(cols = c(aCV, CV), names_to = "vartype", values_to = "var2")%>%
+    group_by(type2, vartype)%>%
+    summarise(CV = mean(var2),
+              seCV = sd(var2)/sqrt(n()))
+  
+  data4.3$vartype<-factor(data4.3$vartype, levels = c("CV", "aCV"))
+  
+  ggplot(data4.3, aes(x = type2, y = CV, fill = vartype)) +
+    geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
+    geom_errorbar(aes(ymin = CV - seCV, ymax = CV + seCV),
+                  width = 0.2, position = position_dodge(width = 0.8)) +
+    theme_minimal()
+  
+ 
+  
+  
+  ###########################################################
+  ##Combining all types to calc aCV#####
+  ggplot(dat4.2, aes(mi, vi, color = type2))+
+    geom_point()+
+    geom_smooth(method = 'lm')+
+    geom_abline(slope=2) +
+    xlab('Log(Mean ANPP)')+
+    ylab('Log(sd^2 ANPP)')
+  
+    
+  # Fit model with interaction
+  model_interaction <- lm(vi ~ mi * type2, data = dat4.2)
+  
+  # Summary shows if slopes differ 
+  summary(model_interaction)
+  
+  # ANOVA to test significance of interaction
+  anova(model_interaction) # main effects of mi and type2 significant (p < 0.001), marginally significant interaction of mi:type2 (p=0.08)
+                           # might suggest that each type2 is calc separately 
+  
+  #run POLAR aCV calculations by Type2
+  types<-as.data.frame(unique(dat4.2$type2))
+  colnames(types)[1]<-"type2"
+  l=length(types$type2)
+  acv_bytype.1<-data.frame()
+  
+  for (i in 1:l){
+    #i=1
+    t1<-types[i,]
+    d1<-filter(dat4.2, type2 == t1)
+    mod.2<-lm(vi ~ mi, data = d1)
+    summary(mod.2)
+    coef(mod.2)
+    bx<-coef(mod.2)["mi"]
+    ax<-coef(mod.2)["(Intercept)"]
+    
+    #calculate adjusted coefficent of variaion based on Doring and Recking 2018
+    d1<-d1%>%
+      mutate(ui = vi - (ax +bx*mi)) #calculate residuals from regression line (Power Law Residuals, POLAR) 
+    
+    a2x<-ax + (bx-2)*mean(d1$mi, na.rm=T)
+    
+    d1<-d1%>%
+      mutate(vi2 = a2x + 2*mi + ui)%>%
+      mutate(aCV = (sqrt(10^vi2)/manpp)*100)%>%
+      mutate(CV = (sd/manpp)*100)
+    
+    acv_bytype.1<-rbind(acv_bytype.1, d1)
+    
+  }
+  
+  ggplot(acv_bytype.1, aes(CV, aCV, color = type2))+
+    geom_point()+
+    geom_smooth(method='lm')
+  
+  
+  acv_bytype.2<-acv_bytype.1%>%
+    pivot_longer(cols = c(aCV, CV), names_to = "vartype", values_to = "var2")%>%
+    group_by(type2, vartype)%>%
+    summarise(CV = mean(var2),
+              seCV = sd(var2)/sqrt(n()))
+  
+  acv_bytype.2$vartype<-factor(acv_bytype.2$vartype, levels = c("CV", "aCV"))
+  
+  ggplot(acv_bytype.2, aes(x = type2, y = CV, fill = vartype)) +
+    geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
+    geom_errorbar(aes(ymin = CV - seCV, ymax = CV + seCV),
+                  width = 0.2, position = position_dodge(width = 0.8)) +
+    theme_minimal()
+  
+  
+  ############################################################
+  #combine var metrics with precip metrics - all types combined
+  data4.4<-left_join(dat4.2, climatedat, by = "site")
+  
+  #compare anpp cv with precip cv by type
+  data4.5<-data4.4%>%
+    filter(type != "Pasture")
+  
+  ggplot(data4.5, aes(x=cv_ppt_inter, y = aCV))+
+    geom_point(alpha = 0.1, aes(color=type2)) +
+    geom_smooth(aes(color = type2), method = 'lm', formula = 'y ~ x', se = T)+
+    scale_color_manual(name='Land Management', values=c('orange', 'green', 'green4', 'skyblue1', 'darkgoldenrod', 'chocolate2' ))+
+    xlab('Interannual Precipitation CV')+
+    ylab('ANPP aCV')
+  
+  ggplot(data4.5, aes(x=cv_ppt_inter, y = CV))+
+    geom_point(alpha = 0.1, aes(color=type2)) +
+    geom_smooth(aes(color = type2), method = 'lm', formula = 'y ~ x', se = T)+
+    scale_color_manual(name='Land Management', values=c('orange', 'green', 'green4', 'skyblue1', 'darkgoldenrod', 'chocolate2' ))+
+    xlab('Interannual Precipitation CV')+
+    ylab('ANPP CV')
+  
+  #correlation across all vars
+  data4.6<-data4.5%>%
+    filter(type == "Wheat") #can select individual types for correlations
+  data4.6 <- data4.6[ ,c(6:27)]
+  cors2 <- cor(data4.6)
+  corrplot.mixed(cors2)
+  
+  #examining some interesting relationships
+  var1="MAP"
+  var2=manpp
+  
+  ggplot(data4.5, aes(x=log10(MAP), y = mi))+
+    geom_point(alpha = 0.1, aes(color=type)) +
+    geom_smooth(aes(color = type), method = 'lm', formula = 'y ~ x', se = F)+
+    scale_color_manual(name='Land Management', values=c('orange', 'green', 'green4', 'skyblue1', 'darkgoldenrod', 'chocolate2' ))+
+    xlab("MAP")+
+    ylab("log(manpp)")
 
-ggplot(dat5, aes(ppt_diff, anpp_diff))+
-  geom_point(aes(color=MAP), alpha = 0.5) +
-  geom_smooth(method='lm', se= F)+
-  geom_abline(slope=1)
-
-ggplot(dat4, aes(log(manpp), log(sd^2)))+
-  geom_point(aes(color=type))+
-  geom_smooth(method='lm')+
-  geom_abline(slope=2)
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+    
+#############################
 # sensnostie<-dat3 %>% 
 #   filter(!is.na(anpp_g_m2)) %>% 
 #   group_by(type, fertilized) %>% 
@@ -364,9 +489,6 @@ ggplot(data=sens, aes(x=MAP, y=cv, color=crop2, shape=as.factor(fertilized)))+
   geom_point(size=3)#+
  # geom_smooth(method = 'lm', se=F)
 
-
-#STEP 4
-
 ###okay, we realized that we need to get a site column that is harmonized acorss dataset. We will write a datset with site and then add a site2 and region info
 sitelist<-dat3 %>% 
   select(network, site) %>% 
@@ -374,7 +496,7 @@ sitelist<-dat3 %>%
 
 #write.csv(sitelist, file.path("data", 'harmonized_data', paste0('sitelist.csv')), row.names=F)
 
-harmsites<-read.csv(file = file.path("data", "harmonized_data",paste0('sitelist.csv')))
+harmsites<-read.csv(file = file.path("data", "harmonized_data",paste0('sitelist_site2.csv')))
 
 dat4<-dat3 %>% 
   left_join(harmsites) %>% 
@@ -387,7 +509,6 @@ MAPMAT<-dat4 %>%
 dat5<-dat4 %>% 
   left_join(MAPMAT)
 
-#STEP 5
 #redoing sensitivity analyses with harmonized data
 sens2<-dat5 %>% 
   filter(!is.na(anpp_g_m2)) %>%
@@ -423,9 +544,7 @@ ggplot(data=sens2, aes(x=MAP2, y=stability, color=type2, group=site2))+
   xlab('MAP (mm)')+
   ylab(expression(paste('Stability of Production (1/CV)')))+
   theme(panel.grid = element_blank())
-
-
-##STEP 6
+  
 ##for each site what is the variability in ANPP
 
 sites2<-unique(sens2$site2)
@@ -530,7 +649,6 @@ ggplot(data=deltaprodMAP, aes(x=MAP2, y=manpp_diff, color=comparison_type))+
 # ggplot(data=deltaprodMAP, aes(x=MAP2, y=manpp_diff, color=comparison_type))+
 #   geom_point()
 
-#STEP 7
 ##for each site what is the variability in 1/CV
 sites2<-unique(sens2$site2)
 
@@ -560,7 +678,7 @@ for (i in 1:length(sites2)){
 }
 
 mean_deltastab<-deltastab %>% 
-  filter(!site2 %in% c('CAF', 'LCB')) %>% #we are dropping these b/c so little data and comparisons
+  filter(!site2 %in% c('CAF', 'LCB')) %>% #we are dropping these b/c so little data and comparisions
   mutate(compare3=case_when(
     comparison_type2 %in% c('Grassland vs Fert. Grassland','Fert. Grassland vs Grassland') ~ 'Grassland vs Fert. Grassland',
     comparison_type2 %in% c('Cropland vs Grassland','Grassland vs Cropland') ~ 'Grassland vs Cropland',
