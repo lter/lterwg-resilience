@@ -33,6 +33,7 @@ dplyr::glimpse(knz)
 
 
 ## Format and structure data for cleaning
+
 knz.2 <- knz %>%
   # mutate
   mutate(network = "LTER", 
@@ -41,10 +42,29 @@ knz.2 <- knz %>%
   rename(Crop = "herbGroup", 
          Date = "setDate", 
          anpp_g_m2 = "dryMass") %>%
-  select(c(network, site_id, Treatment, Crop, plotID, Date, anpp_g_m2))
+  mutate(Date = as.POSIXct(Date), 
+         year = year(Date)) %>%
+  select(c(network, site_id, Treatment, Crop, plotID, Date, anpp_g_m2, year))
+
+crop_cat <- knz.2 %>%
+  filter(Crop %in% c("Wheat", "Corn", "Soybean")) %>%
+  mutate(Date = as.POSIXct(Date), 
+         year = year(Date)) %>%
+  select(year, Crop, plotID) %>%
+  distinct()
+
+# Filtering so that it is crops + the other non-crops
+knz.3 <- knz.2 %>%
+  left_join(crop_cat, by = c("year", "plotID")) %>%
+  select(-c(year, Crop.x)) %>%
+  rename(Crop = "Crop.y") %>%
+  group_by(network, site_id, Treatment, Crop, plotID, Date) %>%
+  summarize(anpp_g_m2.2= sum(anpp_g_m2)) %>%
+  rename(anpp_g_m2 = "anpp_g_m2.2")
+
 
 # Export locally
-write.csv(x = knz.2, na = '', row.names = F,
+write.csv(x = knz.3, na = '', row.names = F,
           file = file.path("data", "pre_processed_data", "knz_crop.csv")) 
 
   
