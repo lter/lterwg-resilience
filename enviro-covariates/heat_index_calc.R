@@ -144,7 +144,7 @@ heat_indices <- merge(max.temp.growing.season, quantile.maxtemp, by = c("network
   left_join(., warm_day_freq, by = c("network", "site_id", "year", "num_days_90th", "num_days_95th", "num_days_98th", "num_days_99th")) %>%
   left_join(., heat_wave_duration, by = c("network", "site_id", "year")) %>%
   left_join(., heat_wave_meanT, by = c("network", "site_id", "year"))
-
+write.csv(heat_indices, "data/harmonized_data/heat_indices_site.csv")
 #Correlation matrix of temp metrics
 library(corrplot)
 heat_matrix <- cor(heat_indices[,c(4,9, 10, 11, 12, 13, 14 )])

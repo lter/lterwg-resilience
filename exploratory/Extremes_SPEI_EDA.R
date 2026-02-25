@@ -1,7 +1,7 @@
 #Extremes SPEI EDA 
 #Tom + Lina 
-#11.05.2025
-#Relate extremes to ANPP based on SPEI, using code from SPEI-ANPP(Hoover).
+#Updated 2/25/2026
+#Relate extremes to ANPP based on SPEI, PPT, and temp using code from SPEI-ANPP(Hoover).
 
 
 library(googledrive)
@@ -11,7 +11,7 @@ library(lme4)
 library(emmeans)
 library(ggpubr)
 
-
+# LOAD DATA
 # Clear environment + collect garbage
 rm(list = ls()); gc()
 
@@ -64,6 +64,20 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
 ppt_data  <- read.csv(file = file.path("data", "tidy", focal_file))
 
 
+# Identify relevant tidy file
+focal_file <- "heat_indices_site.csv"
+
+# Download harmonized data file
+googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
+  dplyr::filter(name == focal_file) %>% 
+  googledrive::drive_download(file = .$id, overwrite = T,
+                              path = file.path("data", "tidy", .$name))
+
+
+# Read in harmonized data
+temp_data  <- read.csv(file = file.path("data", "tidy", focal_file)) 
+
+#CALCULATE SCALED VARIABLES
 ppt_data_rel <- ppt_data%>%
   group_by(site_id, network)%>%
   mutate(mean_ppt = mean(wyr_ppt),
@@ -79,11 +93,21 @@ anpp_data_rel <- anpp_data%>%
          scaled_anpp  = (anpp_g_m2 - mean_anpp)/sd(anpp_g_m2, na.rm  = TRUE),
          n.obs = n())
 
+temp_clean <- temp_data %>%
+  rename(site = site_id, w_yr = year) %>%
+  group_by(site, network)%>%
+  mutate(mean_tmax = mean(Tmaxc),
+         per_dev_tmax = (Tmaxc - mean_tmax)/mean_tmax,
+         scaled_tmax  = scale(Tmaxc)[,1])%>%
+  dplyr::select(w_yr, site, network, Tmaxc, mean_tmax, scaled_tmax, 
+                num_days_95th, warm_day_90th, meanTmax_95th, Tmax_95th)
 
 
+##MERGE TABLES
 merged_data <- ppt_data_rel%>%
   merge(anpp_data_rel, by = c('w_yr', 'site', 'network', 'wyr_ppt'))%>%
-  left_join(spei.12.clean, by = c('w_yr', 'site'))
+  left_join(spei.12.clean, by = c('w_yr', 'site')) %>%
+  left_join(temp_clean, by = c('w_yr', 'network', 'site'))
 
 
 clean_data <- merged_data%>%
@@ -243,14 +267,15 @@ ggplot(grass_data, aes(x = scaled_ppt, y = scaled_anpp, color = type))+
 
 
 
-###
+###BREAKPOINT ANALYSIS
 
 library(segmented)
-subset(cleancategory == 'Grassland')
+
+#SPEI
 
 grass.anpp.spei.lm <- lm(scaled_anpp ~ SPEI , data = subset(clean_data, category == 'Grassland'))
 
-summary(anpp.spei.lm)
+summary(grass.anpp.spei.lm)
 
 grass.anpp.seg.2 <- segmented(grass.anpp.spei.lm, 
           seg.Z = ~SPEI,
@@ -420,3 +445,228 @@ ggplot(data = subset(clean_data, type == 'Corn'),
        y = "Scaled ANPP",
        x = "SPEI")
  
+#TEMP 
+#Maximum temperature (absolute) during the growing season - Vogel 2019 
+#length of the growing season: March-August
+#grassland
+grass.anpp.tmax.lm <- lm(scaled_anpp ~ scaled_tmax  , data = subset(clean_data, type == 'Grassland'))
+
+summary(grass.anpp.tmax.lm)
+
+grass.anpp.tmax.seg <- segmented(grass.anpp.tmax.lm, 
+                                seg.Z = ~scaled_tmax,
+                                type = 'aic',
+                                check.dslope = T)
+
+summary(grass.anpp.tmax.seg)
+
+AIC(grass.anpp.tmax.seg,grass.anpp.tmax.lm) #lm is better
+#plot pAICc()#plot prediction for crop
+newdat <- data.frame(scaled_tmax = seq(min(clean_data$scaled_tmax, na.rm = T),
+                                       max(clean_data$scaled_tmax, na.rm = T),
+                                       length.out = 300))
+
+# Predict from segmented model
+newdat$fit <- predict(grass.anpp.tmax.seg, newdata = newdat)
+newdat$lmfit <- predict(grass.anpp.tmax.lm, newdata = newdat)
+
+# Extract breakpoints
+bp <- grass.anpp.tmax.seg$psi[, "Est."]
+
+# Plot
+ggplot(data = subset(clean_data, type == 'Grassland'),
+       aes(x = scaled_tmax, y = scaled_anpp)) +
+  geom_point(alpha = 0.4) +
+  geom_line(data = newdat, aes(y = fit), color = "blue", size = 1.2) +
+  geom_line(data = newdat, aes(y = lmfit), color = "green", size = 1.2) +
+  geom_vline(xintercept = bp, color = "red", linetype = "dashed", size = 1) +
+  theme_minimal(base_size = 14) +
+  labs(title = "Segmented Regression: ANPP ~ Tmax (Grassland)",
+       y = "Scaled ANPP",
+       x = "Scaled Tmax Growing Season")
+
+#cropland
+crop.anpp.tmax.lm <- lm(scaled_anpp ~ scaled_tmax  , data = subset(clean_data, category == 'Crop'))
+
+summary(crop.anpp.tmax.lm)
+
+crop.anpp.tmax.seg <- segmented(crop.anpp.tmax.lm, 
+                                 seg.Z = ~scaled_tmax,
+                                 type = 'aic',
+                                 check.dslope = T)
+
+summary(crop.anpp.tmax.seg) #one breakpoint
+
+AIC(crop.anpp.tmax.seg,crop.anpp.tmax.lm) #seg is better
+#plot pAICc()#plot prediction for crop
+newdat <- data.frame(scaled_tmax = seq(min(clean_data$scaled_tmax, na.rm = T),
+                                       max(clean_data$scaled_tmax, na.rm = T),
+                                       length.out = 300))
+
+# Predict from segmented model
+newdat$fit <- predict(crop.anpp.tmax.seg, newdata = newdat)
+newdat$lmfit <- predict(crop.anpp.tmax.lm, newdata = newdat)
+
+# Extract breakpoints
+bp <- crop.anpp.tmax.seg$psi[, "Est."]
+
+# Plot
+ggplot(data = subset(clean_data, category == 'Crop'),
+       aes(x = scaled_tmax, y = scaled_anpp)) +
+  geom_point(alpha = 0.4) +
+  geom_line(data = newdat, aes(y = fit), color = "blue", size = 1.2) +
+  geom_line(data = newdat, aes(y = lmfit), color = "green", size = 1.2) +
+  geom_vline(xintercept = bp, color = "red", linetype = "dashed", size = 1) +
+  theme_minimal(base_size = 14) +
+  labs(title = "Segmented Regression: ANPP ~ Tmax (Cropland)",
+       y = "Scaled ANPP",
+       x = "Scaled Tmax Growing Season")
+
+#corn only
+corn.anpp.tmax.lm <- lm(scaled_anpp ~ scaled_tmax  , data = subset(clean_data, type == 'Corn'))
+
+summary(corn.anpp.tmax.lm)
+
+corn.anpp.tmax.seg <- segmented(corn.anpp.tmax.lm, 
+                           seg.Z = ~scaled_tmax,
+                           type = 'aic',
+                           check.dslope = T)
+
+summary(corn.anpp.tmax.seg)
+
+AIC(corn.anpp.tmax.seg,corn.anpp.tmax.lm) #lm is better
+#plot pAICc()#plot prediction for crop
+newdat <- data.frame(scaled_tmax = seq(min(clean_data$scaled_tmax, na.rm = T),
+                                max(clean_data$scaled_tmax, na.rm = T),
+                                length.out = 300))
+
+# Predict from segmented model
+newdat$fit <- predict(corn.anpp.tmax.seg, newdata = newdat)
+newdat$lmfit <- predict(corn.anpp.tmax.lm, newdata = newdat)
+
+# Extract breakpoints
+bp <- corn.anpp.tmax.seg$psi[, "Est."]
+
+# Plot
+ggplot(data = subset(clean_data, type == 'Corn'),
+       aes(x = scaled_tmax, y = scaled_anpp)) +
+  geom_point(alpha = 0.4) +
+  geom_line(data = newdat, aes(y = fit), color = "blue", size = 1.2) +
+  geom_line(data = newdat, aes(y = lmfit), color = "green", size = 1.2) +
+  geom_vline(xintercept = bp, color = "red", linetype = "dashed", size = 1) +
+  theme_minimal(base_size = 14) +
+  labs(title = "Segmented Regression: ANPP ~ Tmax (Corn)",
+       y = "Scaled ANPP",
+       x = "Scaled Tmax Growing Season")
+
+#Max daily Tmax of heat waves (2+ consecutive days over 95th percentile)
+#grassland
+grass.anpp.heatwave.lm <- lm(scaled_anpp ~ Tmax_95th  , data = subset(clean_data, type == 'Grassland'))
+
+summary(grass.anpp.heatwave.lm)
+
+grass.anpp.heatwave.seg <- segmented(grass.anpp.heatwave.lm, 
+                                 seg.Z = ~Tmax_95th,
+                                 type = 'aic',
+                                 check.dslope = T)
+
+summary(grass.anpp.heatwave.seg)
+
+AIC(grass.anpp.heatwave.seg,grass.anpp.heatwave.lm) #lm is better
+#plot pAICc()#plot prediction for crop
+newdat <- data.frame(Tmax_95th = seq(min(clean_data$Tmax_95th, na.rm = T),
+                                       max(clean_data$Tmax_95th, na.rm = T),
+                                       length.out = 300))
+
+# Predict from segmented model
+newdat$fit <- predict(grass.anpp.heatwave.seg, newdata = newdat)
+newdat$lmfit <- predict(grass.anpp.heatwave.lm, newdata = newdat)
+
+# Extract breakpoints
+bp <- grass.anpp.heatwave.seg$psi[, "Est."]
+
+# Plot
+ggplot(data = subset(clean_data, type == 'Grassland'),
+       aes(x = Tmax_95th, y = scaled_anpp)) +
+  geom_point(alpha = 0.4) +
+  geom_line(data = newdat, aes(y = fit), color = "blue", size = 1.2) +
+  geom_line(data = newdat, aes(y = lmfit), color = "green", size = 1.2) +
+  geom_vline(xintercept = bp, color = "red", linetype = "dashed", size = 1) +
+  theme_minimal(base_size = 14) +
+  labs(title = "Segmented Regression: ANPP ~ Tmax_95th (Grassland)",
+       y = "Scaled ANPP",
+       x = "Tmax (degree C) of 2+ consecutive days over 95th percentile")
+
+#cropland
+crop.anpp.heatwave.lm <- lm(scaled_anpp ~ Tmax_95th  , data = subset(clean_data, category == 'Crop'))
+
+summary(crop.anpp.heatwave.lm)
+
+crop.anpp.heatwave.seg <- segmented(crop.anpp.heatwave.lm, 
+                                     seg.Z = ~Tmax_95th,
+                                     type = 'aic',
+                                     check.dslope = T)
+
+summary(crop.anpp.heatwave.seg)
+
+AIC(crop.anpp.heatwave.seg,crop.anpp.heatwave.lm) #seg is better
+#plot pAICc()#plot prediction for crop
+newdat <- data.frame(Tmax_95th = seq(min(clean_data$Tmax_95th, na.rm = T),
+                                     max(clean_data$Tmax_95th, na.rm = T),
+                                     length.out = 300))
+
+# Predict from segmented model
+newdat$fit <- predict(crop.anpp.heatwave.seg, newdata = newdat)
+newdat$lmfit <- predict(crop.anpp.heatwave.lm, newdata = newdat)
+
+# Extract breakpoints
+bp <- crop.anpp.heatwave.seg$psi[, "Est."]
+
+# Plot
+ggplot(data = subset(clean_data, category == 'Crop'),
+       aes(x = Tmax_95th, y = scaled_anpp)) +
+  geom_point(alpha = 0.4) +
+  geom_line(data = newdat, aes(y = fit), color = "blue", size = 1.2) +
+  geom_line(data = newdat, aes(y = lmfit), color = "green", size = 1.2) +
+  geom_vline(xintercept = bp, color = "red", linetype = "dashed", size = 1) +
+  theme_minimal(base_size = 14) +
+  labs(title = "Segmented Regression: ANPP ~ Tmax_95th (Cropland)",
+       y = "Scaled ANPP",
+       x = "Tmax (degree C) of 2+ consecutive days over 95th percentile")
+
+#corn only
+corn.anpp.heatwave.lm <- lm(scaled_anpp ~ Tmax_95th  , data = subset(clean_data, type == 'Corn'))
+
+summary(corn.anpp.heatwave.lm)
+
+corn.anpp.heatwave.seg <- segmented(corn.anpp.heatwave.lm, 
+                                    seg.Z = ~Tmax_95th,
+                                    type = 'aic',
+                                    check.dslope = T)
+
+summary(corn.anpp.heatwave.seg)
+
+AIC(corn.anpp.heatwave.seg,corn.anpp.heatwave.lm) #seg is better
+#plot pAICc()#plot prediction for crop
+newdat <- data.frame(Tmax_95th = seq(min(clean_data$Tmax_95th, na.rm = T),
+                                     max(clean_data$Tmax_95th, na.rm = T),
+                                     length.out = 300))
+
+# Predict from segmented model
+newdat$fit <- predict(corn.anpp.heatwave.seg, newdata = newdat)
+newdat$lmfit <- predict(corn.anpp.heatwave.lm, newdata = newdat)
+
+# Extract breakpoints
+bp <- corn.anpp.heatwave.seg$psi[, "Est."]
+
+# Plot
+ggplot(data = subset(clean_data, type == 'Corn'),
+       aes(x = Tmax_95th, y = scaled_anpp)) +
+  geom_point(alpha = 0.4) +
+  geom_line(data = newdat, aes(y = fit), color = "blue", size = 1.2) +
+  geom_line(data = newdat, aes(y = lmfit), color = "green", size = 1.2) +
+  geom_vline(xintercept = bp, color = "red", linetype = "dashed", size = 1) +
+  theme_minimal(base_size = 14) +
+  labs(title = "Segmented Regression: ANPP ~ Tmax_95th (Corn)",
+       y = "Scaled ANPP",
+       x = "Tmax (degree C) of 2+ consecutive days over 95th percentile")
