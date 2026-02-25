@@ -74,10 +74,14 @@ tidy_v3 <- tidy_v2 %>%
   dplyr::mutate(dates =coalesce(date2, date3, date4, date_m.d.yyy, date_m.d.yyy2))%>%
   # # add year
   dplyr::mutate(year = ifelse(is.na(year), lubridate::year(dates), year))%>%
+  # add a year to work with konza
+  dplyr::mutate(date.posit = as.POSIXct("2019-06-10 13:00:00"), 
+                year2 = year(date.posit)) %>%
+  dplyr::mutate(year = ifelse(is.na(year), year2, year))%>%
   ##add month column
   dplyr::mutate(month = month(dates))%>%
   # #Get rid of extra date columns
-  dplyr::select(-c("date", "date_m.d.yyy", "date_m.d.yyy2"))
+  dplyr::select(-c("date", "date_m.d.yyy", "date_m.d.yyy2", "date.posit", "year2"))
   
 # Check that no unexpected columns are lost/gained
 #supportR::diff_check(old = names(tidy_v3), new = names(tidy_v4))
