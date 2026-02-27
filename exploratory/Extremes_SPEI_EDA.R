@@ -27,6 +27,7 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
 # Read in harmonized data
 anpp_data  <- read.csv(file = file.path("data", "tidy", focal_file))
 
+unique(anpp_data$site)
 # Identify desired file
 focal_file <- "spei12.csv"
 
@@ -63,6 +64,7 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
 # Read in harmonized data
 ppt_data  <- read.csv(file = file.path("data", "tidy", focal_file))
 
+unique(ppt_data$site_id)
 
 # Identify relevant tidy file
 focal_file <- "heat_indices_site.csv"
@@ -82,7 +84,8 @@ ppt_data_rel <- ppt_data%>%
   group_by(site_id, network)%>%
   mutate(mean_ppt = mean(wyr_ppt),
          per_dev_ppt = (wyr_ppt - mean_ppt)/mean_ppt,
-         scaled_ppt  = scale(wyr_ppt)[,1])%>%
+         scaled_ppt  = scale(wyr_ppt)[,1],
+         ppt_cat = ifelse(scaled_ppt < -1, 'D', ifelse( scaled_ppt < 1, 'A', 'W')))%>%
   rename(site = site_id)
 
 
@@ -152,11 +155,19 @@ clean_data_lag%>%
 ggplot(merged_data, aes(x = per_dev_anpp))+
   geom_density()
 
+
 #plot SPEI split by type and dry vs wet
-ggplot(clean_data, aes(x = SPEI, y = scaled_anpp, color = type))+
+ggplot(clean_data, aes(x = scaled_ppt, y = scaled_anpp, color = category))+
   geom_point(alpha = 0.5)+
   geom_smooth(aes(shape = spei.cat), method = 'lm', se = F, linewidth = 1.4)+
   labs(x = 'SPEI', y = 'ANPP z-score')+
+  theme_bw()
+
+#plot scaled ppt split by dry v wet
+ggplot(clean_data, aes(x = scaled_ppt, y = scaled_anpp, color = category))+
+  geom_point(alpha = 0.4)+
+  geom_smooth(aes(group = interaction(ppt_cat, category)), method = 'lm', se = F, linewidth = 1.4)+
+  labs(x = 'PPT (scaled)', y = 'ANPP (scaled)')+
   theme_bw()
 
 #generally plots less sensitive to wet years than dry years
@@ -267,7 +278,7 @@ ggplot(grass_data, aes(x = scaled_ppt, y = scaled_anpp, color = type))+
 
 
 
-###BREAKPOINT ANALYSIS
+####BREAKPOINT ANALYSIS####
 
 library(segmented)
 
@@ -332,7 +343,7 @@ wetgrassland <- clean_data%>%
   filter(mean_ppt > 453 &  mean_ppt < 1106)
 
 
-##run segmented regression on grasslands within crop climate
+##run segmented regression on grasslands within climate
 
 wetgrass.anpp.spei.lm <- lm(scaled_anpp ~ SPEI , data = wetgrassland)
 
@@ -445,6 +456,251 @@ ggplot(data = subset(clean_data, type == 'Corn'),
        y = "Scaled ANPP",
        x = "SPEI")
  
+#Precip
+
+grass.anpp.ppt.lm <- lm(scaled_anpp ~ scaled_ppt , data = subset(clean_data, category == 'Grassland'))
+
+summary(grass.anpp.ppt.lm)
+
+grass.anpp.seg.2 <- segmented(grass.anpp.spei.lm, 
+                              seg.Z = ~SPEI,
+                              #psi = list (SPEI = c(-1, 1)),
+                              type = 'aic',
+                              check.dslope = T)
+
+grass.anpp.seg.1 <- segmented(grass.anpp.ppt.lm, 
+                              seg.Z = ~scaled_ppt,
+                              #psi = list (SPEI = c(-1, 1)),
+                              type = 'aic',
+                              Kmax = 1,
+                              check.dslope = T)
+
+summary(grass.anpp.seg.1)
+
+#AIC comparison 
+MuMIn::AICc( grass.anpp.seg.1, grass.anpp.ppt.lm )
+
+
+#plot pred
+newdat <- data.frame(scaled_ppt = seq(min(clean_data$scaled_ppt, na.rm = T),
+                                max(clean_data$scaled_ppt, na.rm = T),
+                                length.out = 300))
+
+# Predict from segmented model
+newdat$fit <- predict(grass.anpp.seg.1, newdata = newdat)
+newdat$lmfit <- predict(grass.anpp.ppt.lm, newdata = newdat)
+
+
+# Extract breakpoints
+bp <- grass.anpp.seg.1$psi[, "Est."]
+
+# Plot
+ggplot(subset(clean_data, category == "Grassland"),
+       aes(x = scaled_ppt, y = scaled_anpp)) +
+  geom_point(alpha = 0.4) +
+  geom_line(data = newdat, aes(y = fit), color = "blue", size = 1.2) +
+  geom_line(data = newdat, aes(y = lmfit), color = "green", size = 1.2) +
+  geom_vline(xintercept = bp, color = "red", linetype = "dashed", size = 1) +
+  theme_minimal(base_size = 14) +
+  labs(title = "Segmented Regression: ANPP ~ SPEI",
+       y = "Scaled ANPP",
+       x = "Scaled PPT")
+
+grass.anpp.ppt.lm <- lm(scaled_anpp ~ scaled_ppt , data = subset(clean_data, category == 'Grassland'))
+
+summary(grass.anpp.ppt.lm)
+
+##PPT climate 
+
+
+grass.anpp.ppt.lm <- lm(scaled_anpp ~ scaled_ppt , data = subset(clean_data, category == 'Grassland'))
+
+summary(grass.anpp.ppt.lm)
+
+
+grass.anpp.seg.1 <- segmented(grass.anpp.ppt.lm, 
+                              seg.Z = ~scaled_ppt,
+                              #psi = list (SPEI = c(-1, 1)),
+                              type = 'aic',
+                              Kmax = 1,
+                              check.dslope = T)
+
+summary(grass.anpp.seg.1)
+
+#AIC comparison 
+MuMIn::AICc( grass.anpp.seg.1, grass.anpp.ppt.lm )
+
+
+#plot pred
+newdat <- data.frame(scaled_ppt = seq(min(clean_data$scaled_ppt, na.rm = T),
+                                max(clean_data$scaled_ppt, na.rm = T),
+                                length.out = 300))
+
+# Predict from segmented model
+newdat$fit <- predict(grass.anpp.seg.1, newdata = newdat)
+newdat$lmfit <- predict(grass.anpp.ppt.lm, newdata = newdat)
+
+
+# Extract breakpoints
+bp <- grass.anpp.seg.1$psi[, "Est."]
+
+# Plot
+ggplot(subset(clean_data, category == "Grassland"),
+       aes(x = scaled_ppt, y = scaled_anpp)) +
+  geom_point(alpha = 0.4) +
+  geom_line(data = newdat, aes(y = fit), color = "blue", size = 1.2) +
+  geom_line(data = newdat, aes(y = lmfit), color = "green", linetype = 'dashed', size = 1.2) +
+  geom_vline(xintercept = bp, color = "red",  size = 1) +
+  theme_minimal(base_size = 14) +
+  labs(title = "Grasslands",
+       y = "Scaled ANPP",
+       x = "Scaled PPT")
+
+###croplands
+
+
+crop.ppt.lm <- lm(scaled_anpp ~ scaled_ppt , data = subset(clean_data, category == 'Crop'))
+
+summary(crop.ppt.lm)
+
+
+crop.ppt.seg.1 <- segmented(crop.ppt.lm, 
+                              seg.Z = ~scaled_ppt,
+                              #psi = list (SPEI = c(-1, 1)),
+                              type = 'aic',
+                              Kmax = 1,
+                              check.dslope = T)
+
+summary(crop.ppt.seg.1)
+
+#AIC comparison 
+MuMIn::AICc( crop.ppt.seg.1, crop.ppt.lm )
+
+#davies test
+davies.test(crop.ppt.lm)
+
+#plot pred
+newdat <- data.frame(scaled_ppt = seq(min(clean_data$scaled_ppt, na.rm = T),
+                                      max(clean_data$scaled_ppt, na.rm = T),
+                                      length.out = 300))
+
+# Predict from segmented model
+newdat$fit <- predict(crop.ppt.seg.1, newdata = newdat)
+newdat$lmfit <- predict(crop.ppt.lm, newdata = newdat)
+
+
+# Extract breakpoints
+bp <- crop.ppt.seg.1$psi[, "Est."]
+
+# Plot
+ggplot(subset(clean_data, category == "Crop"),
+       aes(x = scaled_ppt, y = scaled_anpp)) +
+  geom_point(alpha = 0.4) +
+  geom_line(data = newdat, aes(y = fit), color = "blue", size = 1.2, linetype = 'dashed') +
+  geom_line(data = newdat, aes(y = lmfit), color = "green", size = 1.2) +
+  geom_vline(xintercept = bp, color = "red", linetype = "dashed", size = 1) +
+  theme_minimal(base_size = 14) +
+  labs(title = "Crop",
+       y = "Scaled ANPP",
+       x = "Scaled PPT")
+#dry grasslands 
+
+dry.grass.ppt.lm <- lm(scaled_anpp ~ scaled_ppt , data = subset(clean_data, category == 'Grassland' & mean_ppt < mean(clean_data$mean_ppt, na.rm = T)))
+
+#davies test: tests whether breakpoint is warranted based on difference in slopes
+davies.test(dry.grass.ppt.lm, k = 10)#significant
+
+
+dry.grass.ppt.seg.1 <- segmented(dry.grass.ppt.lm, 
+                              seg.Z = ~scaled_ppt,
+                              #psi = list (SPEI = c(-1, 1)),
+                              type = 'aic',
+                              Kmax = 1,
+                              check.dslope = T)
+
+summary(dry.grass.ppt.seg.1)
+
+#AIC comparison 
+aiccs <- MuMIn::AICc( dry.grass.ppt.seg.1, dry.grass.ppt.lm )
+
+
+deltaAIC <- aiccs[1,2] - aiccs[2,2]
+#plot pred
+newdat <- data.frame(scaled_ppt = seq(min(clean_data$scaled_ppt, na.rm = T),
+                                      max(clean_data$scaled_ppt, na.rm = T),
+                                      length.out = 300))
+
+# Predict from segmented model
+newdat$fit <- predict(dry.grass.ppt.seg.1, newdata = newdat)
+newdat$lmfit <- predict(dry.grass.ppt.lm, newdata = newdat)
+
+
+# Extract breakpoints
+bp <-dry.grass.ppt.seg.1$psi[, "Est."]
+bp <-dry.grass.ppt.seg.1$psi[, "Est."]
+# Plot
+ggplot(subset(clean_data, category == "Grassland"& mean_ppt < mean(clean_data$mean_ppt, na.rm = T)),
+       aes(x = scaled_ppt, y = scaled_anpp)) +
+  geom_point(alpha = 0.4) +
+  geom_line(data = newdat, aes(y = fit), color = "blue", size = 1.2) +
+  geom_line(data = newdat, aes(y = lmfit), color = "green", linetype = 'dashed', size = 1.2) +
+  geom_text(aes(x = 1.5, y = 2.5, label = paste0('dAIC = ', round(deltaAIC,1))))+
+  geom_vline(xintercept = bp, color = "red",  size = 1) +
+  theme_minimal(base_size = 14) +
+  labs(title = "Dry grasslands < mean(MAP)",
+       y = "Scaled ANPP",
+       x = "Scaled PPT")
+
+
+
+#wet grasslands 
+
+wet.grass.ppt.lm <- lm(scaled_anpp ~ scaled_ppt , data = subset(clean_data, category == 'Grassland' & mean_ppt > mean(clean_data$mean_ppt, na.rm = T)))
+
+wet.grass.ppt.seg.1 <- segmented(wet.grass.ppt.lm, 
+                                 seg.Z = ~scaled_ppt,
+                                 #psi = list (SPEI = c(-1, 1)),
+                                 type = 'aic',
+                                 Kmax = 1,
+                                 check.dslope = T)
+
+summary(wet.grass.ppt.seg.1)
+
+#AIC comparison 
+aiccs <- MuMIn::AICc(wet.grass.ppt.seg.1, wet.grass.ppt.lm )
+
+deltaAIC <- aiccs[1,2] - aiccs[2,2]
+#davies test
+davies.test(wet.grass.ppt.lm)
+
+#plot pred
+newdat <- data.frame(scaled_ppt = seq(min(clean_data$scaled_ppt, na.rm = T),
+                                      max(clean_data$scaled_ppt, na.rm = T),
+                                      length.out = 300))
+
+# Predict from segmented model
+newdat$fit <- predict(wet.grass.ppt.seg.1, newdata = newdat)
+newdat$lmfit <- predict(wet.grass.ppt.lm, newdata = newdat)
+
+
+# Extract breakpoints
+bp <-wet.grass.ppt.seg.1$psi[, "Est."]
+
+# Plot
+ggplot(subset(clean_data, category == "Grassland"& mean_ppt < mean(clean_data$mean_ppt, na.rm = T)),
+       aes(x = scaled_ppt, y = scaled_anpp)) +
+  geom_point(alpha = 0.4) +
+  geom_line(data = newdat, aes(y = fit), color = "blue", size = 1.2) +
+  geom_line(data = newdat, aes(y = lmfit), color = "green", size = 1.2) +
+  geom_text(aes(x = 1.5, y = 2.5, label = paste0('dAIC = ', round(deltaAIC,1))))+
+  geom_vline(xintercept = bp, color = "red", linetype = "dashed", size = 1) +
+  theme_minimal(base_size = 14) +
+  labs(title = "Wet grasslands > mean(MAP)",
+       y = "Scaled ANPP",
+       x = "Scaled PPT")
+
+
+
 #TEMP 
 #Maximum temperature (absolute) during the growing season - Vogel 2019 
 #length of the growing season: March-August
