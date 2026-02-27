@@ -1001,3 +1001,78 @@ ggplot(data = subset(clean_data, category == 'Crop'),
   labs(title = "Segmented Regression: ANPP ~ heat wave length (Cropland)",
        y = "Scaled ANPP",
        x = "Number of consecutive days \n Tmax over 95th percentile")
+
+# #Warm day frequency = percentage of days during the growing season with daily max temp above 90th percentile - Vogel 2019
+#cropland
+crop.anpp.warm.freq.lm <- lm(scaled_anpp ~ warm_day_90th  , data = subset(clean_data, category == 'Crop'))
+
+summary(crop.anpp.warm.freq.lm)
+
+crop.anpp.warm.freq.seg <- segmented(crop.anpp.warm.freq.lm, 
+                                seg.Z = ~warm_day_90th,
+                                type = 'aic',
+                                check.dslope = T)
+
+summary(crop.anpp.warm.freq.seg)
+
+AIC(crop.anpp.warm.freq.seg,crop.anpp.warm.freq.lm) #seg is better
+#plot pAICc()#plot prediction for crop
+newdat <- data.frame(warm_day_90th = seq(min(clean_data$warm_day_90th, na.rm = T),
+                                                      max(clean_data$warm_day_90th, na.rm = T),
+                                                      length.out = 300))
+
+# Predict from segmented model
+newdat$fit <- predict(crop.anpp.warm.freq.seg, newdata = newdat)
+newdat$lmfit <- predict(crop.anpp.warm.freq.lm, newdata = newdat)
+
+# Extract breakpoints
+bp <- crop.anpp.warm.freq.seg$psi[, "Est."]
+
+# Plot
+ggplot(data = subset(clean_data, category == 'Crop'),
+       aes(x = warm_day_90th, y = scaled_anpp)) +
+  geom_point(alpha = 0.4) +
+  geom_line(data = newdat, aes(y = fit), color = "blue", size = 1.2) +
+  geom_line(data = newdat, aes(y = lmfit), color = "green", size = 1.2) +
+  geom_vline(xintercept = bp, color = "red", linetype = "dashed", size = 1) +
+  theme_minimal(base_size = 14) +
+  labs(title = "Warm day freq (Cropland)",
+       y = "Scaled ANPP",
+       x = "Frequency of days \n daily Tmax above 90th percentile")
+
+#cropland
+grass.anpp.warm.freq.lm <- lm(scaled_anpp ~ warm_day_90th  , data = subset(clean_data, type == 'Grassland'))
+
+summary(grass.anpp.warm.freq.lm)
+
+grass.anpp.warm.freq.seg <- segmented(grass.anpp.warm.freq.lm, 
+                                     seg.Z = ~warm_day_90th,
+                                     type = 'aic',
+                                     check.dslope = T)
+
+summary(grass.anpp.warm.freq.seg)
+
+AIC(grass.anpp.warm.freq.seg,grass.anpp.warm.freq.lm) #lm is better
+#plot pAICc()#plot prediction for crop
+newdat <- data.frame(warm_day_90th = seq(min(clean_data$warm_day_90th, na.rm = T),
+                                         max(clean_data$warm_day_90th, na.rm = T),
+                                         length.out = 300))
+
+# Predict from segmented model
+newdat$fit <- predict(grass.anpp.warm.freq.seg, newdata = newdat)
+newdat$lmfit <- predict(grass.anpp.warm.freq.lm, newdata = newdat)
+
+# Extract breakpoints
+bp <- grass.anpp.warm.freq.seg$psi[, "Est."]
+
+# Plot
+ggplot(data = subset(clean_data, type == 'Grassland'),
+       aes(x = warm_day_90th, y = scaled_anpp)) +
+  geom_point(alpha = 0.4) +
+  geom_line(data = newdat, aes(y = fit), color = "blue", size = 1.2) +
+  geom_line(data = newdat, aes(y = lmfit), color = "green", size = 1.2) +
+  geom_vline(xintercept = bp, color = "red", linetype = "dashed", size = 1) +
+  theme_minimal(base_size = 14) +
+  labs(title = "Warm day freq (Grassland)",
+       y = "Scaled ANPP",
+       x = "Frequency of days \n daily Tmax above 90th percentile")
