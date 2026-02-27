@@ -32,6 +32,8 @@ daymet_daily_raw <- read.csv(file = file.path("data", "pre_processed_data", foca
 dplyr::glimpse(daymet_daily_raw)
 
 ##################################################
+#Relative 3-dmax temperature 
+
 #Maximum temperature (absolute) during the growing season - Vogel 2019 
 #length of the growing season: March-August
 max.temp.growing.season <- daymet_daily_raw%>% 
