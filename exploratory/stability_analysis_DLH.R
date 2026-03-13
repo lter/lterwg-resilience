@@ -33,6 +33,9 @@ dat<- read.csv(file = file.path("data", "harmonized_data", file2)) %>%
   mutate(keep=ifelse(network=='NutNet'&treatment=='NPK'|network=='NutNet'&treatment=='Control', 1, 0)) %>% #dropping all nutnet treatments except control and NPK
   filter(keep==1|network !='NutNet') %>% 
   mutate(type=case_when(
+    site == 'KNZ' & treatment == 'KNZ_Cropland' & crop2 == 'corn' ~ 'Corn',
+    site == 'KNZ' & treatment == 'KNZ_Cropland' & crop2 == 'soybean' ~ 'Soybean',
+    site == 'KNZ' & treatment == 'KNZ_Cropland' & crop2 == 'wheat' ~ 'Wheat',
     network=='LTER'~ 'Grassland',
     network=='NutNet'&fertilized==0 ~ 'Grassland', 
     network=='NutNet'&fertilized==1 ~ 'Fert. Grassland', 
@@ -40,15 +43,11 @@ dat<- read.csv(file = file.path("data", "harmonized_data", file2)) %>%
     !network %in% c('LTER', 'NutNet') & crop2 %in% c('mixed_grass', 'switchgrass', 'alfalfa') ~ 'Pasture', 
     !network %in% c('LTER', 'NutNet') & crop2=='corn' ~ 'Corn', 
     !network %in% c('LTER', 'NutNet') & crop2=='soybean' ~ 'Soybean',
-    !network %in% c('LTER', 'NutNet') & crop2 %in% c('winter_wheat', 'spring_wheat') ~ 'Wheat',
+    !network %in% c('NutNet') & crop2 %in% c('winter_wheat', 'spring_wheat', 'wheat') ~ 'Wheat',
     TRUE~'999'
-  ))
-
-#did this work?
-  dat %>%
-    select(network, crop, crop2, type) %>%
-    distinct() %>% 
-    view()
+  ))%>%
+  mutate(duration_years = ifelse(site == 'LCB', 9, duration_years))%>%
+  filter(!treatment %in% c('004b', '020b'))
 
 
 ####Okay, we are going to combine to just four land management
@@ -88,7 +87,7 @@ anpp_dt <- dat_4cat %>%
 #googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
 #  dplyr::filter(name == file3) %>% 
 #  googledrive::drive_download(file = .$id, overwrite = T,
-                              path = file.path("data", "harmonized_data", .$name))
+                             # path = file.path("data", "harmonized_data", .$name))
 
 #climatedat<- read.csv(file = file.path("data", "harmonized_data", file3)) %>% rename(site=site_id)
 
@@ -105,7 +104,7 @@ anpp_dt <- dat_4cat %>%
   duration<-anpp_dt%>%
     filter(duration_years > 4)%>% 
     filter(type != "Pasture")%>%
-    select(network, site, type, type2, fertilized,duration_years)%>%
+    select(network, site, type, type2, fertilized, duration_years)%>%
     unique()
   
   dat4.1<-left_join(dat4.1, duration, by = c('network', 'site', 'type', 'type2', 'fertilized') )
@@ -123,6 +122,7 @@ anpp_dt <- dat_4cat %>%
               mean=mean(val), 
               sd=sd(val),
               se = sd/sqrt(nobs))
+  
   
   #################
   # Anova's on raw data (not detrended)
