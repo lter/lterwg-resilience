@@ -81,7 +81,56 @@ anpp_dt <- dat_4cat %>%
     df
   }) %>%
   ungroup()
-  
+#checking trends in ANPP through time by site and type
+
+anpp_models <- dat_4cat %>%
+  group_by(site, type) %>%
+  filter(!is.na(anpp_g_m2))%>%
+  summarize(n= n(), Intercept = lm(anpp_g_m2 ~ year)$coefficients[1], 
+            Coeff_x1 = lm(anpp_g_m2 ~ year)$coefficients[2],
+            R2 = summary(lm(anpp_g_m2 ~ year))$r.squared,
+            pval = summary(lm(anpp_g_m2 ~ year))$coefficients["year", 4])
+
+anpp_models <- dat_4cat %>%
+  group_by(site, type) %>%
+  filter(!is.na(anpp_g_m2)) %>%
+  filter(n() > 4)%>%
+  summarize(
+    n = n(),
+    Intercept = lm(anpp_g_m2 ~ year)$coefficients[1],
+    Coeff_x1 = lm(anpp_g_m2 ~ year)$coefficients[2],
+    R2 = summary(lm(anpp_g_m2 ~ year))$r.squared,
+    pval = summary(lm(anpp_g_m2 ~ year))$coefficients["year", "Pr(>|t|)"]
+  )
+
+#graph site x crop with p <0.06
+anpp_models.2<-anpp_models%>%
+  filter(pval < 0.05)%>%
+  select(site, type) %>%
+  mutate(site_type = paste(site, type, by = "_"))
+
+sig.sites <- dat_4cat %>%
+  mutate(site_type = paste(site, type, by = "_"))%>%
+  filter(site_type %in% anpp_models.2$site_type) %>%
+  filter(type != "Pasture")
+
+ggplot(data =sig.sites, aes(year, anpp_g_m2, color = type))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  facet_wrap(~site, scales = "free")
+ggplot(data = sig.sites, aes(wyr_ppt, anpp_g_m2, color = type))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  facet_wrap(~site,  scales = "free")
+ggplot(data =sig.sites, aes(year, wyr_ppt,  color = type))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  facet_wrap(~site, scales = "free")
+
+ggplot(data= subset(dat_4cat, dat_4cat$type == "Corn"), aes(year, anpp_g_m2))+
+  geom_point()+
+  geom_smooth(method="lm")
+
 ##STEP 3: Read in MAP data
 #file3<-'site_climate_mswep.csv'
 #googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
@@ -94,14 +143,14 @@ anpp_dt <- dat_4cat %>%
 
 #############################
 
-  dat4.1<-anpp_dt%>%
+  dat4.1<-dat_4cat%>% #using raw data, not detrended
     filter(duration_years > 4)%>% #sites must have 5 or more years of data, might need to up to 15 based on Doring 2018 paper?
     group_by(network, site, type, type2, fertilized)%>%
-    summarize(nobs=n(), manpp=mean(anpp_g_m2_dt), sd=sd(anpp_g_m2_dt), anpp_pulse = (max(anpp_g_m2_dt)-mean(anpp_g_m2_dt))/mean(anpp_g_m2_dt))%>%
+    summarize(nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2), anpp_pulse = (max(anpp_g_m2)-mean(anpp_g_m2))/mean(anpp_g_m2))%>%
     filter(nobs > 4)%>% #crops within a site must have 5 or more years of data
     filter(type != "Pasture") #removing pasture due to sample size
   
-  duration<-anpp_dt%>%
+  duration<-dat_4cat%>%
     filter(duration_years > 4)%>% 
     filter(type != "Pasture")%>%
     select(network, site, type, type2, fertilized, duration_years)%>%
@@ -121,44 +170,160 @@ anpp_dt <- dat_4cat %>%
     summarise(nobs=n(), 
               mean=mean(val), 
               sd=sd(val),
-              se = sd/sqrt(nobs))
+              se = sd/sqrt(nobs))%>%
+    filter(var %in% c("manpp", "cv", "stab", "anpp_pulse" ))
   
   
   #################
   # Anova's on raw data (not detrended)
+  
+  test_normality <- function(x) {
+    list(
+      raw = shapiro.test(x),
+      log = shapiro.test(log(x)),
+      sqrt = shapiro.test(sqrt(x)),
+      cube = shapiro.test(x)^(1/3)
+    )
+  }
+  
   #anpp###########
-  mod.1<-aov(log(manpp) ~ type2, data = dat4.2)
-  summary(mod.1)
+  transforms <- list(
+    raw = dat4.2$manpp,
+    log = log(dat4.2$manpp),
+    sqrt = sqrt(dat4.2$manpp),
+    cube = (dat4.2$manpp)^(1/3)
+  )
   
-  TukeyHSD(mod.1)
+  lapply(transforms, function(x) {
+    m <- aov(x ~ type2, data = dat4.2)
+    shapiro.test(residuals(m))
+  })
   
-  hist(log(dat4.2$manpp))
-  #hist((dat4.2$manpp)^(1/3))
-  #hist((dat4.2$manpp)^(1/2))
+  #Normality tests - $sqrt and $cube had w >0.95 and pvalue >0.05
+    #using visual assessment to determine which model is best
+  
+  #sqrt <-- the plots were pretty close but liked the q-q residuals better on this so using this model
+  Aovfit.manpp.sqrt<-aov(sqrt(manpp) ~ type2, data = dat4.2)
+    summary(Aovfit.manpp.sqrt)
+    
+  par(mfrow=c(2,2))
+  plot(Aovfit.manpp.sqrt)
+  
+  TukeyHSD(Aovfit.manpp.sqrt)
+  
+  #cube
+  Aovfit.manpp.cube<-aov((manpp)^(1/3) ~ type2, data = dat4.2)
+    summary(Aovfit.manpp.cube)
+  
+  par(mfrow=c(2,2))
+  plot(Aovfit.manpp.cube)
+  
   
   #sd###########
-  mod.2<-aov((sd)^(1/3) ~ type2, data = dat4.2)
-  summary(mod.2)
+  transforms <- list(
+    raw = dat4.2$sd,
+    log = log(dat4.2$sd),
+    sqrt = sqrt(dat4.2$sd),
+    cube = (dat4.2$sd)^(1/3)
+  )
   
-  TukeyHSD(mod.2)
+  lapply(transforms, function(x) {
+    m <- aov(x ~ type2, data = dat4.2)
+    shapiro.test(residuals(m))
+  })
   
-  hist((dat4.2$sd)^(1/3))
+  #Normality tests - $log and $cube had w >0.95 and pvalue >0.05
+  #using visual assessment to determine which model is best
+  
+  #log <-- the plots were pretty close but liked the q-q residuals better on this so using this model
+  Aovfit.sd.log<-aov(log(sd) ~ type2, data = dat4.2)
+  summary(Aovfit.sd.log)
+  
+  par(mfrow=c(2,2))
+  plot(Aovfit.sd.log)
+  
+  TukeyHSD(Aovfit.sd.log)
+  
+  #cube
+  Aovfit.sd.cube<-aov((sd)^(1/3) ~ type2, data = dat4.2)
+  summary(Aovfit.sd.cube)
+  
+  par(mfrow=c(2,2))
+  plot(Aovfit.sd.cube)
+  
   
   #stab###########
-  mod.3<-aov(log(stab) ~ type2, data = dat4.2)
-  summary(mod.3)
+  transforms <- list(
+    raw = dat4.2$stab,
+    log = log(dat4.2$stab),
+    sqrt = sqrt(dat4.2$stab),
+    cube = (dat4.2$stab)^(1/3)
+  )
   
-  TukeyHSD(mod.3)
+  lapply(transforms, function(x) {
+    m <- aov(x ~ type2, data = dat4.2)
+    shapiro.test(residuals(m))
+  })
   
-  hist(log(dat4.2$stab))
+  #Normality tests - $log and $cube had w >0.95 and pvalue >0.05
+  #using visual assessment to determine which model is best
+  
+  #log <-- the plots were pretty close but liked the q-q residuals better on this so using this model
+  Aovfit.stab.log<-aov(log(stab) ~ type2, data = dat4.2)
+  summary(Aovfit.stab.log)
+  
+  par(mfrow=c(2,2))
+  plot(Aovfit.stab.log)
+  
+  TukeyHSD(Aovfit.stab.log)
+  
+  #cube
+  Aovfit.stab.cube<-aov((stab)^(1/3) ~ type2, data = dat4.2)
+  summary(Aovfit.stab.cube)
+  
+  par(mfrow=c(2,2))
+  plot(Aovfit.stab.cube)
+  
+  
   
   #anpp_pulse###########
-  mod.4<-aov((anpp_pulse)^(1/3) ~ type2, data = dat4.2)
-  summary(mod.4)
+  transforms <- list(
+    raw = dat4.2$anpp_pulse,
+    log = log(dat4.2$anpp_pulse),
+    sqrt = sqrt(dat4.2$anpp_pulse),
+    cube = (dat4.2$anpp_pulse)^(1/3)
+  )
   
-  TukeyHSD(mod.4)
+  lapply(transforms, function(x) {
+    m <- aov(x ~ type2, data = dat4.2)
+    shapiro.test(residuals(m))
+  })
   
-  hist((dat4.2$anpp_pulse)^(1/3))
+  #Normality tests - $log, $sqrt and $cube had w >0.95 and pvalue >0.05
+  #using visual assessment to determine which model is best
+  
+  #log <-- the plots were pretty close but liked the q-q residuals better on this so using this model
+  Aovfit.anpp_pulse.log<-aov(log(anpp_pulse) ~ type2, data = dat4.2)
+  summary(Aovfit.anpp_pulse.log)
+  
+  par(mfrow=c(2,2))
+  plot(Aovfit.anpp_pulse.log)
+  
+  TukeyHSD(Aovfit.anpp_pulse.log)
+  
+  #sqrt 
+  Aovfit.anpp_pulse.sqrt<-aov(sqrt(anpp_pulse) ~ type2, data = dat4.2)
+  summary(Aovfit.anpp_pulse.sqrt)
+  
+  par(mfrow=c(2,2))
+  plot(Aovfit.anpp_pulse.sqrt)
+  
+  #cube
+  Aovfit.anpp_pulse.cube<-aov((anpp_pulse)^(1/3) ~ type2, data = dat4.2)
+  summary(Aovfit.anpp_pulse.cube)
+  
+  par(mfrow=c(2,2))
+  plot(Aovfit.anpp_pulse.cube)
   
   
   ggplot(data=means.1, aes(x=type2, y=mean, fill = type2))+
@@ -166,6 +331,8 @@ anpp_dt <- dat_4cat %>%
      geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.1)+
      facet_wrap(~var, scales = "free")
   
+  
+  #stopped here 3/25/26 DLH OLH
   ############################
   # how does data length impact stability? #croplands have a negative relationship, but nothing across all
   ggplot(data=dat4.2, aes(x=duration_years, y=stab, color = type2))+
