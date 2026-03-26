@@ -2,6 +2,8 @@ library(tidyverse)
 library(googledrive)
 library(broom)
 library(corrplot)
+library(multcompView)
+library(purrr)
 
 theme_set(theme_bw(12))
 
@@ -54,82 +56,85 @@ dat<- read.csv(file = file.path("data", "harmonized_data", file2)) %>%
 dat_4cat<-dat %>% 
   mutate(type2=ifelse(type %in% c('Grassland', 'Fert. Grassland', 'Pasture'), type, 'Cropland'))
 
+####Decided not to detrend so commented out this section ###################################################################
 #detrending ANPP data - from Makki's 'data_prep_Timing_Critical.R, and based on  this paper https://doi.org/10.1016/j.agrformet.2018.09.019
-detrend_resid_plus_mean <- function(df, y_col, t_col) {
-  y <- df[[y_col]]
-  t <- df[[t_col]]
-  ok <- is.finite(y) & is.finite(t)
+#detrend_resid_plus_mean <- function(df, y_col, t_col) {
+#  y <- df[[y_col]]
+#  t <- df[[t_col]]
+#  ok <- is.finite(y) & is.finite(t)
   
-  if (sum(ok) < 3) {
-    df[[paste0(y_col, "_dt")]] <- NA_real_
-    return(df)
-  }
+#  if (sum(ok) < 3) {
+#    df[[paste0(y_col, "_dt")]] <- NA_real_
+#    return(df)
+#  }
   
-  fit <- lm(y[ok] ~ t[ok])
-  yhat <- rep(NA_real_, length(y))
-  yhat[ok] <- predict(fit)
-  
-  df[[paste0(y_col, "_dt")]] <- (y - yhat) + mean(y[ok], na.rm = TRUE)
-  df
-}
+#  fit <- lm(y[ok] ~ t[ok])
+#  yhat <- rep(NA_real_, length(y))
+#  yhat[ok] <- predict(fit)
+#  
+#  df[[paste0(y_col, "_dt")]] <- (y - yhat) + mean(y[ok], na.rm = TRUE)
+#  df
+#}
 
-anpp_dt <- dat_4cat %>%
-  group_by(network, site, type, type2, fertilized)%>% #detrend by type x site
-  group_modify(~{
-    df <- .x
-    df <- detrend_resid_plus_mean(df, "anpp_g_m2", "w_yr")
-    df
-  }) %>%
-  ungroup()
+#anpp_dt <- dat_4cat %>%
+#  group_by(network, site, type, type2, fertilized)%>% #detrend by type x site
+#  group_modify(~{
+#    df <- .x
+#    df <- detrend_resid_plus_mean(df, "anpp_g_m2", "w_yr")
+#    df
+#  }) %>%
+#  ungroup()
 #checking trends in ANPP through time by site and type
 
-anpp_models <- dat_4cat %>%
-  group_by(site, type) %>%
-  filter(!is.na(anpp_g_m2))%>%
-  summarize(n= n(), Intercept = lm(anpp_g_m2 ~ year)$coefficients[1], 
-            Coeff_x1 = lm(anpp_g_m2 ~ year)$coefficients[2],
-            R2 = summary(lm(anpp_g_m2 ~ year))$r.squared,
-            pval = summary(lm(anpp_g_m2 ~ year))$coefficients["year", 4])
+#anpp_models <- dat_4cat %>%
+#  group_by(site, type) %>%
+#  filter(!is.na(anpp_g_m2))%>%
+#  summarize(n= n(), Intercept = lm(anpp_g_m2 ~ year)$coefficients[1], 
+#            Coeff_x1 = lm(anpp_g_m2 ~ year)$coefficients[2],
+#            R2 = summary(lm(anpp_g_m2 ~ year))$r.squared,
+#           pval = summary(lm(anpp_g_m2 ~ year))$coefficients["year", 4])
 
-anpp_models <- dat_4cat %>%
-  group_by(site, type) %>%
-  filter(!is.na(anpp_g_m2)) %>%
-  filter(n() > 4)%>%
-  summarize(
-    n = n(),
-    Intercept = lm(anpp_g_m2 ~ year)$coefficients[1],
-    Coeff_x1 = lm(anpp_g_m2 ~ year)$coefficients[2],
-    R2 = summary(lm(anpp_g_m2 ~ year))$r.squared,
-    pval = summary(lm(anpp_g_m2 ~ year))$coefficients["year", "Pr(>|t|)"]
-  )
+#anpp_models <- dat_4cat %>%
+#  group_by(site, type) %>%
+#  filter(!is.na(anpp_g_m2)) %>%
+#  filter(n() > 4)%>%
+#  summarize(
+#    n = n(),
+#    Intercept = lm(anpp_g_m2 ~ year)$coefficients[1],
+#    Coeff_x1 = lm(anpp_g_m2 ~ year)$coefficients[2],
+#    R2 = summary(lm(anpp_g_m2 ~ year))$r.squared,
+#    pval = summary(lm(anpp_g_m2 ~ year))$coefficients["year", "Pr(>|t|)"]
+#  )
 
 #graph site x crop with p <0.06
-anpp_models.2<-anpp_models%>%
-  filter(pval < 0.05)%>%
-  select(site, type) %>%
-  mutate(site_type = paste(site, type, by = "_"))
+#anpp_models.2<-anpp_models%>%
+#  filter(pval < 0.05)%>%
+#  select(site, type) %>%
+#  mutate(site_type = paste(site, type, by = "_"))
 
-sig.sites <- dat_4cat %>%
-  mutate(site_type = paste(site, type, by = "_"))%>%
-  filter(site_type %in% anpp_models.2$site_type) %>%
-  filter(type != "Pasture")
+#sig.sites <- dat_4cat %>%
+#  mutate(site_type = paste(site, type, by = "_"))%>%
+#  filter(site_type %in% anpp_models.2$site_type) %>%
+#  filter(type != "Pasture")
 
-ggplot(data =sig.sites, aes(year, anpp_g_m2, color = type))+
-  geom_point()+
-  geom_smooth(method="lm")+
-  facet_wrap(~site, scales = "free")
-ggplot(data = sig.sites, aes(wyr_ppt, anpp_g_m2, color = type))+
-  geom_point()+
-  geom_smooth(method="lm")+
-  facet_wrap(~site,  scales = "free")
-ggplot(data =sig.sites, aes(year, wyr_ppt,  color = type))+
-  geom_point()+
-  geom_smooth(method="lm")+
-  facet_wrap(~site, scales = "free")
+#ggplot(data =sig.sites, aes(year, anpp_g_m2, color = type))+
+#  geom_point()+
+#  geom_smooth(method="lm")+
+#  facet_wrap(~site, scales = "free")
+#ggplot(data = sig.sites, aes(wyr_ppt, anpp_g_m2, color = type))+
+#  geom_point()+
+#  geom_smooth(method="lm")+
+# facet_wrap(~site,  scales = "free")
+#ggplot(data =sig.sites, aes(year, wyr_ppt,  color = type))+
+#  geom_point()+
+#  geom_smooth(method="lm")+
+#  facet_wrap(~site, scales = "free")
 
-ggplot(data= subset(dat_4cat, dat_4cat$type == "Corn"), aes(year, anpp_g_m2))+
-  geom_point()+
-  geom_smooth(method="lm")
+#ggplot(data= subset(dat_4cat, dat_4cat$type == "Corn"), aes(year, anpp_g_m2))+
+#  geom_point()+
+#  geom_smooth(method="lm")
+
+####Decided not to detrend so commented out this above section ###################################################################
 
 ##STEP 3: Read in MAP data
 #file3<-'site_climate_mswep.csv'
@@ -171,7 +176,7 @@ ggplot(data= subset(dat_4cat, dat_4cat$type == "Corn"), aes(year, anpp_g_m2))+
               mean=mean(val), 
               sd=sd(val),
               se = sd/sqrt(nobs))%>%
-    filter(var %in% c("manpp", "cv", "stab", "anpp_pulse" ))
+    filter(var %in% c("manpp", "sd", "stab", "anpp_pulse" ))
   
   
   #################
@@ -203,20 +208,28 @@ ggplot(data= subset(dat_4cat, dat_4cat$type == "Corn"), aes(year, anpp_g_m2))+
     #using visual assessment to determine which model is best
   
   #sqrt <-- the plots were pretty close but liked the q-q residuals better on this so using this model
-  Aovfit.manpp.sqrt<-aov(sqrt(manpp) ~ type2, data = dat4.2)
-    summary(Aovfit.manpp.sqrt)
+  mod.manpp.sqrt<-aov(sqrt(manpp) ~ type2, data = dat4.2)
+    summary(mod.manpp.sqrt)
     
   par(mfrow=c(2,2))
-  plot(Aovfit.manpp.sqrt)
+  plot(mod.manpp.sqrt)
   
-  TukeyHSD(Aovfit.manpp.sqrt)
+  tuk.manpp.1<-TukeyHSD(mod.manpp.sqrt)$type2
+  tuk.manpp.1
+  
+  tuk.manpp.2<-multcompLetters(tuk.manpp.1[ , "p adj"])$Letters
+  tuk.manpp.2
+  
+  tuk.manpp.3<-data.frame(type2 = names(tuk.manpp.2),
+                          letters =  tuk.manpp.2,
+                          var = "manpp")
   
   #cube
-  Aovfit.manpp.cube<-aov((manpp)^(1/3) ~ type2, data = dat4.2)
-    summary(Aovfit.manpp.cube)
+  #Aovfit.manpp.cube<-aov((manpp)^(1/3) ~ type2, data = dat4.2)
+  #  summary(Aovfit.manpp.cube)
   
-  par(mfrow=c(2,2))
-  plot(Aovfit.manpp.cube)
+  #par(mfrow=c(2,2))
+  #plot(Aovfit.manpp.cube)
   
   
   #sd###########
@@ -236,20 +249,28 @@ ggplot(data= subset(dat_4cat, dat_4cat$type == "Corn"), aes(year, anpp_g_m2))+
   #using visual assessment to determine which model is best
   
   #log <-- the plots were pretty close but liked the q-q residuals better on this so using this model
-  Aovfit.sd.log<-aov(log(sd) ~ type2, data = dat4.2)
-  summary(Aovfit.sd.log)
+  mod.sd.log<-aov(log(sd) ~ type2, data = dat4.2)
+  summary(mod.sd.log)
   
   par(mfrow=c(2,2))
-  plot(Aovfit.sd.log)
+  plot(mod.sd.log)
   
-  TukeyHSD(Aovfit.sd.log)
+  tuk.sd.1<-TukeyHSD(mod.sd.log)$type2
+  tuk.sd.1
+  
+  tuk.sd.2<-multcompLetters(tuk.sd.1[ , "p adj"])$Letters
+  tuk.sd.2
+  
+  tuk.sd.3<-data.frame(type2 = names(tuk.sd.2),
+                          letters =  tuk.sd.2,
+                          var = "sd")
   
   #cube
-  Aovfit.sd.cube<-aov((sd)^(1/3) ~ type2, data = dat4.2)
-  summary(Aovfit.sd.cube)
+  #Aovfit.sd.cube<-aov((sd)^(1/3) ~ type2, data = dat4.2)
+  #summary(Aovfit.sd.cube)
   
-  par(mfrow=c(2,2))
-  plot(Aovfit.sd.cube)
+  #par(mfrow=c(2,2))
+  #plot(Aovfit.sd.cube)
   
   
   #stab###########
@@ -269,21 +290,27 @@ ggplot(data= subset(dat_4cat, dat_4cat$type == "Corn"), aes(year, anpp_g_m2))+
   #using visual assessment to determine which model is best
   
   #log <-- the plots were pretty close but liked the q-q residuals better on this so using this model
-  Aovfit.stab.log<-aov(log(stab) ~ type2, data = dat4.2)
-  summary(Aovfit.stab.log)
+  mod.stab.log<-aov(log(stab) ~ type2, data = dat4.2)
+  summary(mod.stab.log)
   
   par(mfrow=c(2,2))
-  plot(Aovfit.stab.log)
+  plot(mod.stab.log)
   
-  TukeyHSD(Aovfit.stab.log)
+  tuk.stab.1<-TukeyHSD(mod.stab.log)$type2
+  tuk.stab.1
   
+  tuk.stab.2<-multcompLetters(tuk.stab.1[ , "p adj"])$Letters
+  tuk.stab.2
+  
+  tuk.stab.3<-data.frame(type2 = names(tuk.stab.2),
+                          letters =  tuk.stab.2,
+                          var = "stab")
   #cube
-  Aovfit.stab.cube<-aov((stab)^(1/3) ~ type2, data = dat4.2)
-  summary(Aovfit.stab.cube)
+  #mod.stab.cube<-aov((stab)^(1/3) ~ type2, data = dat4.2)
+  #summary(mod.stab.cube)
   
-  par(mfrow=c(2,2))
-  plot(Aovfit.stab.cube)
-  
+  #par(mfrow=c(2,2))
+  #plot(mod.stab.cube)
   
   
   #anpp_pulse###########
@@ -303,36 +330,56 @@ ggplot(data= subset(dat_4cat, dat_4cat$type == "Corn"), aes(year, anpp_g_m2))+
   #using visual assessment to determine which model is best
   
   #log <-- the plots were pretty close but liked the q-q residuals better on this so using this model
-  Aovfit.anpp_pulse.log<-aov(log(anpp_pulse) ~ type2, data = dat4.2)
-  summary(Aovfit.anpp_pulse.log)
+  mod.anpp_pulse.log<-aov(log(anpp_pulse) ~ type2, data = dat4.2)
+  summary(mod.anpp_pulse.log)
   
   par(mfrow=c(2,2))
-  plot(Aovfit.anpp_pulse.log)
+  plot(mod.anpp_pulse.log)
   
-  TukeyHSD(Aovfit.anpp_pulse.log)
+  tuk.anpp_pulse.1<-TukeyHSD(mod.anpp_pulse.log)$type2
+  tuk.anpp_pulse.1
+  
+  tuk.anpp_pulse.2<-multcompLetters(tuk.anpp_pulse.1[ , "p adj"])$Letters
+  tuk.anpp_pulse.2
+  
+  tuk.anpp_pulse.3<-data.frame(type2 = names(tuk.anpp_pulse.2),
+                          letters =  tuk.anpp_pulse.2,
+                          var = "anpp_pulse")
+  
   
   #sqrt 
-  Aovfit.anpp_pulse.sqrt<-aov(sqrt(anpp_pulse) ~ type2, data = dat4.2)
-  summary(Aovfit.anpp_pulse.sqrt)
+  #Aovfit.anpp_pulse.sqrt<-aov(sqrt(anpp_pulse) ~ type2, data = dat4.2)
+  #summary(Aovfit.anpp_pulse.sqrt)
   
-  par(mfrow=c(2,2))
-  plot(Aovfit.anpp_pulse.sqrt)
+  #par(mfrow=c(2,2))
+  #plot(Aovfit.anpp_pulse.sqrt)
   
   #cube
-  Aovfit.anpp_pulse.cube<-aov((anpp_pulse)^(1/3) ~ type2, data = dat4.2)
-  summary(Aovfit.anpp_pulse.cube)
+  #Aovfit.anpp_pulse.cube<-aov((anpp_pulse)^(1/3) ~ type2, data = dat4.2)
+  #summary(Aovfit.anpp_pulse.cube)
   
-  par(mfrow=c(2,2))
-  plot(Aovfit.anpp_pulse.cube)
+  #par(mfrow=c(2,2))
+  #plot(Aovfit.anpp_pulse.cube)
   
+  #combine dataframes
+  tuk.all<-rbind(tuk.manpp.3, tuk.sd.3, tuk.stab.3, tuk.anpp_pulse.3)
   
-  ggplot(data=means.1, aes(x=type2, y=mean, fill = type2))+
-     geom_bar(stat = 'identity')+
-     geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.1)+
-     facet_wrap(~var, scales = "free")
+  means.1<-means.1%>%
+    left_join(tuk.all, by = c("type2", "var"))
   
+  means.1$var<-factor(means.1$var,
+                      levels = c ("manpp", "sd", "stab", "anpp_pulse"))
   
-  #stopped here 3/25/26 DLH OLH
+  ggplot(means.1, aes(x = type2, y = mean, fill = type2)) +
+    geom_bar(stat = "identity") +
+    geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.1) +
+    geom_text(aes(label = letters, y = mean + se),
+              vjust = -0.3, size = 5) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+    facet_wrap(~var, scales = "free") +
+    theme_bw()
+  
+  #stopped here 3/26/26 DLH
   ############################
   # how does data length impact stability? #croplands have a negative relationship, but nothing across all
   ggplot(data=dat4.2, aes(x=duration_years, y=stab, color = type2))+
