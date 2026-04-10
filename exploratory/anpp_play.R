@@ -7,6 +7,7 @@ dir.create(file.path("exploratory_graphs"), showWarnings = F)
 dir.create(file.path("exploratory_graphs", 'anpp_year'), showWarnings = F)
 dir.create(file.path("data"), showWarnings = F)
 dir.create(file.path("data", "harmonized_data"), showWarnings = F)
+dir.create(file.path("data", "pre_processed_data"), showWarnings = F)
 
 ###STEP 1: Make figures for each site and assess data, does it pass our smell test. Yes.
 
@@ -48,6 +49,7 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
   googledrive::drive_download(file = .$id, overwrite = T,
                               path = file.path("data", "harmonized_data", .$name))
 
+anpp_raw_data <- read.csv(file = file.path("data", "pre_processed_data", focal_file))
 ##read in the data and do some pre-processing. and classifying land management include crop type.
 dat<- read.csv(file = file.path("data", "harmonized_data", file2)) %>%
   filter(site!='look.us'&site!='bnch.us') %>% #drop two odd NutNet sites
@@ -85,7 +87,7 @@ ggplot(data=subset(dat, type!=999&!is.na(anpp_g_m2)&!is.na(wyr_ppt)), aes(x=wyr_
               alpha = 0.1, linewidth = 0.2) +
   geom_smooth(aes(color = type), method = 'lm', formula = 'y ~ x', se = T)+
   scale_color_manual(name='Land Management', values=c('orange', 'green', 'green4', 'skyblue1', 'darkgoldenrod', 'chocolate2' ))+
-  xlab('Precipitation (mm)')+
+  xlab('Annual Precipitation (mm)')+
   ylab(expression(paste('ANPP (g ', m^-2,')')))+
   theme(panel.grid = element_blank())
   facet_wrap(~fertilized)
@@ -93,21 +95,25 @@ ggplot(data=subset(dat, type!=999&!is.na(anpp_g_m2)&!is.na(wyr_ppt)), aes(x=wyr_
 
 ####Okay, we are going to combine to just four land management
 dat_4cat<-dat %>% 
-  mutate(type2=ifelse(type %in% c('Grassland', 'Fert. Grassland', 'Pasture'), type, 'Cropland'))
+  mutate(type2=ifelse(type %in% c('Grassland', 'Fert. Grassland', 'Pasture'), type, 'Cropland')) %>%
+  group_by(network, site, treatment) %>%
+  mutate(n_year = length(unique(year))) %>% #count number of years in the dataset
+  filter(n_year > 4) 
 
 #remaking Olivia's Figure but with just four categories
-ggplot(data=dat_4cat, aes(x=wyr_ppt, y=anpp_g_m2))+
+ggplot(data=dat_4cat %>% filter(type2 != "Pasture"), aes(x=wyr_ppt, y=anpp_g_m2))+
   geom_point(alpha = 0.1, aes(color=type2)) +
   geom_smooth(aes(shape = as.factor(site), color = type2), 
               method = 'lm', formula = 'y ~ x', se = F,
               alpha = 0.1, linewidth = 0.2) +
   geom_smooth(aes(color = type2), method = 'lm', formula = 'y ~ x', se = T)+
-  scale_color_manual(name='Land Management', values=c('orange', 'green', 'green4', 'skyblue'))+
-  xlab('Precipitation (mm)')+
+  scale_color_manual(name='Systems', values=c('orange', 'green', 'green4', 'skyblue'))+
+  xlab('Annual Precipitation (mm)')+
   ylab(expression(paste('ANPP (g ', m^-2,')')))+
-  theme(panel.grid = element_blank())
+  theme(panel.grid = element_blank())+
+  theme_classic()
   facet_wrap(~fertilized)
-  
+
 ##STEP 3: Read in MAP data
 file3<-'site_climate_mswep.csv'
 googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
@@ -132,16 +138,83 @@ climatedat<- read.csv(file = file.path("data", "harmonized_data", file3)) %>% re
 dat3<-dat_4cat %>% 
   left_join(climatedat) 
 
+# Read in temp data
+# Identify desired file
+focal_file <- "daymet_daily_weather.csv"
 
+# Download data file
+googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Sw-CdVIsCNvnS3laPn1a90WHoZsEoMif")) %>% 
+  dplyr::filter(name == focal_file) %>% 
+  googledrive::drive_download(file = .$id, overwrite = T,
+                              path = file.path("data", "pre_processed_data", .$name))
+
+# Read in data
+daymet_daily_raw <- read.csv(file = file.path("data", "pre_processed_data", focal_file))
+
+# Calculate annual mean temp 
+annual_mean_temp <- daymet_daily_raw %>%
+  group_by(network, site_id, year) %>% 
+  summarise(Tmean = mean(tmean_degC))
+
+colnames(annual_mean_temp)[2] <- "site"
+
+
+# calculate growing season max temp
+gr_temp <- daymet_daily_raw %>%
+  group_by(network, site_id, year) %>% 
+  filter(between(month, 4, 8)) %>%
+  summarise(gr_Tmax = max(tmax_degC),
+            gr_Tmean = mean(tmean_degC))
+
+colnames(gr_temp)[2] <- "site"
+
+dat5 <- dat3 %>% 
+  left_join(annual_mean_temp) %>%
+  left_join(gr_temp)
+
+#annual T mean
+ggplot(data=dat5 %>% filter(type2 != "Pasture"), aes(x=Tmean, y=anpp_g_m2))+
+  geom_point(alpha = 0.1, aes(color=type2)) +
+  geom_smooth(aes(shape = as.factor(site), color = type2), 
+              method = 'lm', formula = 'y ~ x', se = F,
+              alpha = 0.1, linewidth = 0.2) +
+  geom_smooth(aes(color = type2), method = 'lm', formula = 'y ~ x', se = T)+
+  scale_color_manual(name='Systems', values=c('orange', 'green', 'green4', 'skyblue'))+
+  xlab('Annual Mean Temperature (degrees C)')+
+  ylab(expression(paste('ANPP (g ', m^-2,')')))+
+  theme(panel.grid = element_blank())+
+  theme_classic()
+
+#growing season T mean
+ggplot(data=dat5 %>% filter(type2 != "Pasture"), aes(x=gr_Tmean, y=anpp_g_m2))+
+  geom_point(alpha = 0.1, aes(color=type2)) +
+  geom_smooth(aes(shape = as.factor(site), color = type2), 
+              method = 'lm', formula = 'y ~ x', se = F,
+              alpha = 0.1, linewidth = 0.2) +
+  geom_smooth(aes(color = type2), method = 'lm', formula = 'y ~ x', se = T)+
+  scale_color_manual(name='Systems', values=c('orange', 'green', 'green4', 'skyblue'))+
+  xlab('Growing Season Mean Temperature (degrees C)')+
+  ylab(expression(paste('ANPP (g ', m^-2,')')))+
+  theme(panel.grid = element_blank())+
+  theme_classic()
+
+#growing season T mean
+ggplot(data=dat5 %>% filter(type2 != "Pasture"), aes(x=gr_Tmax, y=anpp_g_m2))+
+  geom_point(alpha = 0.1, aes(color=type2)) +
+  geom_smooth(aes(shape = as.factor(site), color = type2), 
+              method = 'lm', formula = 'y ~ x', se = F,
+              alpha = 0.1, linewidth = 0.2) +
+  geom_smooth(aes(color = type2), method = 'lm', formula = 'y ~ x', se = T)+
+  scale_color_manual(name='Systems', values=c('orange', 'green', 'green4', 'skyblue'))+
+  xlab('Growing Season Max Temperature (degrees C)')+
+  ylab(expression(paste('ANPP (g ', m^-2,')')))+
+  theme(panel.grid = element_blank())+
+  theme_classic()
 
 ####SKIP THIS WHOLE SECTION 
 ####
 #Go to Line in the 262
 ####
-
-
-
-
 
 #looking into what range of data we have for different crops
 # ggplot(data=subset(dat3, MAP<1000&MAP>400), aes(x=wyr_ppt, y=anpp_g_m2))+
@@ -165,28 +238,66 @@ dat3<-dat_4cat %>%
 
 
 #calculating sensitivity to explore different ways of looking at the data, calculating for each site and then averaging or Ingrid approach and calculating overall sites and not averaging first. For our analyses, since we are interested in MAP relationships later on we are going with the site level and then averaging approach.
-
-sens<-dat3 %>% 
+#remove low replication sites (drop below 5 years? drop below 10 years first)
+sens<-dat5 %>% 
   filter(!is.na(anpp_g_m2)) %>%
-  group_by(network,site, type, fertilized, MAP, cv_ppt_inter) %>% 
-  summarise(slope=lm(anpp_g_m2~wyr_ppt)$coefficient[2], nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2)) %>% 
+  filter(duration_years > 9) %>%
+  group_by(network,site, type2, fertilized, MAP, cv_ppt_inter) %>% 
+  summarise(slope=lm(anpp_g_m2~wyr_ppt)$coefficient[2], 
+            nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2)) %>% 
   #filter(nobs>5) %>% 
   mutate(cv=sd/manpp, stability=1/cv)# %>% 
  # pivot_longer(manpp:cv, names_to = 'production', values_to = 'production_val') %>% 
  # pivot_longer(MAP:cv_ppt_inter, names_to = 'precip', values_to = 'precip_val')
 
-ggplot(data=sens, aes(x=precip_val, y=production_val, color=type))+
+ggplot(data=sens%>% filter(type2 != "Pasture"), aes(x=MAP, y=slope, color = type2))+
+  theme_classic() +
+  scale_color_manual(name='Systems', values=c('orange', 'green', 'green4', 'skyblue'))+
   geom_point()+
-  geom_smooth(method = 'lm', se=F)+
-  facet_grid(production~precip, scales='free')
+  geom_smooth(method = 'loess', se=F)
 
-ggplot(data=sens, aes(x=cv_ppt_inter, y=cv, color=type))+
-  geom_point()+
-  geom_smooth(method = 'lm', se=F)
+#growing season temp sensitivity 
+#calculate mean growing season temp of each site
+mean_gr_temp <- daymet_daily_raw %>%
+  group_by(network, site_id) %>% 
+  filter(between(month, 4, 8)) %>%
+  summarise(mean_gr_Tmean = mean(tmean_degC))
+colnames(mean_gr_temp)[2] <- "site"
 
-ggplot(data=dat3, aes(x=avg_dryspell_length, y=anpp_g_m2, color=type))+
+sens_temp<-dat5 %>% 
+  left_join(mean_gr_temp) %>%
+  filter(!is.na(anpp_g_m2)) %>%
+  filter(!is.na(gr_Tmean)) %>%
+  filter(duration_years > 9) %>%
+  group_by(network,site, type2, mean_gr_Tmean) %>% 
+  summarise(slope=lm(anpp_g_m2~gr_Tmean)$coefficient[2],
+            slope_Tmax=lm(anpp_g_m2~gr_Tmax)$coefficient[2])
+
+ggplot(data=sens_temp%>% 
+         filter(type2 != "Pasture")%>%
+         filter(slope <800), 
+       aes(x=mean_gr_Tmean, y=slope, color = type2))+
+  theme_classic() +
+  scale_color_manual(name='Systems', values=c('orange', 'green', 'green4', 'skyblue'))+
   geom_point()+
-  geom_smooth(method = 'lm', se=F)
+  geom_smooth(method = 'loess', se=F)
+
+ggplot(data=sens_temp%>% 
+         filter(type2 != "Pasture")%>%
+         filter(slope <800), 
+       aes(x=mean_gr_Tmean, y=slope_Tmax, color = type2))+
+  theme_classic() +
+  scale_color_manual(name='Systems', values=c('orange', 'green', 'green4', 'skyblue'))+
+  geom_point()+
+  geom_smooth(method = 'loess', se=F)
+
+# ggplot(data=sens, aes(x=cv_ppt_inter, y=cv, color=type))+
+#   geom_point()+
+#   geom_smooth(method = 'lm', se=F)
+# 
+# ggplot(data=dat3, aes(x=avg_dryspell_length, y=anpp_g_m2, color=type))+
+#   geom_point()+
+#   geom_smooth(method = 'lm', se=F)
 
 #########################################################
 # Look at correlations between variables 
