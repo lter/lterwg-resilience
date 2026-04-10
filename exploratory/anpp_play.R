@@ -3,6 +3,8 @@ library(googledrive)
 
 theme_set(theme_bw(12))
 
+###to get data to work with, use stability_analysis_DLH but don't drop konza 1D and then do detreneded analysis. Use the detrended data for the figures I want to make on varability
+
 dir.create(file.path("exploratory_graphs"), showWarnings = F)
 dir.create(file.path("exploratory_graphs", 'anpp_year'), showWarnings = F)
 dir.create(file.path("data"), showWarnings = F)
