@@ -243,7 +243,7 @@ ggplot(data=dat5 %>% filter(type2 != "Pasture"), aes(x=gr_Tmax, y=anpp_g_m2))+
 #remove low replication sites (drop below 5 years? drop below 10 years first)
 sens<-dat5 %>% 
   filter(!is.na(anpp_g_m2)) %>%
-  filter(duration_years > 9) %>%
+  filter(duration_years > 4) %>%
   group_by(network,site, type2, fertilized, MAP, cv_ppt_inter) %>% 
   summarise(slope=lm(anpp_g_m2~wyr_ppt)$coefficient[2], 
             nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2)) %>% 
@@ -263,15 +263,16 @@ ggplot(data=sens%>% filter(type2 != "Pasture"), aes(x=MAP, y=slope, color = type
 mean_gr_temp <- daymet_daily_raw %>%
   group_by(network, site_id) %>% 
   filter(between(month, 4, 8)) %>%
-  summarise(mean_gr_Tmean = mean(tmean_degC))
+  summarise(mean_gr_Tmean = mean(tmean_degC),
+            mean_gr_Tmax = mean(tmax_degC))
 colnames(mean_gr_temp)[2] <- "site"
 
 sens_temp<-dat5 %>% 
   left_join(mean_gr_temp) %>%
   filter(!is.na(anpp_g_m2)) %>%
   filter(!is.na(gr_Tmean)) %>%
-  filter(duration_years > 9) %>%
-  group_by(network,site, type2, mean_gr_Tmean) %>% 
+  filter(duration_years > 4) %>%
+  group_by(network,site, type2, mean_gr_Tmean, mean_gr_Tmax) %>% 
   summarise(slope=lm(anpp_g_m2~gr_Tmean)$coefficient[2],
             slope_Tmax=lm(anpp_g_m2~gr_Tmax)$coefficient[2])
 
@@ -287,7 +288,7 @@ ggplot(data=sens_temp%>%
 ggplot(data=sens_temp%>% 
          filter(type2 != "Pasture")%>%
          filter(slope <800), 
-       aes(x=mean_gr_Tmean, y=slope_Tmax, color = type2))+
+       aes(x=mean_gr_Tmax, y=slope_Tmax, color = type2))+
   theme_classic() +
   scale_color_manual(name='Systems', values=c('orange', 'green', 'green4', 'skyblue'))+
   geom_point()+
