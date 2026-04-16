@@ -64,6 +64,16 @@ dat<- read.csv(file = file.path("data", "harmonized_data", file2)) %>%
 dat_4cat<-dat %>% 
   mutate(type2=ifelse(type %in% c('Grassland', 'Fert. Grassland', 'Pasture'), type, 'Cropland'))
 
+## Add in column for length based on crop type
+length <- dat_4cat %>%
+  group_by(network, site, type, type2, fertilized)%>%
+  summarize(nobs_crop=n())
+
+dat4.1<-dat_4cat %>%
+  left_join(length, by = c('network', 'site', 'type', 'type2', 'fertilized')) %>%
+  filter(type!="Pasture") %>% # removing pasture! 
+  mutate(stab.analysis = ifelse(nobs_crop >4, 1, 0))
+
 ####Decided not to detrend so commented out this section ###################################################################
 #detrending ANPP data - from Makki's 'data_prep_Timing_Critical.R, and based on  this paper https://doi.org/10.1016/j.agrformet.2018.09.019
 #detrend_resid_plus_mean <- function(df, y_col, t_col) {
@@ -145,11 +155,12 @@ dat_4cat<-dat %>%
 ####Decided not to detrend so commented out this above section ###################################################################
 
 
+
 ## dat_4cat is the final data set, going to save this in in the harmonized data folder and upload to the drive
 output <- 'stability_anpp.csv'
 
 # Export locally
-write.csv(x = dat_4cat , row.names = F, na = '',
+write.csv(x = dat4.1 , row.names = F, na = '',
           file = file.path("data", "harmonized_data", output))
 
 # Upload to Drive
