@@ -146,7 +146,7 @@ dat_4cat<-dat %>%
 
 
 ## dat_4cat is the final data set, going to save this in in the harmonized data folder and upload to the drive
-output <- stability_anpp.csv
+output <- 'stability_anpp.csv'
 
 # Export locally
 write.csv(x = dat_4cat , row.names = F, na = '',
