@@ -410,8 +410,8 @@ means.2<-dat4.2b%>%
   select(site, type2, manpp, sd, anpp_pulse, cv, stab)%>%
   pivot_longer(cols = c(manpp:stab), names_to = "var", values_to = "val")%>%
   group_by(type2, var)%>%
-  summarise(nobs=n(), 
-            mean=mean(val), 
+  summarise(nobs=n(),
+            mean=mean(val),
             sd=sd(val),
             se = sd/sqrt(nobs))
 
@@ -459,55 +459,77 @@ ggplot(dat4.2b, aes(x = cv_ppt_inter, y = cv, color = type2)) +
 
 
 
-############################################################
-#combine var metrics with precip metrics - all types combined
-data4.4<-left_join(dat4.2, climatedat, by = "site")
-
-#compare anpp cv with precip cv by type
-data4.5<-data4.4%>%
-  filter(type != "Pasture")
-
-ggplot(data4.5, aes(x=cv_ppt_inter, y = aCV))+
-  geom_point(alpha = 0.1, aes(color=type2)) +
-  geom_smooth(aes(color = type2), method = 'lm', formula = 'y ~ x', se = T)+
-  scale_color_manual(name='Land Management', values=c('orange', 'green', 'green4', 'skyblue1', 'darkgoldenrod', 'chocolate2' ))+
-  xlab('Interannual Precipitation CV')+
-  ylab('ANPP aCV')
-
-ggplot(data4.5, aes(x=cv_ppt_inter, y = CV))+
-  geom_point(alpha = 0.1, aes(color=type2)) +
-  geom_smooth(aes(color = type2), method = 'lm', formula = 'y ~ x', se = T)+
-  scale_color_manual(name='Land Management', values=c('orange', 'green', 'green4', 'skyblue1', 'darkgoldenrod', 'chocolate2' ))+
-  xlab('Interannual Precipitation CV')+
-  ylab('ANPP CV')
-
-#correlation across all vars
-data4.6<-data4.5%>%
-  filter(type == "Wheat") #can select individual types for correlations
-data4.6 <- data4.6[ ,c(6:27)]
-cors2 <- cor(data4.6)
-corrplot.mixed(cors2)
-
-#examining some interesting relationships
-var1="MAP"
-var2=manpp
-
-ggplot(data4.5, aes(x=log10(MAP), y = mi))+
-  geom_point(alpha = 0.1, aes(color=type)) +
-  geom_smooth(aes(color = type), method = 'lm', formula = 'y ~ x', se = F)+
-  scale_color_manual(name='Land Management', values=c('orange', 'green', 'green4', 'skyblue1', 'darkgoldenrod', 'chocolate2' ))+
-  xlab("MAP")+
-  ylab("log(manpp)")
+# looking at the relationship among teh different climate variables
+# vif(climatedat.2)
+# library(usdm)
+# 
+# 
+# clim.select <- vifstep(climatedat.2, th= 10)
+final_vars <- clim.select@results
+final_vars# 
+# selected_vars <- vifcor(climatedat.2, th = 0.7)  # correlation threshold alternative
+# selected_vars@results
 
 
+# look at relationship between cv and map
+
+ggplot(dat4.2b, aes(MAP, cv_ppt_inter, color = type2))+
+  geom_point(alpha = 0.4, size = 2)+
+  theme_bw()
+  
 
 
+## varpart testing
+library(vegan)
+
+str(dat4.2b)
+
+ggplot(dat4.2b, aes(cv_ppt_inter))+
+  geom_histogram()
+
+varpart.df <- dat4.2b %>%
+  mutate(type2 = factor(type2), 
+         variance = log10(sd^2), 
+         log_anpp = log10(manpp), 
+         scaled_MAP = scale(MAP), 
+         scaled_cv = scale(cv_ppt_inter)
+         )
+
+clim <- c("cv_ppt_inter")
+
+clim <- varpart.df[,clim]
+type <- varpart.df["type2"]
+anpp <- varpart.df["log_anpp"]
+y <- varpart.df$variance
+
+results <- varpart(y, clim, type, anpp)
+plot(results)
 
 
+# try a linear model
+model <- lm(data = subset(varpart.df, varpart.df$type2 == "Cropland"), variance ~daily_ppt_d)
+summary(model)
+car::Anova(model, type =3)
 
 
+model <- lm(data = varpart.df, log_anpp ~MAP + type2)
+summary(model)
+car::Anova(model, type =3)
+
+ggplot(varpart.df, aes(MAP,variance, color = type2)) +
+  geom_point()+
+  geom_smooth(method="lm")
 
 
+model <- lm(data = subset(varpart.df, varpart.df$type2 == "Fert. Grassland"), log_anpp ~MAP)
+summary(model)
+car::Anova(model, type =3)
 
 
+varpart.df3 <- varpart.df %>%
+  mutate(fertilized = as.factor(ifelse(type2 == "Cropland", 1, fertilized))) %>%
+  filter(MAP > 750)
 
+model2 <- lm(data = varpart.df3, log_anpp ~ MAP + type2)
+summary(model2)
+car::Anova(model2, type = 3)
