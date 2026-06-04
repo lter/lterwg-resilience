@@ -1,5 +1,7 @@
 library(tidyverse)
 library(googledrive)
+library(patchwork)
+library(emmeans)
 
 theme_set(theme_bw(12))
 
@@ -88,7 +90,7 @@ ggplot(data=subset(dat, type!=999&!is.na(anpp_g_m2)&!is.na(wyr_ppt)), aes(x=wyr_
               method = 'lm', formula = 'y ~ x', se = F,
               alpha = 0.1, linewidth = 0.2) +
   geom_smooth(aes(color = type), method = 'lm', formula = 'y ~ x', se = T)+
-  scale_color_manual(name='Land Management', values=c('orange', 'green', 'green4', 'skyblue1', 'darkgoldenrod', 'chocolate2' ))+
+  scale_color_manual(name='Land Management', values=c('orange','green4', 'green',  'skyblue1', 'darkgoldenrod', 'chocolate2' ))+
   xlab('Annual Precipitation (mm)')+
   ylab(expression(paste('ANPP (g ', m^-2,')')))+
   theme(panel.grid = element_blank())
@@ -109,12 +111,17 @@ ggplot(data=dat_4cat %>% filter(type2 != "Pasture"), aes(x=wyr_ppt, y=anpp_g_m2)
               method = 'lm', formula = 'y ~ x', se = F,
               alpha = 0.1, linewidth = 0.2) +
   geom_smooth(aes(color = type2), method = 'lm', formula = 'y ~ x', se = T)+
-  scale_color_manual(name='Systems', values=c('orange', 'green', 'green4', 'skyblue'))+
+  scale_color_manual(name='Systems', values=c('orange','green4', 'green',  'skyblue'))+
   xlab('Annual Precipitation (mm)')+
   ylab(expression(paste('ANPP (g ', m^-2,')')))+
   theme(panel.grid = element_blank())+
   theme_classic()
   facet_wrap(~fertilized)
+
+model <- lm(anpp_g_m2 ~ wyr_ppt * type2, data = dat_4cat) 
+summary(model)
+slopes <- emtrends(model,  ~type2, var = "wyr_ppt")
+pairs(slopes)
 
 ##STEP 3: Read in MAP data
 file3<-'site_climate_mswep.csv'
@@ -257,6 +264,14 @@ ggplot(data=sens%>% filter(type2 != "Pasture"), aes(x=MAP, y=slope, color = type
   scale_color_manual(name='Systems', values=c('orange', 'green', 'green4', 'skyblue'))+
   geom_point()+
   geom_smooth(method = 'loess', se=F)
+
+f_ppt_slope <- ggplot(data=sens%>% filter(type2 != "Pasture"), aes(x=type2, y=slope, color = type2))+
+  theme_classic() +
+  scale_color_manual(name='Systems', values=c('orange',  'green4','green', 'skyblue'))+
+  geom_boxplot()+
+  geom_point()+
+  theme(axis.title.x = element_blank())
+
 
 #growing season temp sensitivity 
 #calculate mean growing season temp of each site
