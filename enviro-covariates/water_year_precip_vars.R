@@ -75,7 +75,7 @@ focal_file <- "mswep-daily-ppt-nutnet-sites.csv"
 
 # Download harmonized data file
 googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1zI1KYBlROyBZSgjSEYmVjsIfCmRPpUPq")) %>% 
-  dplyr::filter(name == focal_file) 
+  dplyr::filter(name == focal_file) %>%
   googledrive::drive_download(file = .$id, overwrite = T,
                               path = file.path("data", "raw", .$name))
 

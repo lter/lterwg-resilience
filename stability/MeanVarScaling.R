@@ -2,8 +2,7 @@ library(tidyverse)
 library(googledrive)
 library(broom)
 library(corrplot)
-library(multcompView)
-library(purrr)
+library(emmeans)
 
 theme_set(theme_bw(12))
 
@@ -12,448 +11,41 @@ dir.create(file.path("exploratory_graphs", 'anpp_year'), showWarnings = F)
 dir.create(file.path("data"), showWarnings = F)
 dir.create(file.path("data", "harmonized_data"), showWarnings = F)
 
-
-
-#read in annp, precip, and trt info
-file2<-'anpp_wyr_trt_merged.csv'
+#read in annp data
+file2<-'stability_anpp.csv'
 googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
   dplyr::filter(name == file2) %>% 
   googledrive::drive_download(file = .$id, overwrite = T,
                               path = file.path("data", "harmonized_data", .$name))
 
-##read in the data and do some pre-processing. and classifying land management include crop type.
-dat<- read.csv(file = file.path("data", "harmonized_data", file2)) %>%
-  filter(site!='look.us'&site!='bnch.us') %>% #drop two odd NutNet sites
-  filter(treatment!="PRHPA_NEMERREM_CCN4N")%>%#removing second treatment for PRHPA
-  #filter(crop!='Garbanzo'&crop!='Canola'&crop!='Oats') %>% 
-  filter(!is.na(anpp_g_m2))%>% #this removes sites with grain yield but not anpp
-  mutate(crop=tolower(crop)) %>% 
-  mutate(crop2=case_when(
-    crop %in% c('orchardgrass/white clover', 'orchard/fescue/clover/alfalfa/chicory', 'sorghum-sudangrass') ~ 'mixed_grass',
-  TRUE~crop)) %>% 
-  mutate(fertilized=ifelse(is.na(fertilized), 0, fertilized)) %>% #this is wrong b/c it is making CSCAP and ISI... 0 when should prob be 1.
-  mutate(keep=ifelse(network=='NutNet'&treatment=='NPK'|network=='NutNet'&treatment=='Control', 1, 0)) %>% #dropping all nutnet treatments except control and NPK
-  filter(keep==1|network !='NutNet') %>% 
-  mutate(type=case_when(
-    site == 'KNZ' & treatment == 'KNZ_Cropland' & crop2 == 'corn' ~ 'Corn',
-    site == 'KNZ' & treatment == 'KNZ_Cropland' & crop2 == 'soybean' ~ 'Soybean',
-    site == 'KNZ' & treatment == 'KNZ_Cropland' & crop2 == 'wheat' ~ 'Wheat',
-    network=='LTER'~ 'Grassland',
-    network=='NutNet'&fertilized==0 ~ 'Grassland', 
-    network=='NutNet'&fertilized==1 ~ 'Fert. Grassland', 
-    !network %in% c('LTER', 'NutNet') & crop2=="" ~ 'Grassland',
-    !network %in% c('LTER', 'NutNet') & crop2 %in% c('mixed_grass', 'switchgrass', 'alfalfa') ~ 'Pasture', 
-    !network %in% c('LTER', 'NutNet') & crop2=='corn' ~ 'Corn', 
-    !network %in% c('LTER', 'NutNet') & crop2=='soybean' ~ 'Soybean',
-    !network %in% c('NutNet') & crop2 %in% c('winter_wheat', 'spring_wheat', 'wheat') ~ 'Wheat',
-    TRUE~'999'
-  ))%>%
-  mutate(duration_years = ifelse(site == 'LCB', 9, duration_years))%>%
-  filter(!treatment %in% c('004b', '020b'))
+##STEP 1: Read in the ANPP data
+dat_4cat <- read.csv(file = file.path("data", "harmonized_data", file2)) 
 
-
-####Okay, we are going to combine to just four land management
-dat_4cat<-dat %>% 
-  mutate(type2=ifelse(type %in% c('Grassland', 'Fert. Grassland', 'Pasture'), type, 'Cropland'))
-
-####Decided not to detrend so commented out this section ###################################################################
-#detrending ANPP data - from Makki's 'data_prep_Timing_Critical.R, and based on  this paper https://doi.org/10.1016/j.agrformet.2018.09.019
-#detrend_resid_plus_mean <- function(df, y_col, t_col) {
-#  y <- df[[y_col]]
-#  t <- df[[t_col]]
-#  ok <- is.finite(y) & is.finite(t)
+dat_4cat<-dat_4cat%>% #using raw data, not detrended
+  filter(stab.analysis == 1) #sites must have 5 or more years of data, might need to up to 15 based on Doring 2018 paper?
   
-#  if (sum(ok) < 3) {
-#    df[[paste0(y_col, "_dt")]] <- NA_real_
-#    return(df)
-#  }
-  
-#  fit <- lm(y[ok] ~ t[ok])
-#  yhat <- rep(NA_real_, length(y))
-#  yhat[ok] <- predict(fit)
-#  
-#  df[[paste0(y_col, "_dt")]] <- (y - yhat) + mean(y[ok], na.rm = TRUE)
-#  df
-#}
 
-#anpp_dt <- dat_4cat %>%
-#  group_by(network, site, type, type2, fertilized)%>% #detrend by type x site
-#  group_modify(~{
-#    df <- .x
-#    df <- detrend_resid_plus_mean(df, "anpp_g_m2", "w_yr")
-#    df
-#  }) %>%
-#  ungroup()
-#checking trends in ANPP through time by site and type
-
-#anpp_models <- dat_4cat %>%
-#  group_by(site, type) %>%
-#  filter(!is.na(anpp_g_m2))%>%
-#  summarize(n= n(), Intercept = lm(anpp_g_m2 ~ year)$coefficients[1], 
-#            Coeff_x1 = lm(anpp_g_m2 ~ year)$coefficients[2],
-#            R2 = summary(lm(anpp_g_m2 ~ year))$r.squared,
-#           pval = summary(lm(anpp_g_m2 ~ year))$coefficients["year", 4])
-
-#anpp_models <- dat_4cat %>%
-#  group_by(site, type) %>%
-#  filter(!is.na(anpp_g_m2)) %>%
-#  filter(n() > 4)%>%
-#  summarize(
-#    n = n(),
-#    Intercept = lm(anpp_g_m2 ~ year)$coefficients[1],
-#    Coeff_x1 = lm(anpp_g_m2 ~ year)$coefficients[2],
-#    R2 = summary(lm(anpp_g_m2 ~ year))$r.squared,
-#    pval = summary(lm(anpp_g_m2 ~ year))$coefficients["year", "Pr(>|t|)"]
-#  )
-
-#graph site x crop with p <0.06
-#anpp_models.2<-anpp_models%>%
-#  filter(pval < 0.05)%>%
-#  select(site, type) %>%
-#  mutate(site_type = paste(site, type, by = "_"))
-
-#sig.sites <- dat_4cat %>%
-#  mutate(site_type = paste(site, type, by = "_"))%>%
-#  filter(site_type %in% anpp_models.2$site_type) %>%
-#  filter(type != "Pasture")
-
-#ggplot(data =sig.sites, aes(year, anpp_g_m2, color = type))+
-#  geom_point()+
-#  geom_smooth(method="lm")+
-#  facet_wrap(~site, scales = "free")
-#ggplot(data = sig.sites, aes(wyr_ppt, anpp_g_m2, color = type))+
-#  geom_point()+
-#  geom_smooth(method="lm")+
-# facet_wrap(~site,  scales = "free")
-#ggplot(data =sig.sites, aes(year, wyr_ppt,  color = type))+
-#  geom_point()+
-#  geom_smooth(method="lm")+
-#  facet_wrap(~site, scales = "free")
-
-#ggplot(data= subset(dat_4cat, dat_4cat$type == "Corn"), aes(year, anpp_g_m2))+
-#  geom_point()+
-#  geom_smooth(method="lm")
-
-####Decided not to detrend so commented out this above section ###################################################################
-
-##STEP 3: Read in MAP data
-#file3<-'site_climate_mswep.csv'
-#googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
-#  dplyr::filter(name == file3) %>% 
-#  googledrive::drive_download(file = .$id, overwrite = T,
-                             # path = file.path("data", "harmonized_data", .$name))
-
-#climatedat<- read.csv(file = file.path("data", "harmonized_data", file3)) %>% rename(site=site_id)
 
 
 #############################
-
-  dat4.1<-dat_4cat%>% #using raw data, not detrended
-    filter(duration_years > 4)%>% #sites must have 5 or more years of data, might need to up to 15 based on Doring 2018 paper?
-    group_by(network, site, type, type2, fertilized)%>%
-    summarize(nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2), anpp_pulse = (max(anpp_g_m2)-mean(anpp_g_m2))/mean(anpp_g_m2))%>%
-    filter(nobs > 4)%>% #crops within a site must have 5 or more years of data
-    filter(type != "Pasture") #removing pasture due to sample size
-  
-  duration<-dat_4cat%>%
-    filter(duration_years > 4)%>% 
-    filter(type != "Pasture")%>%
-    select(network, site, type, type2, fertilized, duration_years)%>%
-    unique()
-  
-  dat4.1<-left_join(dat4.1, duration, by = c('network', 'site', 'type', 'type2', 'fertilized') )
-
-  #calc some stability metrics - taking mean across site (not Ingrids approach, which calcs across all sites within a type)
-  dat4.2<-dat4.1%>%
-    mutate(cv = sd/manpp)%>%
-    mutate(stab = 1/cv)
-  
-  means.1<-dat4.2%>%
-    select(-nobs)%>%
-    pivot_longer(cols = c(manpp:stab), names_to = "var", values_to = "val")%>%
-    group_by(type2, var)%>%
-    summarise(nobs=n(), 
-              mean=mean(val), 
-              sd=sd(val),
-              se = sd/sqrt(nobs))%>%
-    filter(var %in% c("manpp", "sd", "stab", "anpp_pulse" ))
-  
-  
-  #################
-  # Anova's on raw data (not detrended)
-  
-  test_normality <- function(x) {
-    list(
-      raw = shapiro.test(x),
-      log = shapiro.test(log(x)),
-      sqrt = shapiro.test(sqrt(x)),
-      cube = shapiro.test(x)^(1/3)
-    )
-  }
-  
-  #anpp###########
-  transforms <- list(
-    raw = dat4.2$manpp,
-    log = log(dat4.2$manpp),
-    sqrt = sqrt(dat4.2$manpp),
-    cube = (dat4.2$manpp)^(1/3)
-  )
-  
-  lapply(transforms, function(x) {
-    m <- aov(x ~ type2, data = dat4.2)
-    shapiro.test(residuals(m))
-  })
-  
-  #Normality tests - $sqrt and $cube had w >0.95 and pvalue >0.05
-    #using visual assessment to determine which model is best
-  
-  #sqrt <-- the plots were pretty close but liked the q-q residuals better on this so using this model
-  mod.manpp.sqrt<-aov(sqrt(manpp) ~ type2, data = dat4.2)
-    summary(mod.manpp.sqrt)
-    
-  par(mfrow=c(2,2))
-  plot(mod.manpp.sqrt)
-  
-  tuk.manpp.1<-TukeyHSD(mod.manpp.sqrt)$type2
-  tuk.manpp.1
-  
-  tuk.manpp.2<-multcompLetters(tuk.manpp.1[ , "p adj"])$Letters
-  tuk.manpp.2
-  
-  tuk.manpp.3<-data.frame(type2 = names(tuk.manpp.2),
-                          letters =  tuk.manpp.2,
-                          var = "manpp")
-  
-  #cube
-  #Aovfit.manpp.cube<-aov((manpp)^(1/3) ~ type2, data = dat4.2)
-  #  summary(Aovfit.manpp.cube)
-  
-  #par(mfrow=c(2,2))
-  #plot(Aovfit.manpp.cube)
-  
-  
-  #sd###########
-  transforms <- list(
-    raw = dat4.2$sd,
-    log = log(dat4.2$sd),
-    sqrt = sqrt(dat4.2$sd),
-    cube = (dat4.2$sd)^(1/3)
-  )
-  
-  lapply(transforms, function(x) {
-    m <- aov(x ~ type2, data = dat4.2)
-    shapiro.test(residuals(m))
-  })
-  
-  #Normality tests - $log and $cube had w >0.95 and pvalue >0.05
-  #using visual assessment to determine which model is best
-  
-  #log <-- the plots were pretty close but liked the q-q residuals better on this so using this model
-  mod.sd.log<-aov(log(sd) ~ type2, data = dat4.2)
-  summary(mod.sd.log)
-  
-  par(mfrow=c(2,2))
-  plot(mod.sd.log)
-  
-  tuk.sd.1<-TukeyHSD(mod.sd.log)$type2
-  tuk.sd.1
-  
-  tuk.sd.2<-multcompLetters(tuk.sd.1[ , "p adj"])$Letters
-  tuk.sd.2
-  
-  tuk.sd.3<-data.frame(type2 = names(tuk.sd.2),
-                          letters =  tuk.sd.2,
-                          var = "sd")
-  
-  #cube
-  #Aovfit.sd.cube<-aov((sd)^(1/3) ~ type2, data = dat4.2)
-  #summary(Aovfit.sd.cube)
-  
-  #par(mfrow=c(2,2))
-  #plot(Aovfit.sd.cube)
-  
-  
-  #stab###########
-  transforms <- list(
-    raw = dat4.2$stab,
-    log = log(dat4.2$stab),
-    sqrt = sqrt(dat4.2$stab),
-    cube = (dat4.2$stab)^(1/3)
-  )
-  
-  lapply(transforms, function(x) {
-    m <- aov(x ~ type2, data = dat4.2)
-    shapiro.test(residuals(m))
-  })
-  
-  #Normality tests - $log and $cube had w >0.95 and pvalue >0.05
-  #using visual assessment to determine which model is best
-  
-  #log <-- the plots were pretty close but liked the q-q residuals better on this so using this model
-  mod.stab.log<-aov(log(stab) ~ type2, data = dat4.2)
-  summary(mod.stab.log)
-  
-  par(mfrow=c(2,2))
-  plot(mod.stab.log)
-  
-  tuk.stab.1<-TukeyHSD(mod.stab.log)$type2
-  tuk.stab.1
-  
-  tuk.stab.2<-multcompLetters(tuk.stab.1[ , "p adj"])$Letters
-  tuk.stab.2
-  
-  tuk.stab.3<-data.frame(type2 = names(tuk.stab.2),
-                          letters =  tuk.stab.2,
-                          var = "stab")
-  #cube
-  #mod.stab.cube<-aov((stab)^(1/3) ~ type2, data = dat4.2)
-  #summary(mod.stab.cube)
-  
-  #par(mfrow=c(2,2))
-  #plot(mod.stab.cube)
-  
-  
-  #anpp_pulse###########
-  transforms <- list(
-    raw = dat4.2$anpp_pulse,
-    log = log(dat4.2$anpp_pulse),
-    sqrt = sqrt(dat4.2$anpp_pulse),
-    cube = (dat4.2$anpp_pulse)^(1/3)
-  )
-  
-  lapply(transforms, function(x) {
-    m <- aov(x ~ type2, data = dat4.2)
-    shapiro.test(residuals(m))
-  })
-  
-  #Normality tests - $log, $sqrt and $cube had w >0.95 and pvalue >0.05
-  #using visual assessment to determine which model is best
-  
-  #log <-- the plots were pretty close but liked the q-q residuals better on this so using this model
-  mod.anpp_pulse.log<-aov(log(anpp_pulse) ~ type2, data = dat4.2)
-  summary(mod.anpp_pulse.log)
-  
-  par(mfrow=c(2,2))
-  plot(mod.anpp_pulse.log)
-  
-  tuk.anpp_pulse.1<-TukeyHSD(mod.anpp_pulse.log)$type2
-  tuk.anpp_pulse.1
-  
-  tuk.anpp_pulse.2<-multcompLetters(tuk.anpp_pulse.1[ , "p adj"])$Letters
-  tuk.anpp_pulse.2
-  
-  tuk.anpp_pulse.3<-data.frame(type2 = names(tuk.anpp_pulse.2),
-                          letters =  tuk.anpp_pulse.2,
-                          var = "anpp_pulse")
-  
-  
-  #sqrt 
-  #Aovfit.anpp_pulse.sqrt<-aov(sqrt(anpp_pulse) ~ type2, data = dat4.2)
-  #summary(Aovfit.anpp_pulse.sqrt)
-  
-  #par(mfrow=c(2,2))
-  #plot(Aovfit.anpp_pulse.sqrt)
-  
-  #cube
-  #Aovfit.anpp_pulse.cube<-aov((anpp_pulse)^(1/3) ~ type2, data = dat4.2)
-  #summary(Aovfit.anpp_pulse.cube)
-  
-  #par(mfrow=c(2,2))
-  #plot(Aovfit.anpp_pulse.cube)
-  
-  #combine dataframes
-  tuk.all<-rbind(tuk.manpp.3, tuk.sd.3, tuk.stab.3, tuk.anpp_pulse.3)
-  
-  means.1<-means.1%>%
-    left_join(tuk.all, by = c("type2", "var"))
-  
-  means.1$var<-factor(means.1$var,
-                      levels = c ("manpp", "sd", "stab", "anpp_pulse"))
-  
-  ggplot(means.1, aes(x = type2, y = mean, fill = type2)) +
-    geom_bar(stat = "identity") +
-    geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.1) +
-    geom_text(aes(label = letters, y = mean + se),
-              vjust = -0.3, size = 5) +
-    scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
-    facet_wrap(~var, scales = "free") +
-    theme_bw()
-  
-  #stopped here 3/26/26 DLH
-  ############################
-  # how does data length impact stability? #croplands have a negative relationship, but nothing across all
-  ggplot(data=dat4.2, aes(x=duration_years, y=stab, color = type2))+
-    geom_point()+
-    geom_smooth(method = 'lm')
-  
-  ###############################################################################################
-  #
-  # Stop here for those adopting this code
-  #
-  #limiting range of MAP to fit croplands - didn't make a huge difference but worth considering
-  dat4.2b<-left_join(dat4.2, climatedat, by = "site")
-  
-  means.2<-dat4.2b%>%
-    filter(MAP > 450 & MAP <1130)%>%
-    select(site, type2, manpp, sd, anpp_pulse, cv, stab)%>%
-    pivot_longer(cols = c(manpp:stab), names_to = "var", values_to = "val")%>%
-    group_by(type2, var)%>%
-    summarise(nobs=n(), 
-              mean=mean(val), 
-              sd=sd(val),
-              se = sd/sqrt(nobs))
-  
-  ggplot(data=means.2, aes(x=type2, y=mean))+
-    geom_bar(stat = 'identity')+
-    geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.1)+
-    facet_wrap(~var, scales = "free")
-  
-  #combine with precip metrics and explore relationships
-  dat4.2b.crop<-dat4.2b%>%
-    filter(type2 == "Fert. Grassland")%>%
-    ungroup()%>%
-    select(manpp, sd, anpp_pulse, cv, MAP, cv_ppt_inter)
-    
-  #crop correlations
-  cors.crop <- cor(dat4.2b.crop)
-  corrplot.mixed( cors.crop)  
-  
-  cor.mtest <- function(mat, ...) {
-    mat <- as.matrix(mat)
-    n <- ncol(mat)
-    p.mat<- matrix(NA, n, n)
-    diag(p.mat) <- 0
-    for (i in 1:(n - 1)) {
-      for (j in (i + 1):n) {
-        tmp <- cor.test(mat[, i], mat[, j], ...)
-        p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
-      }
-    }
-    colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
-    p.mat
-  }
-
-    # matrix of the p-value of the correlation
-  p.mat <- cor.mtest(dat4.2b.crop)
-  head(p.mat[, 1:5])
-  
-  corrplot(cors.crop, type="upper", order="hclust", 
-           p.mat = p.mat, sig.level = 0.05, insig = "blank")  
-  
-  #graph correlations
-  ggplot(dat4.2b, aes(x = cv_ppt_inter, y = cv, color = type2)) +
-    geom_point() +                                           # Add scatter plot points, colored by Species
-    geom_smooth(method = "lm", se = FALSE)
- 
-    
-  ###########################################################
+#DLH 12/3/25
   #run linear models for Taylor's power law calc 
+  dat4.1<-dat_4cat%>%
+  #filter(duration_years > 4)%>% #sites must have 5 or more years of data, might need to up to 15 based on Doring 2018 paper?
+  filter(!is.na(anpp_g_m2)) %>%
+  group_by(network, site, type, type2, fertilized)%>%
+  summarize(nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2))%>%
+  #filter(nobs > 4)%>% #crops within a site must have 5 or more years of data
+  filter(type != "Pasture") #removing pasture due to sample size
+
+
   dat4.2<-dat4.1%>%
-    mutate(var = sd^2)%>%
     mutate(mi = log10(manpp))%>%
+    mutate(var = sd^2)%>% 
     mutate(vi = log10(var))
-  
-   ##Combining all types to calc aCV#####
+ 
+  ###########################################################
+  ##Combining all types to calc aCV#####
   ggplot(dat4.2, aes(mi, vi))+
     geom_point(aes(color=type2))+
     geom_smooth(method='lm')+
@@ -497,27 +89,47 @@ dat_4cat<-dat %>%
                   width = 0.2, position = position_dodge(width = 0.8)) +
     theme_minimal()
   
- 
-  
-  
   ###########################################################
   ##Combining all types to calc aCV#####
-  ggplot(dat4.2, aes(mi, vi, color = type2))+
+  
+  #run by types s
+  ggplot(data = dat4.2, aes(mi, vi, color = type2))+
     geom_point()+
     geom_smooth(method = 'lm')+
     geom_abline(slope=2) +
     xlab('Log(Mean ANPP)')+
     ylab('Log(sd^2 ANPP)')
   
-    
+  
+  #run by types soy and wheat removed
+  ggplot(data = subset(dat4.2, !dat4.2$type %in% c("Soybean", "Wheat")), aes(mi, vi, color = type2))+
+    geom_point()+
+    geom_smooth(method = 'lm')+
+    geom_abline(slope=2) +
+    xlab('Log(Mean ANPP)')+
+    ylab('Log(sd^2 ANPP)')
+  
+  # run ancova to test if slopes are different  
   # Fit model with interaction
   model_interaction <- lm(vi ~ mi * type2, data = dat4.2)
+  
+  #model_interaction <- lm(vi ~ mi * type2, data = subset(dat4.2, !dat4.2$type %in% c("Soybean", "Wheat")))
   
   # Summary shows if slopes differ 
   summary(model_interaction)
   
+  #extract slopes for each group
+  slopes <- emtrends(model_interaction, ~ type2, var = "mi")
+  slopes
+  
+  #pairwise comparison of slopes
+  pairs(slopes, adjust = "tukey")
+  
+  
+  
+  
   # ANOVA to test significance of interaction
-  anova(model_interaction) # main effects of mi and type2 significant (p < 0.001), marginally significant interaction of mi:type2 (p=0.08)
+  #anova(model_interaction) # main effects of mi and type2 significant (p < 0.001), marginally significant interaction of mi:type2 (p=0.08)
                            # might suggest that each type2 is calc separately 
   
   #run POLAR aCV calculations by Type2
