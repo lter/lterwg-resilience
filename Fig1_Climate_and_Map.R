@@ -27,6 +27,21 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
 ##STEP 1: Read in the ANPP data
 dat_4cat <- read.csv(file = file.path("data", "harmonized_data", file2)) 
 
+
+# Make a table of the ANPP data
+data.summary <- dat_4cat%>% #using raw data, not detrended
+  filter(stab.analysis == 1)%>% #sites must have 5 or more years of data, might need to up to 15 based on Doring 2018 paper?
+  group_by(network, site, type, type2)%>% #need to average over type to make independent calcs of croplands with different types (e.g. corn, soy, wheat)
+  # dropping anpp pulse summarize(nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2), anpp_pulse = (max(anpp_g_m2)-mean(anpp_g_m2))/mean(anpp_g_m2))
+  summarize(nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2), map = mean(wyr_ppt))
+
+data.summary2 <- data.summary %>%
+  ungroup()%>%
+  group_by(type) %>%
+  summarize(min_anpp = min(manpp), max_anpp = max(manpp), min_n = min(nobs), max_n = max(nobs), 
+            mean_n= mean(nobs), n = n(), min_map = min(map), max_map = max(map))
+
+
 ##STEP 2: Read in MAP data
 file3<-'site_climate_mswep.csv'
 googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
@@ -106,6 +121,48 @@ map <- ggplot() +
   theme_void() +
   labs(fill = "Land use")
 map
+
+library(terra)
+library(tidyterra)  # for geom_spatraster with ggplot
+library(prism)
+
+prism_set_dl_dir("~/prismtmp")  # folder where the raster will be downloaded
+get_prism_normals(type = "ppt", resolution = "4km", annual = TRUE, keepZip = FALSE)
+
+# find the file it downloaded
+prism_archive_ls()
+list.files("~/prismtmp/prism_ppt_us_25m_2020_avg_30y", full.names = TRUE)
+
+prism_file <- pd_to_file(prism_archive_ls()[1])  # grabs the path to the file just downloaded
+prism_map <- rast("/Users/olhajek/prismtmp/prism_ppt_us_25m_2020_avg_30y/prism_ppt_us_25m_2020_avg_30y.tif")
+
+values(prism_map) %>% quantile(probs = c(0.5, 0.9, 0.95, 0.99, 1), na.rm = TRUE)
+
+
+map <- ggplot() +
+  geom_spatraster(data = prism_map) +
+  scale_fill_distiller(
+    palette = "BrBG", direction = 1, name = "MAP (mm)",
+    limits = c(0, 1500),   # 95th percentile as the ceiling
+    oob = scales::squish
+  )+
+  ggnewscale::new_scale_fill() +  # needed since you have two fill scales (raster + pie)
+  geom_sf(data = us, fill = NA, color = "black", linewidth = 0.2) +
+  geom_scatterpie(data = sites_wide, 
+                  aes(x = longitude, y = latitude), 
+                  cols = c("Grassland", "Cropland", "Fert. Grassland"),
+                  pie_scale = 0.6, 
+                  color = "white") +
+  scale_fill_manual(values = c(
+    "Grassland" =  "#7570b3",
+    "Cropland" =  "#1b9e77",
+    "Fert. Grassland" = "#d95f02"
+  )) +
+  coord_sf() +
+  theme_void() +
+  labs(fill = "Land use")
+map
+
 
 # B) Whittaker
 library(plotbiomes)
