@@ -551,6 +551,16 @@ m_mean_ppt <- lmer(log(manpp) ~ ppt_mean * type2 + (1 | site),
 summary(m_mean_ppt)
 car::Anova(m_mean_ppt, type = 3)
 
+m_mean_ppt2 <- lm(log(manpp) ~ ppt_mean*type2,
+                   data = dat4.2b, weights = nobs)
+summary(m_mean_ppt2)
+car::Anova(m_mean_ppt2, type = 3)
+
+m_mean_ppt3 <- lmer(log(manpp) ~ ppt_mean * type2 + (1 | site),
+                   data = subset(dat4.2b, type2!='Cropland'), weights = nobs)
+
+summary(m_mean_ppt3)
+car::Anova(m_mean_ppt3, type = 3)
 
 m_sd_ppt <- lmer(log(sd) ~ ppt_mean * type2 + (1 | site),
                    data = dat4.2b, weights = nobs)
@@ -562,6 +572,25 @@ m_stab_ppt <- lmer(log(stab) ~ ppt_mean * type2 + (1 | site),
                    data = dat4.2b, weights = nobs)
 summary(m_stab_ppt)
 car::Anova(m_stab_ppt, type = 3)
+
+m_stab_ppt2 <- lm(log(stab) ~ ppt_mean * type2,
+                   data = subset(dat4.2b, type2!='Cropland'), weights = nobs)
+summary(m_stab_ppt2)
+car::Anova(m_stab_ppt2, type = 3)
+
+
+#make dat long below
+ggplot(data=dat_long, aes(x=ppt_mean, y=value))+
+  geom_point()+
+  geom_smooth(method = 'lm')+
+  facet_grid(metric~type2, scales='free')
+
+dat_long_stats<-dat_long %>% 
+  group_by(metric, type2) %>% 
+  summarise(p=summary(lm(log(value)~ppt_mean, weights = nobs))$coefficients['ppt_mean', "Pr(>|t|)"]) %>% 
+  mutate(pajd=p.adjust(p, method = 'bonferroni', n=3))
+
+
 
 # ============================
 # 3-panel figure: manpp, sd, stab vs ppt_mean across type2
@@ -584,7 +613,7 @@ dat_long <- dat4.2b %>%
   ungroup() %>%  # avoid grouped-column warnings
   mutate(type2 = fct_relevel(factor(type2),
                              "Cropland", "Fert. Grassland", "Grassland")) %>%
-  select(site, type2, ppt_mean, manpp, sd, stab) %>%
+  select(site, type2, ppt_mean, nobs, manpp, sd, stab) %>%
   pivot_longer(cols = c(manpp, sd, stab),
                names_to = "metric", values_to = "value") %>%
   mutate(metric = factor(metric, levels = c("manpp", "sd", "stab")))
