@@ -112,9 +112,6 @@ View(out)
 write.csv(out, file = "/Users/ingridslette/Library/CloudStorage/GoogleDrive-slett152@umn.edu/Shared drives/LTER-WG_Resilience-Management/data/raw_data/mswep-daily-ppt-cscap-sites.csv")
 
 
-
-
-
 sites <- read.csv('/Users/ingridslette/Library/CloudStorage/GoogleDrive-slett152@umn.edu/Shared drives/LTER-WG_Resilience-Management/data/raw_data/isu-drainage_coords.csv')
 
 View(sites)
@@ -189,7 +186,7 @@ out <- pivot_longer(df, -c("site_code"), names_to = "date",
                     values_to = "precip") %>% 
   mutate(date = str_replace(date, "^precip_", ""))
 
-# create a new column for the year
+# create a new column for the years
 out$year <- substr(out$date, 1, 4)
 
 # create a new column for the month
