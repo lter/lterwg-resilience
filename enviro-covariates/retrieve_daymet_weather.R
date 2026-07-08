@@ -9,7 +9,7 @@ source("ancillary/google_drive_urls.R")
 
 ## downloaded data
 site_drive <-googledrive::drive_ls(googledrive::as_id(dir.data)) %>% 
-  dplyr::filter(name == "site_summary_info")
+  dplyr::filter(name == "site_summary_info.csv")
 googledrive::drive_download(file = site_drive$id, overwrite = T, type = "csv",
                             path = file.path("data", site_drive$name))
 site_info <- read.csv("data/site_summary_info.csv",fileEncoding = "UTF-8-BOM")
@@ -57,10 +57,10 @@ datedf$yday <- lubridate::yday(datedf$date)
 weather <- left_join(output2, datedf, by = c("year", "yday" ))
 
 ## saved in google drive temp_raw folder:
-#write.csv(weather, file = "data/tidy_data/daymet_daily_weather.csv", row.names = FALSE)
+#write.csv(weather, file = "data/harmonized_data/daymet_daily_weather.csv", row.names = FALSE)
 # upload to google drive
-googledrive::drive_upload(media = file.path("data", "tidy_data","daymet_daily_weather.csv"), overwrite = T,
-                          path = googledrive::as_id(dir.tidy_data))
+googledrive::drive_upload(media = file.path("data", "harmonized_data","daymet_daily_weather.csv"), overwrite = T,
+                          path = googledrive::as_id(dir.harmonized_data))
 
 # Summarize to monthly, annual, and mean annual--------
 monthly <- weather %>% group_by(site_id, network, year, month) %>%
@@ -80,13 +80,13 @@ meanannual <- annual %>% group_by(site_id, network) %>%
                           mean_tmean_degC = mean(mean_tmean_degC),
                           mean_precip_mmyear = mean(precip_mmyear)
                           )
-write.csv(monthly, file = "data/tidy_data/daymet_monthly_weather.csv" , row.names = FALSE)
-write.csv(annual, file = "data/tidy_data/daymet_annual_weather.csv" , row.names = FALSE)
-write.csv(meanannual, file = "data/tidy_data/daymet_meanannual_weather.csv" , row.names = FALSE)
+write.csv(monthly, file = "data/harmonized_data/daymet_monthly_weather.csv" , row.names = FALSE)
+write.csv(annual, file = "data/harmonized_data/daymet_annual_weather.csv" , row.names = FALSE)
+write.csv(meanannual, file = "data/harmonized_data/daymet_meanannual_weather.csv" , row.names = FALSE)
 
-googledrive::drive_upload(media = file.path("data", "tidy_data","daymet_monthly_weather.csv"), overwrite = T,
-                          path = googledrive::as_id(dir.tidy_data))
-googledrive::drive_upload(media = file.path("data", "tidy_data","daymet_annual_weather.csv"), overwrite = T,
-                          path = googledrive::as_id(dir.tidy_data))
-googledrive::drive_upload(media = file.path("data", "tidy_data","daymet_meanannual_weather.csv"), overwrite = T,
-                          path = googledrive::as_id(dir.tidy_data))
+googledrive::drive_upload(media = file.path("data", "harmonized_data","daymet_monthly_weather.csv"), overwrite = T,
+                          path = googledrive::as_id(dir.harmonized_data))
+googledrive::drive_upload(media = file.path("data", "harmonized_data","daymet_annual_weather.csv"), overwrite = T,
+                          path = googledrive::as_id(dir.harmonized_data))
+googledrive::drive_upload(media = file.path("data", "harmonized_data","daymet_meanannual_weather.csv"), overwrite = T,
+                          path = googledrive::as_id(dir.harmonized_data))
