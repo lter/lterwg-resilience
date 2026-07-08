@@ -131,7 +131,8 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
 # Read in harmonized data
 mswep_drives <- read.csv(file = file.path("data", "raw", focal_file))%>%
   dplyr::mutate(project_id = "DRIVES")%>%
-  dplyr::mutate(date = mdy(date))
+  dplyr::mutate(date = ymd(date)) %>%
+  select(-X)
 
 
 # Identify desired file - DAP
@@ -146,7 +147,8 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
 # Read in harmonized data
 mswep_dap <- read.csv(file = file.path("data", "raw", focal_file))%>%
   dplyr::mutate(project_id = "DAP")%>%
-  dplyr::mutate(date = mdy(date))
+  dplyr::mutate(date = ymd(date)) %>%
+  select(-X)
 
 
 
@@ -165,10 +167,10 @@ wyr_ppt_allyrs <- mswep%>%
 
 # Export locally
 write.csv(x = wyr_ppt_allyrs, row.names = F, na = '',
-          file = file.path("G:", "Shared drives", "LTER-WG_Resilience-Management", "data", "harmonized_data", "01_wyr_ppt_all_yrs.csv"))
+          file = file.path("data", "harmonized_data", "01_wyr_ppt_all_yrs.csv"))
 
 # Upload to Drive
-googledrive::drive_upload(media = file.path("G:", "Shared drives", "LTER-WG_Resilience-Management", "data", "harmonized_data", "01_wyr_ppt_all_yrs.csv"), overwrite = T,
+googledrive::drive_upload(media = file.path("data", "harmonized_data", "01_wyr_ppt_all_yrs.csv"), overwrite = T,
                           path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ"))
 
 
