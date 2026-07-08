@@ -59,7 +59,7 @@ temp_scaled <- temp_data %>%
   dplyr::select(w_yr, site, network, Tmaxc, mean_tmax, scaled_tmax,
                 num_days_95th, warm_day_90th, meanTmax_95th, Tmax_95th)
 
-# ── Merge & classify ──────────────────────────────────────────────────────────
+########### Merge and classify type #################
 ext_data_clean <- ppt_scaled %>%
   merge(anpp_scaled, by = c("w_yr", "site", "network", "wyr_ppt")) %>%
   left_join(spei_clean,  by = c("w_yr", "site")) %>%
