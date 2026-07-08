@@ -1,7 +1,6 @@
-# Ingrid Slette
-# started February 19, 2025
+# started by Ingrid Slette February 19, 2025
 
-# retrieving MSWEP (http://www.gloh2o.org/mswep/) precipitation data for lter and ltar sites
+# purpose: retrieve MSWEP (http://www.gloh2o.org/mswep/) precipitation data from various sites
 # for LTER working group Resiliance and Managment
 
 # first have to request access to MSWEP data, which is shared via Google Drive
