@@ -104,3 +104,13 @@ write.csv(x = dap_pp, na = '', row.names = F,
 
 # Clear environment / collect garbage
 rm(list = ls()); gc()
+
+## Summary of dap_pp
+# need to get the wheat fallow and the wheat-corn-fallow treatments separated
+glimpse(dap_pp)
+dap.sum <- dap_pp %>%
+  mutate(trt = ifelse(TRT %in% c(1,2), "WF", "WCF")) %>%
+  group_by(trt, Crop) %>%
+  summarize(n= n(), manpp = mean(anpp_kg_ha, na.rm = T), sd = sd(anpp_kg_ha, na.rm = T)) %>%
+  mutate(var = (sd)^2)
+
