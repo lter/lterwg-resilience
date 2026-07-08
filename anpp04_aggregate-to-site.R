@@ -61,15 +61,17 @@ dplyr::glimpse(site_v1)
 # Summarize across subsamples within a plot/level
 site_v2 <- site_v1 %>% 
   dplyr::group_by(site,location, year, network,treatment,month,crop,country,duration_years, plot) %>% 
-  dplyr::summarize(anpp_g_m2 = mean(anpp_g_m2, na.rm = T),
+  dplyr::summarize(anpp_g_m2 = mean(anpp_g_m2, na.rm = T),grain_kg_m2 = mean(grain_kg_ha, na.rm = T),
                    .groups = "keep") %>% 
-  dplyr::ungroup()
+  dplyr::ungroup() %>%
+  mutate(grain_g_m2 = grain_kg_m2 * 0.1) %>%
+  select(-grain_kg_m2)
 
 
 # Summarize within "sites" and "locations"
 site_v3 <- site_v2 %>% 
   dplyr::group_by(site,location, year, network,treatment,month,crop,country,duration_years) %>% 
-  dplyr::summarize(anpp_g_m2 = mean(anpp_g_m2, na.rm = T),
+  dplyr::summarize(anpp_g_m2 = mean(anpp_g_m2, na.rm = T),grain_g_m2 = mean(grain_g_m2, na.rm = T),
                    .groups = "keep") %>% 
   dplyr::ungroup()
 
@@ -78,7 +80,7 @@ site_v4 <- site_v3 %>%
   dplyr::mutate(month1 = month)%>%
   dplyr::select(-month)%>%
   dplyr::group_by(site, year, network,treatment,crop,country,duration_years)%>% 
-  dplyr::summarize(anpp_g_m2 = mean(anpp_g_m2, na.rm = T), month = max(month1),                   .groups = "keep") %>% #if month is screwed up, start here 
+  dplyr::summarize(anpp_g_m2 = mean(anpp_g_m2, na.rm = T), grain_g_m2 = mean(grain_g_m2, na.rm = T), month = max(month1), .groups = "keep") %>% #if month is screwed up, start here 
   dplyr::ungroup()
 
 

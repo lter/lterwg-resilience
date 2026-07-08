@@ -84,7 +84,8 @@ dap_pp <- dap_raw %>%
   # rename the date
   dplyr::rename(Date = min_date) %>%
   # Drop crops that are 0, 3, 10
-  dplyr::filter(!is.na(Crop))
+  dplyr::filter(!is.na(Crop)) %>%
+  filter(anpp_kg_ha < 50000 | is.na(anpp_kg_ha))
 
 
 # Is the harvest date the day/year as included here
@@ -104,3 +105,15 @@ write.csv(x = dap_pp, na = '', row.names = F,
 
 # Clear environment / collect garbage
 rm(list = ls()); gc()
+
+## Summary of dap_pp
+# need to get the wheat fallow and the wheat-corn-fallow treatments separated
+glimpse(dap_pp)
+dap.sum <- dap_pp %>%
+  mutate(trt = ifelse(TRT %in% c(1,2), "WF", "WCF")) %>%
+  group_by(trt, Crop) %>%
+  summarize(n= n(), manpp = mean(anpp_kg_ha, na.rm = T), sd = sd(anpp_kg_ha, na.rm = T)) %>%
+  mutate(var = (sd)^2)
+ggplot(dap_pp, aes(anpp_kg_ha))+
+  geom_histogram()+
+  facet_wrap(~Crop)

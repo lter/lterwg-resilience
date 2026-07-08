@@ -8,7 +8,7 @@
 library(lubridate)
 library(tidyverse)
 library(googledrive)
-drive_auth()
+#drive_auth()
 
 # Identify wanted files
 files_drive <- googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/1/folders/1Ty7QX7vyvD797eKJzMWbr8AwIo-GyBFO")) %>% 
@@ -119,10 +119,42 @@ mswep_isu <- read.csv(file = file.path("data", "raw", focal_file))%>%
   dplyr::mutate(date = mdy(date))
 
 
+# Identify desired file - DRIVES
+focal_file <- "mswep-daily-ppt-DRIVES-sites.csv"
+
+# Download harmonized data file
+googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1zI1KYBlROyBZSgjSEYmVjsIfCmRPpUPq")) %>% 
+  dplyr::filter(name == focal_file) %>% 
+  googledrive::drive_download(file = .$id, overwrite = T,
+                              path = file.path("data", "raw", .$name))
+
+# Read in harmonized data
+mswep_drives <- read.csv(file = file.path("data", "raw", focal_file))%>%
+  dplyr::mutate(project_id = "DRIVES")%>%
+  dplyr::mutate(date = ymd(date)) %>%
+  select(-X)
+
+
+# Identify desired file - DAP
+focal_file <- "mswep-daily-ppt-DAP-site.csv"
+
+# Download harmonized data file
+googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1zI1KYBlROyBZSgjSEYmVjsIfCmRPpUPq")) %>% 
+  dplyr::filter(name == focal_file) %>% 
+  googledrive::drive_download(file = .$id, overwrite = T,
+                              path = file.path("data", "raw", .$name))
+
+# Read in harmonized data
+mswep_dap <- read.csv(file = file.path("data", "raw", focal_file))%>%
+  dplyr::mutate(project_id = "DAP")%>%
+  dplyr::mutate(date = ymd(date)) %>%
+  select(-X)
 
 
 
-mswep <- rbind(mswep_lter.ltar, mswep_nutnet, mswep_cscap, mswep_isu)
+
+
+mswep <- rbind(mswep_lter.ltar, mswep_nutnet, mswep_cscap, mswep_isu, mswep_dap, mswep_drives)
 
 
 #calculate water year
@@ -135,10 +167,10 @@ wyr_ppt_allyrs <- mswep%>%
 
 # Export locally
 write.csv(x = wyr_ppt_allyrs, row.names = F, na = '',
-          file = file.path("G:", "Shared drives", "LTER-WG_Resilience-Management", "data", "harmonized_data", "01_wyr_ppt_all_yrs.csv"))
+          file = file.path("data", "harmonized_data", "01_wyr_ppt_all_yrs.csv"))
 
 # Upload to Drive
-googledrive::drive_upload(media = file.path("G:", "Shared drives", "LTER-WG_Resilience-Management", "data", "harmonized_data", "01_wyr_ppt_all_yrs.csv"), overwrite = T,
+googledrive::drive_upload(media = file.path("data", "harmonized_data", "01_wyr_ppt_all_yrs.csv"), overwrite = T,
                           path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ"))
 
 
