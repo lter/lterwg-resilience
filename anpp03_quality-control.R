@@ -45,7 +45,9 @@ tidy_v2 <- tidy_v1 %>%
   # make LTER sites capitalized
   dplyr::mutate(site = ifelse(network=="LTER", toupper(site), site)) %>%
   # make lowercase lter network capitalized
-  dplyr::mutate(network = ifelse(network=="lter", "LTER", network)) %>%
+  dplyr::mutate(network = ifelse(network=="lter", "LTER", network), 
+                network = ifelse(network=="", "DRIVES", network), 
+                site = ifelse(network=="DAP", toupper(site), site))%>%
   # make jornada in the "lter" network
   dplyr::mutate(network = ifelse(site=="jrn", "LTER", network))
 
@@ -122,19 +124,65 @@ dplyr::glimpse(tidy_v5)
 ## ------------------------------------------- ##
 unique(tidy_v5$crop)
 
+# tidy_v6 <- tidy_v5 %>%
+#   #change the crop names to all be consistent
+#   mutate(crop = fct_recode(as.factor(crop),  Mixed_grass = 'Mixed Grass',Spring_Wheat = 'Triticum aestivum (Spring Wheat)', 
+#                        Winter_Wheat = 'Triticum aestivum (Winter Wheat)', Soybean = 'Glycine max (Soybean)', 
+#                        Corn = 'Zea mays (Corn)',Garbanzo = 'Cicer arietinum (Garbonzo Beans)',
+#                        Canola = 'Brassica napus (Canola)',Corn = 'Zea mays L. (*)', Soybean = 'Glycine max L. (*)',
+#                        Oats = 'Avena sativa (Oats)', Rye = 'Secale cereale (Rye)',  
+#                        Safflower='Carthamus tinctorius (Safflower)' , Millet = 'Setaria italica (Foxtail Millet)',
+#                        Winter_Wheat = 'Triticum aestivum L. (*)', Alfalfa = 'Medicago sativa (Alfalfa)',
+#                        Spring_Wheat = 'Triticum aestivum (Spring Spring wheat)', Winter_Wheat = 'Wheat',
+#                        Sorghum = 'Sorghum bicolor (Sorghum)', Sorghum =  'Sorghum bicolor (sorghum)',    
+#                        Switchgrass = 'Panicum virgatum (Switchgrass)', Spring_Wheat = 'Triticum aestivum (Spring wheat)',
+#                        Soybean = 'Soybean', Corn = 'Corn'))
+
+
 tidy_v6 <- tidy_v5 %>%
-  #change the crop names to all be consistent
-  mutate(crop = fct_recode(as.factor(crop),  Mixed_grass = 'Mixed Grass',Spring_Wheat = 'Triticum aestivum (Spring Wheat)', 
-                       Winter_Wheat = 'Triticum aestivum (Winter Wheat)', Soybean = 'Glycine max (Soybean)', 
-                       Corn = 'Zea mays (Corn)',Garbanzo = 'Cicer arietinum (Garbonzo Beans)',
-                       Canola = 'Brassica napus (Canola)',Corn = 'Zea mays L. (*)', Soybean = 'Glycine max L. (*)',
-                       Oats = 'Avena sativa (Oats)', Rye = 'Secale cereale (Rye)',  
-                       Safflower='Carthamus tinctorius (Safflower)' , Millet = 'Setaria italica (Foxtail Millet)',
-                       Winter_Wheat = 'Triticum aestivum L. (*)', Alfalfa = 'Medicago sativa (Alfalfa)',
-                       Spring_Wheat = 'Triticum aestivum (Spring Spring wheat)', Winter_Wheat = 'Wheat',
-                       Sorghum = 'Sorghum bicolor (Sorghum)', Sorghum =  'Sorghum bicolor (sorghum)',    
-                       Switchgrass = 'Panicum virgatum (Switchgrass)', Spring_Wheat = 'Triticum aestivum (Spring wheat)',
-                       Soybean = 'Soybean', Corn = 'Corn'))
+  mutate(crop_clean = str_to_lower(str_trim(crop)),
+         crop = case_when(
+           crop_clean == "" ~ NA_character_,
+           
+           str_detect(crop_clean, "spring wheat") ~ "Spring_Wheat",
+           str_detect(crop_clean, "winter wheat") ~ "Winter_Wheat",
+           crop_clean == "wheat" ~ "Winter_Wheat",  # ambiguous bare "Wheat" - defaulting per your original mapping
+           str_detect(crop_clean, "triticum aestivum") ~ "Winter_Wheat",  # unlabeled sci-name-only entries default to winter
+           
+           str_detect(crop_clean, "garbonzo|garbanzo|cicer arietinum") ~ "Garbanzo",
+           str_detect(crop_clean, "canola|brassica napus") ~ "Canola",
+           str_detect(crop_clean, "zea mays|corn") & !str_detect(crop_clean, "sorghum") ~ "Corn",
+           str_detect(crop_clean, "glycine max|soybean") ~ "Soybean",
+           str_detect(crop_clean, "avena sativa|oats") ~ "Oats",
+           str_detect(crop_clean, "switchgrass|panicum virgatum") ~ "Switchgrass",
+           str_detect(crop_clean, "mixed grass") ~ "Mixed_grass",
+           str_detect(crop_clean, "medicago sativa|^alfalfa$") ~ "Alfalfa",
+           str_detect(crop_clean, "alfalfa mix") ~ "Alfalfa_mix",
+           str_detect(crop_clean, "sorghum.*sudangrass|sudangrass.*sorghum") ~ "Sorghum_sudangrass",
+           str_detect(crop_clean, "sudangrass") ~ "Sudangrass",
+           str_detect(crop_clean, "sorghum") ~ "Sorghum",
+           str_detect(crop_clean, "triticale") ~ "Triticale",
+           str_detect(crop_clean, "cereal rye|^rye$") ~ "Rye",
+           str_detect(crop_clean, "red clover") ~ "Red_clover",
+           str_detect(crop_clean, "crimson clover") ~ "Crimson_clover",
+           str_detect(crop_clean, "annual ryegrass") ~ "Annual_ryegrass",
+           str_detect(crop_clean, "safflower|carthamus tinctorius") ~ "Safflower",
+           str_detect(crop_clean, "millet|setaria italica") ~ "Millet",
+           str_detect(crop_clean, "barley") ~ "Barley",
+           str_detect(crop_clean, "^bean$") ~ "Bean",
+           str_detect(crop_clean, "tomato") ~ "Tomato",
+           str_detect(crop_clean, "pennycress") ~ "Pennycress",
+           str_detect(crop_clean, "winter small grain") ~ "Winter_small_grain",
+           str_detect(crop_clean, "annual grass-legume mix") ~ "Annual_grass_legume_mix",
+           str_detect(crop_clean, "annual legume-only mix") ~ "Annual_legume_mix",
+           str_detect(crop_clean, "perennial mix") ~ "Perennial_mix",
+           str_detect(crop_clean, "orchardgrass/white clover") ~ "Orchardgrass_clover",
+           str_detect(crop_clean, "orchard/fescue/clover/alfalfa/chicory") ~ "Perennial_mix",
+           
+           TRUE ~ str_to_title(crop_clean)  # catch-all: flag anything unmatched instead of silently dropping
+         )) %>%
+  select(-crop_clean)
+
 
 ## ------------------------------------------- ##
 # Update treatment for CPER and LTER sites without treatment----
