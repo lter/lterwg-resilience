@@ -66,8 +66,8 @@ ext_data_clean <- ppt_scaled %>%
   left_join(temp_scaled, by = c("w_yr", "network", "site")) %>%
   filter(!site %in% c("look.us", "bnch.us")) %>%   # drop two anomalous NutNet sites
   mutate(
-    crop       = tolower(crop),
-    crop2      = case_when(
+    crop = tolower(crop),
+    crop2 = case_when(
       crop %in% c("orchardgrass/white clover",
                   "orchard/fescue/clover/alfalfa/chicory",
                   "sorghum-sudangrass") ~ "mixed_grass",
@@ -92,8 +92,8 @@ ext_data_clean <- ppt_scaled %>%
     category = as.factor(category)
   ) %>%
   # require > 4 site-years per group; classify sites as wet/dry relative to grand mean
-  group_by(category, crop, site) %>%
-  mutate(n.yrs   = n(),
-         ppt_cat = ifelse(mean_ppt > mean(mean_ppt), "W", "D")) %>%
-  filter(n.yrs > 4) %>%
+  mutate(Trt=ifelse(!network %in% c("LTER", "NutNet"), type, treatment)) %>% 
+  group_by(category, Trt, site) %>%
+  mutate(n.obs   = n()) %>% #in most cases this is years, but a few sites have multiple harvest in a year
+  filter(n.obs > 4) %>%
   ungroup()
