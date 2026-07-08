@@ -159,3 +159,37 @@ yields3$aggregate_crop[which(yields3$actual_crop_id %in% c("alfalfa","alfalfa mi
 yields3 <- relocate(yields3, aggregate_crop, .before = actual_crop_id)
 
 #write.csv(yields3, file.path("data","pre_processed_data","drives_anpp_pre_process.csv"), row.names=FALSE, na = "")
+
+
+# Olivia is amending this slightly to fix the ANPP
+file2<-'drives_anpp_pre_process.csv'
+googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Sw-CdVIsCNvnS3laPn1a90WHoZsEoMif")) %>% 
+  dplyr::filter(name == file2) %>% 
+  googledrive::drive_download(file = .$id, overwrite = T,
+                              path = file.path("data", "pre_processed_data", .$name))
+
+##STEP 1: Read in the file
+drives <- read.csv(file = file.path("data", "pre_processed_data", file2)) 
+
+# fix the anpp
+glimpse(drives)
+drives
+
+unique(drives$measured_fraction_f1)
+unique(drives$measured_fraction_f2)
+drives.2 <- drives %>%
+  mutate(anpp_kgha = case_when(
+    hasANPP == T ~ dry_yield_kg_ha_f1, 
+    measured_fraction_f2 %in% c("straw", "stover", "silage") ~ dry_yield_kg_ha_f1 + dry_yield_kg_ha_f2,
+    TRUE ~ NA)) %>%
+  select(-ANPP_kgha) %>%
+  rename(ANPP_kgha = anpp_kgha)
+
+# Export locally
+write.csv(x = drives.2, row.names = F, na = '',
+          file = file.path("data", "pre_processed_data", "drives_anpp_pre_process.csv"))
+
+# Upload to Drive
+googledrive::drive_upload(media = file.path("data", "pre_processed_data", "drives_anpp_pre_process.csv"), overwrite = T,
+                          path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Sw-CdVIsCNvnS3laPn1a90WHoZsEoMif"))
+
