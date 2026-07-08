@@ -1,42 +1,52 @@
 ## ----------------------------------------------------------------- ##
-# Download SPEI time series
+# Resilience Management - Harmonization Workflow
 ## ----------------------------------------------------------------- ##
 # Authors: Makki Khorchani
 
 # Purpose
-## Download SPEI data for all sites and save a data frame on the drive.
+## Download SPEI 6 months data for all sites and save a data frame on the drive.
 ## The SPEI NC files are downloaded from this website https://spei.csic.es/spei_database/#map_name=spei01#map_position=1475
 
-# Clear environment + collect garbage
-rm(list = ls()); gc()
 
 # Load libraries
 library(googledrive)
 library(leaflet)
 library(ncdf4)
 library(readxl)
-library(purrr)
+library(raster)
+library(tidyverse)
 
-# Grab the data key
-site_drive <- googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Ty7QX7vyvD797eKJzMWbr8AwIo-GyBFO")) %>% 
+# Clear environment + collect garbage
+rm(list = ls()); gc()
+
+## ------------------------------------------- ##
+# Download Data ----
+## ------------------------------------------- ##
+
+# NOTE
+## This script assumes (1) access to the "LTER-WG_Resilience-Management" Shared Drive (2) authentication with R
+## For more information on authentication, see the following tutorial:
+### https://lter.github.io/scicomp/tutorial_googledrive-pkg.html
+
+
+drive_auth() 
+
+# Grab the data key for the site summary info file from Google drive. 
+# link below is the path for the location of the file on the drive
+key_drive <- googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Ty7QX7vyvD797eKJzMWbr8AwIo-GyBFO")) %>% 
   dplyr::filter(name == "site_summary_info.csv")
 
 # Did that work?
-site_drive
+key_drive
 
-# Download the site data
-googledrive::drive_download(file = site_drive$id, overwrite = T, type = "csv",
-                            path = file.path("data", site_drive$name))
-
-
-
-# Choose an output name for the final csv file  and the SPEI dataset you want to work with (the outputname and nc_filename should include the path to the right folder)
-output_name<-file.path("data", "spei_data","spei06.csv")
-nc_filename<-file.path("data", "spei_data","spei06.nc")
+# Download the file
+googledrive::drive_download(file = key_drive$id, overwrite = T, type = "csv",
+                            path = file.path("data", key_drive$name))
 
 
-# importing site data (coordinates and siteID) #make sure you have the last updates site_summary_info file downloaded
-sites <- read.csv(file = file.path("data", "site_summary_info.csv"), header = TRUE)
+# importing site data (coordinates and siteID)
+sites <- read.csv(file.path("data","site_summary_info.csv"))
+
 
 # Creating a leaflet map of the site locations
 leaflet(data = sites) %>%
@@ -48,15 +58,32 @@ leaflet(data = sites) %>%
     color = "red",         # outline color
     fillColor = "red",     # fill color
     fillOpacity = 0.8,
-
+    
     # Option 1: Show site ID when hovering (label)
     label = ~site_id,
     labelOptions = labelOptions(noHide = FALSE, textsize = "12px"),
-
+    
     # Option 2: Show site ID when clicked (popup)
     popup = ~paste("Site ID:", site_id)
   )
 
+#spei_data path="https://drive.google.com/drive/u/0/folders/1JtFMD4IAizjNGd0wbLLZIBdgqnk4YR97"
+#location to upload spei.csv outputs
+folder_id <- as_id("https://drive.google.com/drive/u/0/folders/1JtFMD4IAizjNGd0wbLLZIBdgqnk4YR97")
+
+#list gloabl ncdf files on the spei_data folder
+ncs<-list.files(file.path("data","spei_data"),pattern = ".nc")
+
+extract=FALSE
+upload=FALSE
+#extract site spei times series for all scales (01-24) for all sites and upload output files to spei_data
+for (nc in ncs) {
+  nc_filename<-file.path("data","spei_data",nc)  
+
+# Creates an output name for the final csv file
+output_name<-gsub(".nc$", ".csv", nc_filename)
+
+if (extract==TRUE) {
 # Open the ncdf file containing the global SPEI data
 ncfile <- nc_open(nc_filename)
 
@@ -114,13 +141,11 @@ for(i in seq_len(n_sites)) {
   final_df[[site_colname]] <- ts_values
 }
 
+write.csv(final_df,output_name,row.names = F)
+}
+if(upload==TRUE){
+drive_upload(output_name,path=folder_id)}
+}
 
-# Export final dataset
-write.csv(final_df,file=output_name,row.names = F)
-
-
-# Upload output file to the drive
-purrr::walk(.x = output_name,
-            .f = ~ googledrive::drive_upload(media = .x, overwrite = T, path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/1JtFMD4IAizjNGd0wbLLZIBdgqnk4YR97")))
 
 

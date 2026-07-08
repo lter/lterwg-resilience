@@ -150,21 +150,17 @@ ops_v2 <- ops_v1 %>%
   dplyr::filter(stringr::str_detect(string = operation, pattern = "corn") |
                   stringr::str_detect(string = operation, pattern = "soy")) %>% 
   # Pare down to only needed columns
-  dplyr::select(uniqueid, cropyear, operation, date) %>% 
+  dplyr::select(uniqueid, cropyear, operation, date, croprot) %>% 
   # Fix stupid Excel date issue
   dplyr::mutate(date = as.Date(as.numeric(date), origin = "1899-12-30")) %>% 
   # Separate 'operation' into crop versus event
   tidyr::separate_wider_delim(cols = operation, delim = "_", names = c("event", "crop")) %>% 
   # Drop non-unique rows
   dplyr::distinct() %>% 
-  # NOTE JUDGEMENT CALL HERE (vvv)
-  # There are two plant/harvest dates for corn at SERF from 2012-15
-  # We need there to be one so I'm taking the first
-  dplyr::group_by(uniqueid, cropyear, crop, event) %>% 
-  dplyr::summarize(date = dplyr::first(date),
-                   .groups = "keep") %>% 
-  dplyr::ungroup() %>% 
-  # NOTE JUDGEMENT CALL HERE (^^^)
+  # Filter out unwanted rotations
+  dplyr::filter(croprot %in% c("n/a", "CS")) %>% 
+  # Drop crop rotation column now that we've used it
+  dplyr::select(-croprot) %>% 
   # Reshape wide
   tidyr::pivot_wider(names_from = event, values_from = date)
 

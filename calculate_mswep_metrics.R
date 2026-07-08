@@ -171,7 +171,7 @@ d_variability <- function (var, cutoff = 1, k=0){
 ppt_mean_annual <- function(df, min_date, max_date) {
   
   if("precip" %in% names(df)) {
-    df <- rename(df, ppt = precip)
+    df <- dplyr::rename(df, ppt = precip)
   }
   
   stopifnot(
@@ -186,11 +186,11 @@ ppt_mean_annual <- function(df, min_date, max_date) {
     # order of grouping matters (b/ drop_last below)
     group_by(site_id, year, month) %>% 
     # monthly ppt
-    summarise(ppt = sum(ppt), .groups = "drop_last",
+    dplyr::summarise(ppt = sum(ppt), .groups = "drop_last",
               n = n()) %>% 
     # calculatings for the given year (across months), supposedly better
     # then averaged across yrs (next step)
-    summarise(seasonality_index = seasonality_index(ppt),
+    dplyr::summarise(seasonality_index = seasonality_index(ppt),
               # intra-annual ppt calculated for the given year
               # (then averaged across years in the next step)
               cv_ppt_intra = sd(ppt)/mean(ppt)*100,
@@ -203,7 +203,7 @@ ppt_mean_annual <- function(df, min_date, max_date) {
   }
   
   out <- out %>% 
-    summarize(
+    dplyr::summarize(
       MAP = mean(ppt),
       cv_ppt_intra = mean(cv_ppt_intra),
       # inter annual cv of precipitation
@@ -279,7 +279,8 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
 # Read in harmonized data
 mswep_lter.ltar <- read.csv(file = file.path("data", "raw", focal_file))%>%
   dplyr::mutate(date = ymd(date))%>%
-  filter(!(site_id == "KBS" & project_id == "LTER"))
+  filter(!(site_id == "KBS" & project_id == "LTER"))%>%
+  dplyr::select(-X)
 
 
 # Identify desired file
@@ -294,11 +295,44 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
 # Read in harmonized data
 mswep_nutnet <- read.csv(file = file.path("data", "raw", focal_file))%>%
                 dplyr::mutate(project_id = "NutNet")%>%
-                dplyr::mutate(date = ymd(date))
+                dplyr::mutate(date = ymd(date))%>%
+                dplyr::select(-X)
+
+
+# Identify desired file
+focal_file <- "mswep-daily-ppt-cscap-sites.csv"
+
+# Download harmonized data file
+googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1zI1KYBlROyBZSgjSEYmVjsIfCmRPpUPq")) %>% 
+  dplyr::filter(name == focal_file) %>% 
+  googledrive::drive_download(file = .$id, overwrite = T,
+                              path = file.path("data", "raw", .$name))
+
+# Read in harmonized data
+mswep_cscap <- read.csv(file = file.path("data", "raw", focal_file))%>%
+  dplyr::mutate(project_id = "CSCAP")%>%
+  dplyr::mutate(date = mdy(date))
+
+
+# Identify desired file
+focal_file <- "mswep-daily-ppt-isu-drainage-sites.csv"
+
+# Download harmonized data file
+googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1zI1KYBlROyBZSgjSEYmVjsIfCmRPpUPq")) %>% 
+  dplyr::filter(name == focal_file) %>% 
+  googledrive::drive_download(file = .$id, overwrite = T,
+                              path = file.path("data", "raw", .$name))
+
+# Read in harmonized data
+mswep_isu <- read.csv(file = file.path("data", "raw", focal_file))%>%
+  dplyr::mutate(project_id = "ISU Drainage")%>%
+  dplyr::mutate(date = mdy(date))
 
 
 
-mswep <- rbind(mswep_lter.ltar, mswep_nutnet)
+
+
+mswep <- rbind(mswep_lter.ltar, mswep_nutnet, mswep_cscap, mswep_isu)
 
 
 # time period used to calculate MAP and other ppt metrics from CHIRPS
@@ -338,7 +372,7 @@ ann1 <- ppt_mean_annual(mswep, min_date = min_date,
                         max_date = max_date) %>% 
    #not including dataperiod here b/ also including worldclim data
   # below which isn't the same period
-  select(-data_period)
+  dplyr::select(-data_period)
 
 ann2 <- left_join(ann0, ann1, by = "site_id")
 

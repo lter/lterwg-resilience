@@ -66,11 +66,31 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
 # Read in harmonized data
 mswep_lter.ltar <- read.csv(file = file.path("data", "raw", focal_file))%>%
   dplyr::mutate(date = ymd(date))%>%
-  filter(!(site_id == "KBS" & project_id == "LTER"))
+  filter(!(site_id == "KBS" & project_id == "LTER"))%>%
+  dplyr::select(-X)
 
 
 # Identify desired file
 focal_file <- "mswep-daily-ppt-nutnet-sites.csv"
+
+# Download harmonized data file
+googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1zI1KYBlROyBZSgjSEYmVjsIfCmRPpUPq")) %>% 
+  dplyr::filter(name == focal_file) %>%
+  googledrive::drive_download(file = .$id, overwrite = T,
+                              path = file.path("data", "raw", .$name))
+
+# Read in harmonized data
+mswep_nutnet <- read.csv(file = file.path("data", "raw", focal_file))%>%
+  dplyr::mutate(project_id = "NutNet")%>%
+  dplyr::rename(site_id = site_code)%>%
+  #dplyr::select(site_code, project_id, date, precip, year, month, day)%>%
+  dplyr::mutate(date = ymd(date))%>%
+  dplyr::select(-X)
+
+
+
+# Identify desired file
+focal_file <- "mswep-daily-ppt-cscap-sites.csv"
 
 # Download harmonized data file
 googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1zI1KYBlROyBZSgjSEYmVjsIfCmRPpUPq")) %>% 
@@ -79,32 +99,59 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
                               path = file.path("data", "raw", .$name))
 
 # Read in harmonized data
-mswep_nutnet <- read.csv(file = file.path("data", "raw", focal_file))%>%
-  dplyr::mutate(project_id = "NutNet")%>%
-  dplyr::mutate(date = ymd(date))
+mswep_cscap <- read.csv(file = file.path("data", "raw", focal_file))%>%
+  dplyr::mutate(project_id = "CSCAP")%>%
+  dplyr::mutate(date = mdy(date))
+
+
+# Identify desired file
+focal_file <- "mswep-daily-ppt-isu-drainage-sites.csv"
+
+# Download harmonized data file
+googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1zI1KYBlROyBZSgjSEYmVjsIfCmRPpUPq")) %>% 
+  dplyr::filter(name == focal_file) %>% 
+  googledrive::drive_download(file = .$id, overwrite = T,
+                              path = file.path("data", "raw", .$name))
+
+# Read in harmonized data
+mswep_isu <- read.csv(file = file.path("data", "raw", focal_file))%>%
+  dplyr::mutate(project_id = "ISU Drainage")%>%
+  dplyr::mutate(date = mdy(date))
 
 
 
-mswep <- rbind(mswep_lter.ltar, mswep_nutnet)
+
+
+mswep <- rbind(mswep_lter.ltar, mswep_nutnet, mswep_cscap, mswep_isu)
+
 
 #calculate water year
 wyr_ppt_allyrs <- mswep%>%
   mutate(w_yr = ifelse(month > 9, year + 1, year) )%>%
   group_by(w_yr, site_id, project_id)%>%
-  summarise(wyr_ppt  = sum(precip, na.rm = T) )%>%
-  rename(network = project_id)
+  dplyr::summarise(wyr_ppt  = sum(precip, na.rm = T) )%>%
+  dplyr::rename(network = project_id)
+
+
+# Export locally
+write.csv(x = wyr_ppt_allyrs, row.names = F, na = '',
+          file = file.path("G:", "Shared drives", "LTER-WG_Resilience-Management", "data", "harmonized_data", "01_wyr_ppt_all_yrs.csv"))
+
+# Upload to Drive
+googledrive::drive_upload(media = file.path("G:", "Shared drives", "LTER-WG_Resilience-Management", "data", "harmonized_data", "01_wyr_ppt_all_yrs.csv"), overwrite = T,
+                          path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ"))
 
 
 #calculate site level
 wyr_site_map <- wyr_ppt_allyrs%>%
   group_by(site_id, network)%>%
-  summarize(map = mean(wyr_ppt, na.rm = T),
+  dplyr::summarize(map = mean(wyr_ppt, na.rm = T),
             cv_ppt = sd(wyr_ppt, na.rm = T)/ map * 100)
 
 #get treatment data 
 
 site_treatment_yr <- read.csv(file = file.path("data", 'treatment_table_year.csv'))%>%
-  rename(site_id = site,
+  dplyr::rename(site_id = site,
          w_yr = year)
 
 
@@ -118,6 +165,6 @@ wyr_site_anppyrs <- merge(wyr_ppt_allyrs,site_treatment_yr, by = c('site_id', 'n
 #summarize
 wyr_focal_map <- wyr_site_anppyrs%>%
   group_by(site_id, network)%>%
-  summarize(map = mean(wyr_ppt, na.rm = T),
+  dplyr::summarize(map = mean(wyr_ppt, na.rm = T),
             cv_ppt = sd(wyr_ppt, na.rm = T)/ map * 100,
             )
