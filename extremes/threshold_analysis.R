@@ -225,3 +225,55 @@ for (pred in predictors) {
 }
 
 
+
+###test thresholds on crop clim window####
+
+ext_data_cropclim <- ext_data_clean%>%
+  filter(mean_ppt > min(ext_data_clean$mean_ppt[ext_data_clean$category == 'Crop']) & mean_ppt < max(ext_data_clean$mean_ppt[ext_data_clean$category == 'Crop']))
+
+
+results_cropwin <- lapply(predictors, function(pred) {
+  lapply(setNames(categories, categories), function(cat) {
+    gam_threshold(
+      data       = ext_data_cropclim [ext_data_cropclim $category == cat & !is.na(ext_data_cropclim [[pred]]), ],
+      pred       = pred,
+      fill_color = colors[cat],
+      label      = cat,
+      nboot      = 500
+    )
+  })
+}) %>% setNames(predictors)
+
+
+for (pred in predictors) {
+  plt <- Reduce(`+`, lapply(categories, function(cat) wrap_elements(results_cropwin[[pred]][[cat]]$plot))) +
+    plot_layout(ncol = length(categories))
+  print(plt)
+}
+
+seg_results_cropwin <- lapply(predictors, function(pred) {
+  lapply(setNames(categories, categories), function(cat) {
+    seg_threshold(
+      data       = ext_data_cropclim[ext_data_cropclim$category == cat & !is.na(ext_data_cropclim[[pred]]), ],
+      pred       = pred,
+      fill_color = colors[cat],
+      label      = cat
+    )
+  })
+}) %>% setNames(predictors)
+
+# Composite plot: one figure per predictor, categories as columns
+for (pred in predictors) {
+  plt <- Reduce(`+`, lapply(categories, function(cat) seg_results_cropwin[[pred]][[cat]]$plot)) +
+    plot_layout(ncol = length(categories))
+  print(plt)
+}
+
+
+
+#### 
+ext_data_clean%>%
+  ggplot()+
+  geom_label(aes(label = site, mean))
+ext_data_arid <- ext_data_clean%>%
+  filter(mean_ppt > min(ext_data_clean$mean_ppt[ext_data_clean$category == 'Crop']) & mean_ppt < max(ext_data_clean$mean_ppt[ext_data_clean$category == 'Crop']))
