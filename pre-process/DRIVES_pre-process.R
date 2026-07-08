@@ -193,3 +193,21 @@ write.csv(x = drives.2, row.names = F, na = '',
 googledrive::drive_upload(media = file.path("data", "pre_processed_data", "drives_anpp_pre_process.csv"), overwrite = T,
                           path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Sw-CdVIsCNvnS3laPn1a90WHoZsEoMif"))
 
+
+# Quick understanding of the drive treatments, crop names, and time lengths to exclude
+glimpse(drives.2)
+unique(drives.2$actual_crop_id)
+
+drives.summary <- drives.2%>%
+  mutate(grain_data = ifelse(grainyield_kgha > 0, 1, 0), anpp_data = ifelse(ANPP_kgha>0, 1, 0)) %>%
+  mutate(grain_data = ifelse(is.na(grain_data), 0, grain_data), anpp_data = ifelse(is.na(anpp_data), 0, anpp_data)) %>%
+  filter(!site_id %in% c("NELITCSE", "MIKBSLFL", "NEMLTCRS")) %>%
+  group_by(site_id, treatmentID1, actual_crop_id) %>%
+  summarize(min_year = min(harvest_year), max_year = max(harvest_year), n=length(unique(harvest_year)), anpp_pres = sum(anpp_data), 
+            grain_pres = sum(grain_data))%>%
+  ungroup()%>%
+  filter(actual_crop_id %in% c("corn", "soybean", "winter wheat", "spring wheat")) %>%
+  filter(n>4)
+
+
+
