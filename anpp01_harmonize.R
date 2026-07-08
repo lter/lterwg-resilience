@@ -78,7 +78,8 @@ googledrive::drive_download(file = key_drive$id, overwrite = T, type = "csv",
 ## ------------------------------------------- ##
 
 # Read in data key
-key <- read.csv(file = file.path("data", "resilience_data_key.csv"))
+key <- read.csv(file = file.path("data", "resilience_data_key.csv")) %>%
+  filter(source != "drives_siteinfo.csv")
 
 # Check that looks roughly right
 dplyr::glimpse(key)
