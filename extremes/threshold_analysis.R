@@ -110,6 +110,7 @@ results <- gam_threshold_data(ext_data_clean[ext_data_clean$type == 'Grassland',
 
 plot    <- gam_threshold_plot(results, fill_color = "steelblue")
 
+
 ######### old code 7.9.26 ##########
 # ── Run for all predictor × category combinations ────────────────────────────
 predictors <- c("scaled_ppt", "scaled_tmax", "SPEI")
