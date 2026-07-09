@@ -206,6 +206,56 @@ View(out)
 write.csv(out, file = "/Users/ingridslette/Library/CloudStorage/GoogleDrive-slett152@umn.edu/Shared drives/LTER-WG_Resilience-Management/data/raw_data/mswep-daily-ppt-DAP-site.csv")
 
 
+
+### retrieving mswep data for DRIVES sites: 
+sites <- read.csv('/Users/ingridslette/Library/CloudStorage/GoogleDrive-slett152@umn.edu/Shared drives/LTER-WG_Resilience-Management/data/pre_processed_data/drives_coords.csv')
+
+View(sites)
+unique(sites$site)
+dim(sites)
+head(sites)
+tail(sites)
+summary(sites)
+
+# make that file a SpatVector
+site <- sites %>% vect(geom = c("longitude", "latitude"), crs = "EPSG:4326")
+
+# list all of the monthly mswep precip data files
+# change this to location to which you downloaded these files
+r_paths <- list.files("/Users/ingridslette/Desktop/mswep_daily",
+                      full.names = TRUE) %>% 
+  sort()
+
+# make that a SpatRaster
+r <- rast(r_paths)
+
+# extract daily precip data for each site
+ppt_daily <- terra::extract(r, site, bind = TRUE)
+
+df <- as.data.frame(ppt_daily)
+View(df)
+
+names(df) <- c("project_id", "site_id", paste0("precip_", time(r)))
+
+out <- pivot_longer(df, -c("project_id", "site_id",), names_to = "date",
+                    values_to = "precip") %>% 
+  mutate(date = str_replace(date, "^precip_", ""))
+
+# create a new column for the year
+out$year <- substr(out$date, 1, 4)
+
+# create a new column for the month
+out$month <- substr(out$date, 6, 7)
+
+# create a new column for the day
+out$day <- substr(out$date, 9, 10)
+
+View(out)
+
+write.csv(out, file = "/Users/ingridslette/Library/CloudStorage/GoogleDrive-slett152@umn.edu/Shared drives/LTER-WG_Resilience-Management/data/raw_data/mswep-daily-ppt-DRIVES-sites.csv")
+
+
+
 ### retrieving mswep data for NutNet sites: 
 sites <- read.csv('/Users/ingridslette/Library/CloudStorage/GoogleDrive-slett152@umn.edu/Shared drives/LTER-WG_Resilience-Management/data/raw_data/nutnet-site-coordinates.csv')
 

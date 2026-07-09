@@ -103,10 +103,10 @@ pubtrt <- pub_trt2$treatments
 ltar <- harm_anpp.3 %>%
   dplyr::filter(network=="LTAR") %>%
   dplyr::filter(treatment %in% pub_trt2$treatments)
-
+unique(harm_anpp.3$network)
 # Create dataset without LTAR 
 nutnetlter <- harm_anpp.3 %>%
-  dplyr::filter(network %in% c("LTER", "lter","NutNet", "LTAR and LTER", "CSCAP", "ISU Drainage") | site == "CPER" | site=="ABS_UF")
+  dplyr::filter(network %in% c("LTER", "lter","NutNet", "","LTAR and LTER", "CSCAP", "ISU Drainage", "DAP") | site == "CPER" | site=="ABS_UF")
 
 harm_anpp.4 <- rbind(ltar, nutnetlter)
 

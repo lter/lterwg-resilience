@@ -6,6 +6,7 @@ library(lubridate)
 library(tidyverse)
 library(googledrive)
 library(cowplot)
+library(emmeans)
 
 dir.create(file.path("data", "harmonized_data"), showWarnings = F)
 dir.create(file.path("data", "pre_processed_data"), showWarnings = F)
@@ -85,9 +86,25 @@ dat<- merge_anpp_wyr_ppt %>%
 #classify systems to just four land management types
 dat_4cat<-dat %>% 
   mutate(type2=ifelse(type %in% c('Grassland', 'Fert. Grassland', 'Pasture'), type, 'Cropland'))
-  
+
+#summary table of data
+summary_dat_5yr <- dat_4cat %>%
+  group_by(type) %>%
+  summarize(n_plot = length(unique(site)))
+
+summary_dat_7yr <- dat_4cat %>%
+  filter(duration_years >= 7) %>%
+  group_by(type) %>%
+  summarize(n_plot = length(unique(site)))
+
+summary_dat_10yr <- dat_4cat %>%
+  filter(duration_years >= 10) %>%
+  group_by(type) %>%
+  summarize(n_plot = length(unique(site)))
+
 #remaking Olivia's Figure but no Pasture
-f_ppt <- ggplot(data=dat_4cat %>% filter(type2 != "Pasture"), aes(x=wyr_ppt, y=anpp_g_m2))+
+f_ppt <- ggplot(data=dat_4cat %>% filter(type2 != "Pasture") %>% filter(duration_years >= 10), 
+                aes(x=wyr_ppt, y=anpp_g_m2))+
   geom_point(alpha = 0.1, aes(color=type2)) +
   geom_smooth(aes(shape = as.factor(site), color = type2), 
               method = 'lm', formula = 'y ~ x', se = F,
@@ -99,13 +116,15 @@ f_ppt <- ggplot(data=dat_4cat %>% filter(type2 != "Pasture"), aes(x=wyr_ppt, y=a
   theme(panel.grid = element_blank())+
   theme_classic()
 
-model <- lm(anpp_g_m2 ~ wyr_ppt * type2, data = dat_4cat) 
+model <- lm(anpp_g_m2 ~ wyr_ppt * type2, data = dat_4cat %>%filter(type2 != "Pasture") %>% filter(duration_years >= 10)) 
 summary(model)
 slopes <- emtrends(model,  ~type2, var = "wyr_ppt")
 pairs(slopes) #none of the slopes are significantly different
 
 ##calculating sensitivity by site
 sensitivity <-dat_4cat %>% 
+  filter(type2 != "Pasture") %>%
+  filter(duration_years >= 10) %>%
   filter(!is.na(anpp_g_m2)) %>%
   group_by(network,site, type2, fertilized, mean_ppt) %>% 
   summarise(slope=lm(anpp_g_m2~wyr_ppt)$coefficient[2], 
@@ -116,7 +135,7 @@ ggplot(data=sensitivity%>% filter(type2 != "Pasture"), aes(x=mean_ppt, y=slope, 
   theme_classic() +
   scale_color_manual(name='Systems', values=c('orange', 'green', 'green4'))+
   geom_point()+
-  geom_smooth(method = 'loess', se=F)
+  #geom_smooth(method = 'loess', se=F)
 
 f_inset_ppt <- ggplot(data=sensitivity%>% filter(type2 != "Pasture"), aes(x=type2, y=slope, fill = type2))+
   theme_classic() +
