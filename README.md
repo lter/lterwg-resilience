@@ -20,20 +20,20 @@ Run 00_create_data_folder.R first — it creates the local folder structure the 
 Repository Structure
 
 Core pipeline (top level)
-•	00_create_data_folder.R — creates local data folder structure; run this first
-•	anpp01_harmonize.R — ingests all raw/pre-processed data files and harmonizes them into a single data table (standardizes column names, combines comparable columns)
-•	anpp02_initial_filter.R — removes unwanted treatments and sites (e.g., LTAR treatments not of interest, non-USA NutNet sites)
-•	anpp03_quality-control.R — QC and miscellaneous data-wrangling after harmonization
-•	anpp04_aggregate-to-site.R — aggregates data to site/year/treatment level
-•	anpp_wyrppt_merge.R / anpp_wyrppt_management_join.R — merge harmonized ANPP + water-year precipitation data with the management info table
-•	make_site_attribute_table.R — builds the site attribute table (climate normals, soils, etc.); assumes local sync with the shared Google Drive
-•	retrieve-mswep-ppt-data.R / calculate_mswep_metrics.R — retrieve and process daily MSWEP precipitation data for each site
-•	download_SPEI-site.R — downloads site-level SPEI (6-month) data
-•	Stability_ANPP_DataPrep.R — builds the cleaned ANPP data frame used throughout the stability analyses (updates crop names, requires ≥5 years of data per site)
-•	Fig1_Climate_and_Map.R — generates the stability manuscript's site map and climate (Whittaker biome) figures
-•	Crop_Division_Length_Exploration.R — exploratory work on crop rotation/division length
-•	Critical_period_work.R / data_prep_Timing_Critical.R / timing_critical_dendrotools.R — timing and critical-period analysis pipeline relating ANPP to lagged SPEI/precipitation windows
-•	trends_eda.R — exploratory trend analysis on the harmonized/tidy data
+-	00_create_data_folder.R — creates local data folder structure; run this first
+-	anpp01_harmonize.R — ingests all raw/pre-processed data files and harmonizes them into a single data table (standardizes column names, combines comparable columns)
+-	anpp02_initial_filter.R — removes unwanted treatments and sites (e.g., LTAR treatments not of interest, non-USA NutNet sites)
+-	anpp03_quality-control.R — QC and miscellaneous data-wrangling after harmonization
+-	anpp04_aggregate-to-site.R — aggregates data to site/year/treatment level
+-	anpp_wyrppt_merge.R / anpp_wyrppt_management_join.R — merge harmonized ANPP + water-year precipitation data with the management info table
+-	make_site_attribute_table.R — builds the site attribute table (climate normals, soils, etc.); assumes local sync with the shared Google Drive
+-	retrieve-mswep-ppt-data.R / calculate_mswep_metrics.R — retrieve and process daily MSWEP precipitation data for each site
+-	download_SPEI-site.R — downloads site-level SPEI (6-month) data
+-	Stability_ANPP_DataPrep.R — builds the cleaned ANPP data frame used throughout the stability analyses (updates crop names, requires ≥5 years of data per site)
+-	Fig1_Climate_and_Map.R — generates the stability manuscript's site map and climate (Whittaker biome) figures
+-	Crop_Division_Length_Exploration.R — exploratory work on crop rotation/division length
+-	Critical_period_work.R / data_prep_Timing_Critical.R / timing_critical_dendrotools.R — timing and critical-period analysis pipeline relating ANPP to lagged SPEI/precipitation windows
+-	trends_eda.R — exploratory trend analysis on the harmonized/tidy data
 
 Folders
 •	pre-process/ — network-specific scripts (DAP, DRIVES, LTAR, LTER, CSCAP, ISU-drainage, Konza, NutNet, etc.) that resolve idiosyncrasies in each raw dataset before it enters the harmonization workflow
