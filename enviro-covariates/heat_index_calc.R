@@ -14,7 +14,7 @@ dir.create(file.path("data"), showWarnings = F)
 dir.create(file.path("data", "pre_processed_data"), showWarnings = F)
 
 # Clear environment + collect garbage
-rm(list = ls()); gc()
+#rm(list = ls()); gc()
 
 # Identify desired file
 focal_file <- "daymet_daily_weather.csv"

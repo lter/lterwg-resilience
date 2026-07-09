@@ -68,9 +68,11 @@ ann.climatedat<- read.csv(file = file.path("data", "harmonized_data", file4)) %>
 # Site x year anpp ppt model (like Hajek et al 2025)
 ##########################################################################
 
-dat1.1<-left_join(dat_4cat, ann.climatedat, by = c("site", "year"))%>%
+dat1.1<-dat_4cat |> ##this used to have join with ann.climate, but it lookes like the data is already in there.
   mutate(type2 = factor(type2))%>%
   filter(stab.analysis == 1)#sites must have 5 or more years of data,
+
+plot(dat1.1$wyr_ppt.x, dat1.1$wyr_ppt.y)
 
 #normality tests
 transforms <- list(
@@ -166,21 +168,46 @@ write.csv(pair_df, "C:/Users/david.hoover/OneDrive - USDA/HomeDrive/Manuscripts/
 
 #plot
 
-ggplot(dat1.1, aes(x = wyr_ppt.y, y = log(anpp_g_m2), color = type2)) +
+ggplot(dat1.1, aes(x = wyr_ppt.y, y = anpp_g_m2, color = type2)) +
   geom_point(alpha = 0.65, size = 1.8) +
-  geom_smooth(method = "lm", formula = y ~ x, se = TRUE, linewidth = 1.1) +
+  #geom_smooth(aes(group=site, color='black'), method = "lm", se=F, linewidth=0.01)+
+  geom_smooth(method = "lm", formula = y ~ x, se = TRUE, linewidth = 1) +
   scale_color_brewer(palette = "Dark2") +
   labs(
     x = "Annual precipitation (mm)",
-    y = expression(paste("log(ANPP) ", "(g m"^{-2}, ")")),
+    y = expression(paste("ANPP ", "(g m"^{-2}, ")")),
     color = "type2"
   ) +
   theme_bw() +
   theme(
     legend.position = "right",
     plot.title = element_text(face = "bold")
-  )
+  )+
+  scale_y_log10()
 
+ggplot(subset(dat1.1, site=='sava.us'), aes(x = wyr_ppt.y, y = anpp_g_m2, color = type2)) +
+  geom_point(alpha = 0.25, size = 1) +
+  geom_smooth(aes(group=site), method = "lm", se=F, linewidth=0.01)+
+  #geom_smooth(method = "lm", formula = y ~ x, se = TRUE, linewidth = 1) +
+  scale_color_brewer(palette = "Dark2") +
+  labs(
+    x = "Annual precipitation (mm)",
+    y = expression(paste("ANPP ", "(g m"^{-2}, ")")),
+    color = "type2"
+  ) +
+  theme_bw() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(face = "bold")
+  )+
+  scale_y_log10()+
+  facet_wrap(~type2)
+
+
+####pull out slopes
+slopes<-dat1.1 |> 
+  group_by(site, type, type2) |> 
+  summarise(b=lm(anpp_g_m2~wyr_ppt.x))
 
 ##########################################################################
 # Main effects of type  on manpp, sd, stability
@@ -190,6 +217,20 @@ dat4.1<-dat_4cat%>% #using raw data, not detrended
   group_by(network, site, type, type2)%>% #need to average over type to make independent calcs of croplands with different types (e.g. corn, soy, wheat)
   # dropping anpp pulse summarize(nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2), anpp_pulse = (max(anpp_g_m2)-mean(anpp_g_m2))/mean(anpp_g_m2))
   summarize(nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2))
+
+
+###test analysis with Grace's data
+dummydata<-data.frame(
+  network=c('dummy', 'dummy'),
+  site=c('dryland', 'dryland'),
+  type=c('Corn', 'Wheat'),
+  type2=c('Cropland', 'Cropland'),
+  nobs=c(24, 24),
+  manpp=c(571.08, 587.829),
+  sd=c(249.58, 139.8712))
+
+dat4.1<-dat4.1 |> 
+  bind_rows(dummydata)
 
 #calc some stability metrics - taking mean across site (not Ingrids approach, which calcs across all sites within a type)
 dat4.2<-dat4.1%>%
@@ -743,20 +784,136 @@ readr::write_csv(random_all, file.path(out_dir, "combined_random_effects_ppt_mod
 ##########################################################################
 
 # Prepare log-mean and log-variance
-dat4.2b <- dat4.2b %>%
-  mutate(
-    log_mean = log(manpp),
-    log_var  = log(sd^2),
-    w_var    = 2 * (nobs - 1) / (sd^2)   #precision weight for variance, adds higher weight to sites with more years/lower variance (2 is a scaling constant)
-  )
+# dat4.2b <- dat4.2b %>%
+#   mutate(
+#     log_mean = log(manpp),
+#     log_var  = log(sd^2),
+#     w_var    = 2 * (nobs - 1) / (sd^2)   #precision weight for variance, adds higher weight to sites with more years/lower variance (2 is a scaling constant)
+#   )
+# 
+# # Mixed model for Taylor’s law with type-specific slopes
+# m_taylor <- lmer(log_var ~ log_mean * type2 + (1 | site),
+#                  data = dat4.2b,
+#                  weights = w_var)  # or weights = nobs
+# 
+# summary(m_taylor)
+# car::Anova(m_taylor, type = 3)  # tests for slope differences (interaction)
 
-# Mixed model for Taylor’s law with type-specific slopes
-m_taylor <- lmer(log_var ~ log_mean * type2 + (1 | site),
-                 data = dat4.2b,
-                 weights = w_var)  # or weights = nobs
+##take 2 trying mean var scaling following Doering et al. 2018 CVa
 
-summary(m_taylor)
-car::Anova(m_taylor, type = 3)  # tests for slope differences (interaction)
+#things we still have to do.
+##step one add is there a relationship
+#run model if sig interaction between type2 and mean anpp and stability. diff linear models.
+
+dat5<-dat4.2%>%
+  mutate(mi = log10(manpp))%>%
+  mutate(var = sd^2)%>% 
+  mutate(vi = log10(var))
+##Combining all types to calc aCV#####
+
+
+#getting overall slopes and intercepts not for different type2
+ggplot(dat5, aes(mi, vi))+
+  geom_point(aes(color=type2))+
+  geom_smooth(method='lm')+
+  geom_abline(slope=2)+
+  xlab('Log(Mean ANPP)')+
+  ylab('Log(sd^2 ANPP)')
+
+mod.1<-lm(vi ~ mi, data = dat5)
+summary(mod.1)
+coef(mod.1)
+b<-coef(mod.1)["mi"]
+a<-coef(mod.1)["(Intercept)"]
+a2<-a + (b-2)*mean(dat5$mi, na.rm=T)
+
+#calculate adjusted coefficent of variaion based on Doring and Recking 2018
+dat6<-dat5%>%
+  mutate(ui = vi - (a +b*mi), #calculate residuals from regression line (Power Law Residuals, POLAR) 
+ vi2 = a2 + 2*mi + ui, #adjusting variance based on slope of 2
+ aCV = (sqrt(10^vi2)/manpp), #creating adjusted CV
+ astab=(1/aCV)) #calculating adjusted stability
+ 
+
+ggplot(dat6, aes(cv, aCV))+
+  geom_point(aes(color=type2))+
+  geom_smooth(method='lm')
+
+data6.1<-dat6%>%
+  pivot_longer(cols = c(astab, stab), names_to = "vartype", values_to = "var2")%>%
+  group_by(type2, vartype)%>%
+  summarise(stab = mean(var2),
+            sestab = sd(var2)/sqrt(n()))
+
+data6.1$vartype<-factor(data6.1$vartype, levels = c("stab", "astab"))
+
+ggplot(data6.1, aes(x = type2, y = stab, fill = vartype)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
+  geom_errorbar(aes(ymin = stab - sestab, ymax = stab + sestab),
+                width = 0.2, position = position_dodge(width = 0.8)) +
+  theme_minimal()
+
+#correction does change pairwise comparisions
+TukeyHSD(aov(stab~type2, data=dat6))
+TukeyHSD(aov(astab~type2, data=dat6))
+
+####redoing above but doing seperate correction for each type2
+types<-as.data.frame(unique(dat5$type2))
+colnames(types)[1]<-"type2"
+l=length(types$type2)
+acv_bytype.1<-data.frame()
+
+for (i in 1:l){
+  #i=1
+  t1<-types[i,]
+  d1<-filter(dat5, type2 == t1)
+  mod.2<-lm(vi ~ mi, data = d1)
+  summary(mod.2)
+  coef(mod.2)
+  bx<-coef(mod.2)["mi"]
+  ax<-coef(mod.2)["(Intercept)"]
+  
+  #calculate adjusted coefficent of variaion based on Doring and Recking 2018
+  d1<-d1%>%
+    mutate(ui = vi - (ax +bx*mi)) #calculate residuals from regression line (Power Law Residuals, POLAR) 
+  
+  a2x<-ax + (bx-2)*mean(d1$mi, na.rm=T)
+  
+  d1<-d1%>%
+    mutate(vi2 = a2x + 2*mi + ui)%>%
+    mutate(aCV = (sqrt(10^vi2)/manpp))%>%
+    mutate(astab=1/aCV)
+  acv_bytype.1<-rbind(acv_bytype.1, d1)
+  
+}
+
+ggplot(acv_bytype.1, aes(cv, aCV, color = type2))+
+  geom_point()+
+  geom_smooth(method='lm')
+
+
+acv_bytype.2<-acv_bytype.1%>%
+  pivot_longer(cols = c(astab, stab), names_to = "vartype", values_to = "var2")%>%
+  group_by(type2, vartype)%>%
+  summarise(stab = mean(var2),
+            sestab = sd(var2)/sqrt(n()))
+
+acv_bytype.2$vartype<-factor(acv_bytype.2$vartype, levels = c("stab", "astab"))
+
+ggplot(acv_bytype.2, aes(x = type2, y = stab, fill = vartype)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
+  geom_errorbar(aes(ymin = stab - sestab, ymax = stab + sestab),
+                width = 0.2, position = position_dodge(width = 0.8)) +
+  theme_minimal()
+
+#correction does not change pairwise comparisons
+TukeyHSD(aov(astab~type2, data=acv_bytype.1))
+TukeyHSD(aov(stab~type2, data=acv_bytype.1))
+
+m<-(lm(vi~mi*type2, data=dat6))
+m2<-emtrends(m, spec='type2',var="mi")
+pairs(m2)
+
 
 #graph#####################################################
 
