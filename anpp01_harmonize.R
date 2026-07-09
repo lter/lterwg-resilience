@@ -118,9 +118,14 @@ sum(!is.na(combo_v1$merged_dates))
 # 43951
 
 combo_v1 %>% 
-  select(- c(date, date_m.d.yyyy, month)) %>%  #remove the old incomplete month column
-  rename(date = merged_dates) %>% 
-  mutate(month = format(date, "%m"))-> combo_v1 #pull month from complete date column
+  select(- c(date, date_m.d.yyyy)) %>%  #remove the two old date columns
+  rename(date = merged_dates,
+         month_a = month) %>% 
+  mutate(month_b = format(date, "%m"), #pull month from complete date column
+         month = coalesce(month_a, month_b)) -> combo_v1 #combine month from raw data with month pulled from date
+
+combo_v1 %>% 
+  select(-c(month_a, month_b)) -> combo_v1 #remove the two unmerged month columns
 
 ## ------------------------------------------- ##
 # Export ----
