@@ -21,6 +21,8 @@ library(stringr)
 library(kableExtra)
 library(glmmTMB) 
 library(forcats)
+library(patchwork)
+library(ggpubr)
 
 
 theme_set(theme_bw(12))
@@ -32,6 +34,8 @@ dir.create(file.path("exploratory_graphs", 'anpp_year'), showWarnings = F)
 dir.create(file.path("data"), showWarnings = F)
 dir.create(file.path("data", "harmonized_data"), showWarnings = F)
 
+
+# Read in and compile data ------------------------------------------------
 
 # READ IN THE ANPP AND PRECIPITATION DATA
 #using new data with DAP and DRIVES
@@ -75,6 +79,10 @@ dat1.1<-dat_4cat |> ##this used to have join with ann.climate, but it lookes lik
   filter(stab.analysis == 1) |> #sites must have 5 or more years of data,
   mutate(site_type=paste(site, type, sep="::")) #have a unique identifier for each site type combo
 
+
+# tests for normality -----------------------------------------------------
+
+
 #normality tests
 transforms <- list(
   raw = dat1.1$anpp_g_m2,
@@ -115,6 +123,10 @@ qqline(resid(m_log2))
 #transformation decision - log is better - fitted vs residuals - sqrt has clear funnel suggesting variance increases with the mean, errors are 
 #heteroscedastic - mean-variance coupling; log model residuals a constant band. QQ plots also favor log transformation - sqrt has an s-shape with heavy tails, 
 #log closer fit to line with some deviation in the lower tail
+
+
+# Making Figure 1 and associated analyses ANPP and MAP ---------------------------------
+
 
 #we are discussing nesting type (eg corn v. wheat) within site (1 | site/type) or of having site_type as is below.
  
@@ -175,7 +187,7 @@ write.csv(pair_df, "C:/Users/david.hoover/OneDrive - USDA/HomeDrive/Manuscripts/
 
 ggplot(dat1.1, aes(x = wyr_ppt, y = anpp_g_m2, color = type2)) +
   geom_point(alpha = 0.2, size = 1.3) +
-  scale_color_manual(name='Type', values=c( '#D55E00','#56B4E9','#117733')) +
+  scale_color_manual(name='System Type', values=c( '#D55E00','#56B4E9','#117733')) +
   #geom_smooth(aes(group=site, color='black'), method = "lm", se=F, linewidth=0.01)+
   geom_smooth(method = "lm", formula = y ~ x, se = TRUE, linewidth = 1) +
    labs(
@@ -193,6 +205,7 @@ ggplot(dat1.1, aes(x = wyr_ppt, y = anpp_g_m2, color = type2)) +
     )+ #drop the gray around the lines in the legend
   scale_y_log10()#+
   #facet_wrap(~type2)
+
 
 
 
@@ -250,6 +263,9 @@ ggplot(dat1.1, aes(x = wyr_ppt, y = anpp_g_m2, color = type2)) +
 #   facet_wrap(~type2)
 
 
+# Making figure 2 and analyses - Overall ANPP, SD, Stab -------------------
+
+
 ##########################################################################
 # Main effects of type  on manpp, sd, stability
 ##########################################################################
@@ -275,6 +291,50 @@ means.1<-dat4.2%>%
   #filter(var %in% c("manpp", "sd", "stab", "anpp_pulse" ))
   filter(var %in% c("manpp", "sd", "stab"))
 
+
+
+#new fig of means, sd, and stab
+
+manpp<-ggplot(data=subset(means.1, var=='manpp'), aes(x=type2, y=mean, fill=type2))+
+  geom_bar(stat='identity')+
+  scale_fill_manual(name='Type', values=c( '#D55E00','#56B4E9','#117733')) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.2)+
+  theme(panel.grid.minor = element_blank(), panel.grid.major=element_blank(), legend.position = 'none')+
+  labs(x = "System Type",
+y = expression(paste("ANPP ", "(g m"^{-2}, ")")))+
+  annotate('text', label='a', x=1, y=1290)+
+  annotate('text', label='b', x=2, y=800)+
+  annotate('text', label='b', x=3, y=500)
+manpp
+
+
+sd<-ggplot(data=subset(means.1, var=='sd'), aes(x=type2, y=mean, fill=type2))+
+  geom_bar(stat='identity')+
+  scale_fill_manual(name='Type', values=c( '#D55E00','#56B4E9','#117733')) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.2)+
+  theme(panel.grid.minor = element_blank(), panel.grid.major=element_blank(), legend.position = 'none')+
+  labs(x = "System Type",
+       y = expression(paste("Temporal Variance ", "(g m"^{-2}, ")")))+
+  annotate('text', label='a', x=1, y=275)+
+  annotate('text', label='a', x=2, y=275)+
+  annotate('text', label='b', x=3, y=175)
+sd
+
+stab<-ggplot(data=subset(means.1, var=='stab'), aes(x=type2, y=mean, fill=type2))+
+  geom_bar(stat='identity')+
+  scale_fill_manual(name='Type', values=c( '#D55E00','#56B4E9','#117733')) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.2)+
+  theme(panel.grid.minor = element_blank(), panel.grid.major=element_blank(), legend.position = 'none')+
+  labs(x = "System Type",
+       y = 'Stability')+
+  annotate('text', label='a', x=1, y=6)+
+  annotate('text', label='b', x=2, y=3)+
+  annotate('text', label='b', x=3, y=3.3)
+stab
+
+
+all<-ggarrange(manpp, sd, stab, ncol=3)
+all
 
 #################
 # Anova's on raw data (not detrended)
@@ -307,10 +367,6 @@ lapply(transforms, function(x) {
 #log <-- the plots were pretty close but liked the q-q residuals better on this so using this model
 #added site as a random intercept (58 sites) to account for baseline differences across sites
 #weighted by nobs (years per site x type2 ) to weight sites with longer data sets
-
-test<-dat4.2 |> 
-  group_by(site) |> 
-  summarize(n())
 
 m_mean_log <- aov(log(manpp) ~ type2,
                    data = dat4.2, weights = nobs) 
@@ -373,225 +429,226 @@ emm_stab_log <- emmeans(m_stab_log, ~ type2)
 pairs_stab_log <- pairs(emm_stab_log, adjust = "tukey")    
 pairs_stab_log_df <- as.data.frame(pairs_stab_log)
 
-####bar graph of manpp, sd, stab by type ###########################<-check code, some of the output functions below can be dropped
+# ####bar graph of manpp, sd, stab by type ###########################<-check code, some of the output functions below can be dropped
+# 
+# 
+# # Output directory
+# out_dir <- "C:/Users/david.hoover/OneDrive - USDA/HomeDrive/Manuscripts/NCEAS - Stability/output/anpp sd stab by type"
+# dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+# 
+# # Ensure correct type order; keep var as-is ("manpp", "sd", "stab")
+# means_plot <- means.1 %>%
+#   mutate(
+#     type2 = fct_relevel(type2, "Cropland", "Fert. Grassland", "Grassland"),
+#     var   = factor(var, levels = c("manpp", "sd", "stab"))  # ensures facet order
+#   )
+# 
+# # ------------------------------
+# # Helper function: mean ± SE bar plot
+# # ------------------------------
+# plot_bar_single <- function(df, ylabel, title, outfile) {
+#   
+#   p <- ggplot(df, aes(x = type2, y = mean, fill = type2)) +
+#     geom_col(width = 0.7, color = "grey20") +
+#     geom_errorbar(aes(ymin = pmax(mean - se, 0), ymax = mean + se),
+#                   width = 0.15, size = 0.9) +
+#     scale_fill_brewer(palette = "Dark2", guide = "none") +
+#     labs(x = NULL, y = ylabel, title = title) +
+#     theme_bw(base_size = 12) +
+#     theme(
+#       panel.grid.minor = element_blank(),
+#       axis.text.x = element_text(size = 11),
+#       plot.title = element_text(face = "bold")
+#     )
+#   
+#   #ggsave(outfile, p, width = 6.5, height = 4.5, dpi = 300)
+#   p
+# }
+# 
+# # ------------------------------
+# # Individual bar plots
+# # ------------------------------
+# 
+# #add a's and B's
+# 
+# # 1. manpp
+# p_manpp <- plot_bar_single(
+#   means_plot %>% filter(var == "manpp"),
+#   ylabel = "Mean ANPP (arithmetic mean ± SE, g m⁻²)",
+#   title  = "Mean ANPP by Vegetation Type",
+#   outfile = file.path(out_dir, "bar_mean_ANPP_manpp.png")
+# )
+# 
+# # 2. sd
+# p_sd <- plot_bar_single(
+#   means_plot %>% filter(var == "sd"),
+#   ylabel = "Interannual SD of ANPP (arithmetic mean ± SE, g m⁻²)",
+#   title  = "Interannual SD by Vegetation Type",
+#   outfile = file.path(out_dir, "bar_SD_ANPP_sd.png")
+# )
+# 
+# # 3. stab
+# p_stab <- plot_bar_single(
+#   means_plot %>% filter(var == "stab"),
+#   ylabel = "Stability (mean/SD; arithmetic mean ± SE)",
+#   title  = "Stability by Vegetation Type",
+#   outfile = file.path(out_dir, "bar_stability_stab.png")
+# )
+# 
+# # ------------------------------
+# # Faceted figure (order: manpp -> sd -> stab)
+# # ------------------------------
+# 
+# p_faceted <- ggplot(means_plot, aes(x = type2, y = mean, fill = type2)) +
+#   geom_col(width = 0.7, color = "grey20") +
+#   geom_errorbar(aes(ymin = pmax(mean - se, 0), ymax = mean + se),
+#                 width = 0.15, size = 0.9) +
+#   scale_fill_brewer(palette = "Dark2", guide = "none") +
+#   facet_wrap(~ var, scales = "free_y", nrow = 1) +  # uses var instead of metric
+#   labs(x = NULL, y = "Mean ± SE (original scale)") +
+#   theme_bw(base_size = 12) +
+#   theme(
+#     strip.text = element_text(face = "bold"),
+#     panel.grid.minor = element_blank()
+#   )
+# 
+# ggsave(
+#   filename = file.path(out_dir, "bar_faceted_manpp_sd_stab.png"),
+#   plot = p_faceted, width = 11, height = 4.2, dpi = 300
+# )
+# 
+# # Optional: save the tidy table
+# write_csv(means_plot, file.path(out_dir, "means1_for_bargraphs_original_scale.csv"))
+# 
+# # Show in RStudio viewer
+# p_manpp; p_sd; p_stab; p_faceted
+# 
+# # Output pairwise comparisons 
+# write_csv(pairs_stab_log_df, file.path(out_dir, "pairwise_stab_log.csv"))
+# 
+# 
+# 
+# # Helper: produce letters from a model's emmeans pairwise comparisons
+# letters_from_model <- function(model, metric_label) {
+#   # EMMs by type
+#   emm <- emmeans(model, ~ type2)
+#   
+#   # Tukey-adjusted pairwise comparisons
+#   prs <- pairs(emm, adjust = "tukey")
+#   df  <- as.data.frame(prs)
+#   
+#   # Build a named p-value vector of the form "A-B" = pval
+#   # Ensure consistent ordering of type names in labels
+#   p_named <- df$p.value
+#   names(p_named) <- paste(df$contrast)  # contrast already "Cropland - Grassland", etc.
+#   
+#   # Convert to letters (alpha = 0.05). multcompLetters expects lower = better (significant)
+#   # It parses names like "A-B"; we also trim spaces to be safe
+#   names(p_named) <- str_replace_all(names(p_named), " ", "")
+#   cld <- multcompView::multcompLetters(p_named, threshold = 0.05)
+#   
+#   # Return a tibble: metric, type2, letters
+#   tibble(
+#     metric  = metric_label,
+#     type2   = names(cld$Letters),
+#     letters = cld$Letters
+#   ) %>%
+#     # order type2 consistently
+#     mutate(type2 = forcats::fct_relevel(type2, "Cropland", "Fert.Grassland", "Grassland")) %>%
+#     arrange(type2)
+# }
+# 
+# # NOTE: Because we removed spaces in contrast names above (e.g., "Fert. Grassland" -> "Fert.Grassland"),
+# # we relevel with the same no-space label in the helper. To keep original labels in the final table,
+# # map back to the spaced version at the end.
+# 
+# # Build tables for each metric
+# letters_mean <- letters_from_model(m_mean_log,  "manpp")      # Mean ANPP
+# letters_sd   <- letters_from_model(m_sd_log,    "sd")         # Interannual SD
+# letters_stab <- letters_from_model(m_stab_log,  "stab")       # Stability
+# 
+# # Combine and restore original spacing in type names for readability
+# letters_all <- bind_rows(letters_mean, letters_sd, letters_stab) %>%
+#   mutate(type2 = forcats::fct_recode(
+#     type2,
+#     "Cropland" = "Cropland",
+#     "Fert. Grassland" = "Fert.Grassland",
+#     "Grassland" = "Grassland"
+#   )) %>%
+#   arrange(match(metric, c("manpp","sd","stab")), type2) %>%
+#   mutate(type2 = as.character(type2))  # plain strings in output
+# 
+# # View in console
+# print(letters_all)
+# 
+# # Save to CSV
+# readr::write_csv(letters_all, file.path(out_dir, "significance_letters_type2_manpp_sd_stab.csv"))
+# 
+# # ----------------------------------------------------------
+# # Combine fixed effects & Type III ANOVA across:
+# #  - m_mean_log  (log(manpp)  ~ type2 + (1 | site))
+# #  - m_sd_log    (log(sd)     ~ type2 + (1 | site))
+# #  - m_stab_log  (log(stab)   ~ type2 + (1 | site))
+# # Writes combined CSVs to OneDrive folder
+# # ----------------------------------------------------------
+# 
+# # Helper: fixed effects (log-scale) + response-scale multipliers
+# extract_fixed <- function(model, metric_label) {
+#   broom.mixed::tidy(model, effects = "fixed", conf.int = TRUE) %>%
+#     mutate(
+#       metric       = metric_label,
+#       exp_estimate = exp(estimate),
+#       exp_conf.low = exp(conf.low),
+#       exp_conf.high= exp(conf.high)
+#     ) %>%
+#     select(metric, term, estimate, std.error, df, statistic, p.value,
+#            conf.low, conf.high, exp_estimate, exp_conf.low, exp_conf.high)
+# }
+# 
+# # Helper: Type III ANOVA (Wald χ²) for a model
+# extract_anova <- function(model, metric_label) {
+#   car::Anova(model, type = 3) %>%
+#     as.data.frame() %>%
+#     tibble::rownames_to_column("Effect") %>%
+#     rename(Chisq = Chisq, Df = Df, p.value = `Pr(>Chisq)`) %>%
+#     mutate(metric = metric_label) %>%
+#     select(metric, Effect, Chisq, Df, p.value)
+# }
+# 
+# # (Optional) Helper: random effects variance components
+# extract_random <- function(model, metric_label) {
+#   broom.mixed::tidy(model, effects = "ran_pars") %>%
+#     mutate(metric = metric_label) %>%
+#     select(metric, group, term, estimate)
+# }
+# 
+# # Build combined tables
+# fixed_all <- bind_rows(
+#   extract_fixed(m_mean_log,  "manpp"),
+#   extract_fixed(m_sd_log,    "sd"),
+#   extract_fixed(m_stab_log,  "stab")
+# )
+# 
+# anova_all <- bind_rows(
+#   extract_anova(m_mean_log,  "manpp"),
+#   extract_anova(m_sd_log,    "sd"),
+#   extract_anova(m_stab_log,  "stab")
+# )
+# 
+# random_all <- bind_rows(  # optional
+#   extract_random(m_mean_log,  "manpp"),
+#   extract_random(m_sd_log,    "sd"),
+#   extract_random(m_stab_log,  "stab")
+# )
+# 
+# # Write combined CSVs
+# readr::write_csv(fixed_all,  file.path(out_dir, "combined_site_type_fixed_effects.csv"))
+# readr::write_csv(anova_all,  file.path(out_dir, "combined_site_type_typeIII_anova.csv"))
+# readr::write_csv(random_all, file.path(out_dir, "combined_site_type_random_effects.csv"))
 
 
-# Output directory
-out_dir <- "C:/Users/david.hoover/OneDrive - USDA/HomeDrive/Manuscripts/NCEAS - Stability/output/anpp sd stab by type"
-dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
-# Ensure correct type order; keep var as-is ("manpp", "sd", "stab")
-means_plot <- means.1 %>%
-  mutate(
-    type2 = fct_relevel(type2, "Cropland", "Fert. Grassland", "Grassland"),
-    var   = factor(var, levels = c("manpp", "sd", "stab"))  # ensures facet order
-  )
-
-# ------------------------------
-# Helper function: mean ± SE bar plot
-# ------------------------------
-plot_bar_single <- function(df, ylabel, title, outfile) {
-  
-  p <- ggplot(df, aes(x = type2, y = mean, fill = type2)) +
-    geom_col(width = 0.7, color = "grey20") +
-    geom_errorbar(aes(ymin = pmax(mean - se, 0), ymax = mean + se),
-                  width = 0.15, size = 0.9) +
-    scale_fill_brewer(palette = "Dark2", guide = "none") +
-    labs(x = NULL, y = ylabel, title = title) +
-    theme_bw(base_size = 12) +
-    theme(
-      panel.grid.minor = element_blank(),
-      axis.text.x = element_text(size = 11),
-      plot.title = element_text(face = "bold")
-    )
-  
-  #ggsave(outfile, p, width = 6.5, height = 4.5, dpi = 300)
-  p
-}
-
-# ------------------------------
-# Individual bar plots
-# ------------------------------
-
-#add a's and B's
-
-# 1. manpp
-p_manpp <- plot_bar_single(
-  means_plot %>% filter(var == "manpp"),
-  ylabel = "Mean ANPP (arithmetic mean ± SE, g m⁻²)",
-  title  = "Mean ANPP by Vegetation Type",
-  outfile = file.path(out_dir, "bar_mean_ANPP_manpp.png")
-)
-
-# 2. sd
-p_sd <- plot_bar_single(
-  means_plot %>% filter(var == "sd"),
-  ylabel = "Interannual SD of ANPP (arithmetic mean ± SE, g m⁻²)",
-  title  = "Interannual SD by Vegetation Type",
-  outfile = file.path(out_dir, "bar_SD_ANPP_sd.png")
-)
-
-# 3. stab
-p_stab <- plot_bar_single(
-  means_plot %>% filter(var == "stab"),
-  ylabel = "Stability (mean/SD; arithmetic mean ± SE)",
-  title  = "Stability by Vegetation Type",
-  outfile = file.path(out_dir, "bar_stability_stab.png")
-)
-
-# ------------------------------
-# Faceted figure (order: manpp -> sd -> stab)
-# ------------------------------
-
-p_faceted <- ggplot(means_plot, aes(x = type2, y = mean, fill = type2)) +
-  geom_col(width = 0.7, color = "grey20") +
-  geom_errorbar(aes(ymin = pmax(mean - se, 0), ymax = mean + se),
-                width = 0.15, size = 0.9) +
-  scale_fill_brewer(palette = "Dark2", guide = "none") +
-  facet_wrap(~ var, scales = "free_y", nrow = 1) +  # uses var instead of metric
-  labs(x = NULL, y = "Mean ± SE (original scale)") +
-  theme_bw(base_size = 12) +
-  theme(
-    strip.text = element_text(face = "bold"),
-    panel.grid.minor = element_blank()
-  )
-
-ggsave(
-  filename = file.path(out_dir, "bar_faceted_manpp_sd_stab.png"),
-  plot = p_faceted, width = 11, height = 4.2, dpi = 300
-)
-
-# Optional: save the tidy table
-write_csv(means_plot, file.path(out_dir, "means1_for_bargraphs_original_scale.csv"))
-
-# Show in RStudio viewer
-p_manpp; p_sd; p_stab; p_faceted
-
-# Output pairwise comparisons 
-write_csv(pairs_stab_log_df, file.path(out_dir, "pairwise_stab_log.csv"))
-
-
-
-# Helper: produce letters from a model's emmeans pairwise comparisons
-letters_from_model <- function(model, metric_label) {
-  # EMMs by type
-  emm <- emmeans(model, ~ type2)
-  
-  # Tukey-adjusted pairwise comparisons
-  prs <- pairs(emm, adjust = "tukey")
-  df  <- as.data.frame(prs)
-  
-  # Build a named p-value vector of the form "A-B" = pval
-  # Ensure consistent ordering of type names in labels
-  p_named <- df$p.value
-  names(p_named) <- paste(df$contrast)  # contrast already "Cropland - Grassland", etc.
-  
-  # Convert to letters (alpha = 0.05). multcompLetters expects lower = better (significant)
-  # It parses names like "A-B"; we also trim spaces to be safe
-  names(p_named) <- str_replace_all(names(p_named), " ", "")
-  cld <- multcompView::multcompLetters(p_named, threshold = 0.05)
-  
-  # Return a tibble: metric, type2, letters
-  tibble(
-    metric  = metric_label,
-    type2   = names(cld$Letters),
-    letters = cld$Letters
-  ) %>%
-    # order type2 consistently
-    mutate(type2 = forcats::fct_relevel(type2, "Cropland", "Fert.Grassland", "Grassland")) %>%
-    arrange(type2)
-}
-
-# NOTE: Because we removed spaces in contrast names above (e.g., "Fert. Grassland" -> "Fert.Grassland"),
-# we relevel with the same no-space label in the helper. To keep original labels in the final table,
-# map back to the spaced version at the end.
-
-# Build tables for each metric
-letters_mean <- letters_from_model(m_mean_log,  "manpp")      # Mean ANPP
-letters_sd   <- letters_from_model(m_sd_log,    "sd")         # Interannual SD
-letters_stab <- letters_from_model(m_stab_log,  "stab")       # Stability
-
-# Combine and restore original spacing in type names for readability
-letters_all <- bind_rows(letters_mean, letters_sd, letters_stab) %>%
-  mutate(type2 = forcats::fct_recode(
-    type2,
-    "Cropland" = "Cropland",
-    "Fert. Grassland" = "Fert.Grassland",
-    "Grassland" = "Grassland"
-  )) %>%
-  arrange(match(metric, c("manpp","sd","stab")), type2) %>%
-  mutate(type2 = as.character(type2))  # plain strings in output
-
-# View in console
-print(letters_all)
-
-# Save to CSV
-readr::write_csv(letters_all, file.path(out_dir, "significance_letters_type2_manpp_sd_stab.csv"))
-
-# ----------------------------------------------------------
-# Combine fixed effects & Type III ANOVA across:
-#  - m_mean_log  (log(manpp)  ~ type2 + (1 | site))
-#  - m_sd_log    (log(sd)     ~ type2 + (1 | site))
-#  - m_stab_log  (log(stab)   ~ type2 + (1 | site))
-# Writes combined CSVs to OneDrive folder
-# ----------------------------------------------------------
-
-# Helper: fixed effects (log-scale) + response-scale multipliers
-extract_fixed <- function(model, metric_label) {
-  broom.mixed::tidy(model, effects = "fixed", conf.int = TRUE) %>%
-    mutate(
-      metric       = metric_label,
-      exp_estimate = exp(estimate),
-      exp_conf.low = exp(conf.low),
-      exp_conf.high= exp(conf.high)
-    ) %>%
-    select(metric, term, estimate, std.error, df, statistic, p.value,
-           conf.low, conf.high, exp_estimate, exp_conf.low, exp_conf.high)
-}
-
-# Helper: Type III ANOVA (Wald χ²) for a model
-extract_anova <- function(model, metric_label) {
-  car::Anova(model, type = 3) %>%
-    as.data.frame() %>%
-    tibble::rownames_to_column("Effect") %>%
-    rename(Chisq = Chisq, Df = Df, p.value = `Pr(>Chisq)`) %>%
-    mutate(metric = metric_label) %>%
-    select(metric, Effect, Chisq, Df, p.value)
-}
-
-# (Optional) Helper: random effects variance components
-extract_random <- function(model, metric_label) {
-  broom.mixed::tidy(model, effects = "ran_pars") %>%
-    mutate(metric = metric_label) %>%
-    select(metric, group, term, estimate)
-}
-
-# Build combined tables
-fixed_all <- bind_rows(
-  extract_fixed(m_mean_log,  "manpp"),
-  extract_fixed(m_sd_log,    "sd"),
-  extract_fixed(m_stab_log,  "stab")
-)
-
-anova_all <- bind_rows(
-  extract_anova(m_mean_log,  "manpp"),
-  extract_anova(m_sd_log,    "sd"),
-  extract_anova(m_stab_log,  "stab")
-)
-
-random_all <- bind_rows(  # optional
-  extract_random(m_mean_log,  "manpp"),
-  extract_random(m_sd_log,    "sd"),
-  extract_random(m_stab_log,  "stab")
-)
-
-# Write combined CSVs
-readr::write_csv(fixed_all,  file.path(out_dir, "combined_site_type_fixed_effects.csv"))
-readr::write_csv(anova_all,  file.path(out_dir, "combined_site_type_typeIII_anova.csv"))
-readr::write_csv(random_all, file.path(out_dir, "combined_site_type_random_effects.csv"))
-
-
-
+# Making figure 3 and associated analyses - MAP stability -----------------
 
 ##########################################################################
 # Effects of ppt on manpp, sd, stability
@@ -620,63 +677,36 @@ dat4.2b<-left_join(dat4.2, ppt_by_group, by = c("network", "site", "type", "type
 
 #using same transformations as anova
 
-m_mean_ppt <- lm(log(manpp) ~ ppt_mean * type2,
-                   data = dat4.2b, weights = nobs)
-summary(m_mean_ppt)
-car::Anova(m_mean_ppt, type = 3)
-
-#exploring why not sig
-m_mean_ppt3 <- lmer(log(manpp) ~ ppt_mean * type2 + (1 | site),
-                   data = subset(dat4.2b, type2!='Cropland'), weights = nobs)
-
-summary(m_mean_ppt3)
-car::Anova(m_mean_ppt3, type = 3)
-
-m_sd_ppt <- lmer(log(sd) ~ ppt_mean * type2 + (1 | site),
-                   data = dat4.2b, weights = nobs)
-summary(m_sd_ppt)
-car::Anova(m_sd_ppt, type = 3)
-
-
-m_stab_ppt <- lmer(log(stab) ~ ppt_mean * type2 + (1 | site),
-                   data = dat4.2b, weights = nobs)
-summary(m_stab_ppt)
-car::Anova(m_stab_ppt, type = 3)
-
-m_stab_ppt2 <- lm(log(stab) ~ ppt_mean * type2,
-                   data = subset(dat4.2b, type2!='Cropland'), weights = nobs)
-summary(m_stab_ppt2)
-car::Anova(m_stab_ppt2, type = 3)
-
-
-#make dat long below
-ggplot(data=dat_long, aes(x=ppt_mean, y=value, color=type))+
-  geom_point()+
-  geom_smooth(aes(group=type2), method = 'lm')+
-  facet_grid(metric~type2, scales='free')
-
-dat_long_stats<-dat_long %>% 
-  group_by(metric, type2) %>% 
-  summarise(p=summary(lm(log(value)~ppt_mean, weights = nobs))$coefficients['ppt_mean', "Pr(>|t|)"]) %>% 
-  mutate(pajd=p.adjust(p, method = 'bonferroni', n=3))
+# m_mean_ppt <- lm(log(manpp) ~ ppt_mean * type2,
+#                    data = dat4.2b, weights = nobs)
+# summary(m_mean_ppt)
+# car::Anova(m_mean_ppt, type = 3)
+# 
+# #exploring why not sig
+# m_mean_ppt3 <- lmer(log(manpp) ~ ppt_mean * type2 + (1 | site),
+#                    data = subset(dat4.2b, type2!='Cropland'), weights = nobs)
+# 
+# summary(m_mean_ppt3)
+# car::Anova(m_mean_ppt3, type = 3)
+# 
+# m_sd_ppt <- lmer(log(sd) ~ ppt_mean * type2 + (1 | site),
+#                    data = dat4.2b, weights = nobs)
+# summary(m_sd_ppt)
+# car::Anova(m_sd_ppt, type = 3)
+# 
+# 
+# m_stab_ppt <- lmer(log(stab) ~ ppt_mean * type2 + (1 | site),
+#                    data = dat4.2b, weights = nobs)
+# summary(m_stab_ppt)
+# car::Anova(m_stab_ppt, type = 3)
+# 
+# m_stab_ppt2 <- lm(log(stab) ~ ppt_mean * type2,
+#                    data = subset(dat4.2b, type2!='Cropland'), weights = nobs)
+# summary(m_stab_ppt2)
+# car::Anova(m_stab_ppt2, type = 3)
 
 
-
-# ============================
-# 3-panel figure: manpp, sd, stab vs ppt_mean across type2
-# ============================
-
-# ===========================================
-# 3-panel figure: manpp, sd, stab vs ppt_mean
-# Linear (original) y-axis; predictions back-transformed
-# ===========================================
-
-# Output directory
-out_dir <- "C:/Users/david.hoover/OneDrive - USDA/HomeDrive/Manuscripts/NCEAS - Stability/output/stab metrics vs ppt"
-dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
-
-# Keep df method consistent with your workflow
-emm_options(lmer.df = "satterthwaite")
+###we are running individual models for metic by type2 seperately
 
 # 1) Long-format points (original scale)
 dat_long <- dat4.2b %>%
@@ -688,63 +718,103 @@ dat_long <- dat4.2b %>%
                names_to = "metric", values_to = "value") %>%
   mutate(metric = factor(metric, levels = c("manpp", "sd", "stab")))
 
-# 2) Helper: predictions (back-transform exp to original scale)
-pred_grid_for_model <- function(model, metric_label, x_vals, type_levels) {
-  pred <- emmeans(model, specs = ~ ppt_mean | type2,
-                  at = list(ppt_mean = x_vals))
-  as.data.frame(pred) %>%
-    mutate(
-      metric = metric_label,
-      y_hat  = exp(emmean),    # back-transform from log
-      y_lo   = exp(lower.CL),
-      y_hi   = exp(upper.CL),
-      type2  = fct_relevel(type2, !!!type_levels)
-    )
-}
+labels<-c('manpp'= "ANPP", 
+          'sd' = 'Temporal Variance',
+          'stab' = 'Stability')
 
-# 3) Common x-grid over observed precipitation
-x_seq <- seq(min(dat4.2b$ppt_mean, na.rm = TRUE),
-             max(dat4.2b$ppt_mean, na.rm = TRUE),
-             length.out = 200)
-type_levels <- c("Cropland", "Fert. Grassland", "Grassland")
+#make dat long below
+ggplot(data=dat_long, aes(x=ppt_mean, y=value, color=type2))+
+  geom_point()+
+  scale_color_manual(name='Type', values=c( '#D55E00','#56B4E9','#117733')) +
+  geom_smooth(aes(group=type2), method = 'lm')+
+  facet_grid(metric~type2, scales='free', labeller=labeller(metric=labels))+
+  theme(legend.position = 'none', panel.grid.major = element_blank(), panel.grid.minor=element_blank())+
+  ylab('')+
+  xlab('MAP (mm)')
 
-# 4) Build predictions for all three metrics
-pred_mean <- pred_grid_for_model(m_mean_ppt, "manpp", x_seq, type_levels)
-pred_sd   <- pred_grid_for_model(m_sd_ppt,   "sd",    x_seq, type_levels)
-pred_stab <- pred_grid_for_model(m_stab_ppt, "stab",  x_seq, type_levels)
+#consider running model with random crop type
+dat_long_stats<-dat_long %>% 
+  group_by(metric, type2) %>% 
+  summarise(p=summary(lm(log(value)~ppt_mean, weights = nobs))$coefficients['ppt_mean', "Pr(>|t|)"]) %>% 
+  mutate(pajd=p.adjust(p, method = 'bonferroni', n=3))
 
-pred_all <- bind_rows(pred_mean, pred_sd, pred_stab) %>%
-  mutate(metric = factor(metric, levels = c("manpp","sd","stab")))
 
-# 5) Plot: points (original scale) + ribbons + lines; linear y-axis
-p_linear <- ggplot() +
-  geom_point(data = dat_long,
-             aes(x = ppt_mean, y = value, color = type2),
-             alpha = 0.6, size = 2) +
-  geom_ribbon(data = pred_all,
-              aes(x = ppt_mean, ymin = y_lo, ymax = y_hi, fill = type2),
-              alpha = 0.15, color = NA) +
-  geom_line(data = pred_all,
-            aes(x = ppt_mean, y = y_hat, color = type2),
-            linewidth = 1.2) +
-  scale_color_brewer(palette = "Dark2", name = "Type") +
-  scale_fill_brewer(palette = "Dark2", name = "Type") +
-  facet_wrap(~ metric, scales = "free_y", nrow = 1) +
-  labs(x = "Mean water-year precipitation (mm)",
-       y = "Metric value (original scale)",
-       title = "Precipitation vs ANPP, SD, and Stability by vegetation type") +
-  theme_bw(base_size = 12) +
-  theme(strip.text = element_text(face = "bold"),
-        panel.grid.minor = element_blank())
-
-# Save figure (linear y-axis)
-ggsave(filename = file.path(out_dir, "ppt_vs_manpp_sd_stab_by_type_faceted_LINEAR.png"),
-       plot = p_linear, width = 11, height = 4.2, dpi = 300)
-
-# (Optional) Also save a companion figure with a log y-axis (straight lines visually)
-p_logaxis <- p_linear + scale_y_log10() + labs(y = "Metric value (log scale)")
-ggsave(file.path(out_dir, "ppt_vs_manpp_sd_stab_by_type_faceted_LOGAXIS.png"),
-       p_logaxis, width = 11, height = 4.2, dpi = 300)
+# 
+# # ============================
+# # 3-panel figure: manpp, sd, stab vs ppt_mean across type2
+# # ============================
+# 
+# # ===========================================
+# # 3-panel figure: manpp, sd, stab vs ppt_mean
+# # Linear (original) y-axis; predictions back-transformed
+# # ===========================================
+# 
+# # Output directory
+# out_dir <- "C:/Users/david.hoover/OneDrive - USDA/HomeDrive/Manuscripts/NCEAS - Stability/output/stab metrics vs ppt"
+# dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+# 
+# # Keep df method consistent with your workflow
+# emm_options(lmer.df = "satterthwaite")
+# 
+# 
+# 
+# # 2) Helper: predictions (back-transform exp to original scale)
+# pred_grid_for_model <- function(model, metric_label, x_vals, type_levels) {
+#   pred <- emmeans(model, specs = ~ ppt_mean | type2,
+#                   at = list(ppt_mean = x_vals))
+#   as.data.frame(pred) %>%
+#     mutate(
+#       metric = metric_label,
+#       y_hat  = exp(emmean),    # back-transform from log
+#       y_lo   = exp(lower.CL),
+#       y_hi   = exp(upper.CL),
+#       type2  = fct_relevel(type2, !!!type_levels)
+#     )
+# }
+# 
+# # 3) Common x-grid over observed precipitation
+# x_seq <- seq(min(dat4.2b$ppt_mean, na.rm = TRUE),
+#              max(dat4.2b$ppt_mean, na.rm = TRUE),
+#              length.out = 200)
+# type_levels <- c("Cropland", "Fert. Grassland", "Grassland")
+# 
+# # 4) Build predictions for all three metrics
+# pred_mean <- pred_grid_for_model(m_mean_ppt, "manpp", x_seq, type_levels)
+# pred_sd   <- pred_grid_for_model(m_sd_ppt,   "sd",    x_seq, type_levels)
+# pred_stab <- pred_grid_for_model(m_stab_ppt, "stab",  x_seq, type_levels)
+# 
+# pred_all <- bind_rows(pred_mean, pred_sd, pred_stab) %>%
+#   mutate(metric = factor(metric, levels = c("manpp","sd","stab")))
+# 
+# # 5) Plot: points (original scale) + ribbons + lines; linear y-axis
+# p_linear <- ggplot() +
+#   geom_point(data = dat_long,
+#              aes(x = ppt_mean, y = value, color = type2),
+#              alpha = 0.6, size = 2) +
+#   geom_ribbon(data = pred_all,
+#               aes(x = ppt_mean, ymin = y_lo, ymax = y_hi, fill = type2),
+#               alpha = 0.15, color = NA) +
+#   geom_line(data = pred_all,
+#             aes(x = ppt_mean, y = y_hat, color = type2),
+#             linewidth = 1.2) +
+#   scale_color_brewer(palette = "Dark2", name = "Type") +
+#   scale_fill_brewer(palette = "Dark2", name = "Type") +
+#   facet_wrap(~ metric, scales = "free_y", nrow = 1) +
+#   labs(x = "Mean water-year precipitation (mm)",
+#        y = "Metric value (original scale)",
+#        title = "Precipitation vs ANPP, SD, and Stability by vegetation type") +
+#   theme_bw(base_size = 12) +
+#   theme(strip.text = element_text(face = "bold"),
+#         panel.grid.minor = element_blank())
+# 
+# # Save figure (linear y-axis)
+# ggsave(filename = file.path(out_dir, "ppt_vs_manpp_sd_stab_by_type_faceted_LINEAR.png"),
+#        plot = p_linear, width = 11, height = 4.2, dpi = 300)
+# 
+# # (Optional) Also save a companion figure with a log y-axis (straight lines visually)
+# p_logaxis <- p_linear + scale_y_log10() + labs(y = "Metric value (log scale)")
+# ggsave(file.path(out_dir, "ppt_vs_manpp_sd_stab_by_type_faceted_LOGAXIS.png"),
+#        p_logaxis, width = 11, height = 4.2, dpi = 300)
 
 
 # ============================
@@ -752,61 +822,61 @@ ggsave(file.path(out_dir, "ppt_vs_manpp_sd_stab_by_type_faceted_LOGAXIS.png"),
 # (across m_mean_ppt, m_sd_ppt, m_stab_ppt)
 # ============================
 
-# Output directory
-out_dir <- "C:/Users/david.hoover/OneDrive - USDA/HomeDrive/Manuscripts/NCEAS - Stability/output/stab metrics vs ppt"
-dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
-
-# Helpers
-extract_fixed <- function(model, metric_label) {
-  broom.mixed::tidy(model, effects = "fixed", conf.int = TRUE) %>%
-    mutate(
-      metric        = metric_label,
-      exp_estimate  = exp(estimate),
-      exp_conf.low  = exp(conf.low),
-      exp_conf.high = exp(conf.high)
-    ) %>%
-    select(metric, term, estimate, std.error, df, statistic, p.value,
-           conf.low, conf.high, exp_estimate, exp_conf.low, exp_conf.high)
-}
-
-extract_anova <- function(model, metric_label) {
-  car::Anova(model, type = 3) %>%
-    as.data.frame() %>%
-    tibble::rownames_to_column("Effect") %>%
-    rename(Chisq = Chisq, Df = Df, p.value = `Pr(>Chisq)`) %>%
-    mutate(metric = metric_label) %>%
-    select(metric, Effect, Chisq, Df, p.value)
-}
-
-extract_random <- function(model, metric_label) {
-  broom.mixed::tidy(model, effects = "ran_pars") %>%
-    mutate(metric = metric_label) %>%
-    select(metric, group, term, estimate)
-}
-
-# Build combined tables from your three ppt models
-fixed_all <- bind_rows(
-  extract_fixed(m_mean_ppt,  "manpp"),
-  extract_fixed(m_sd_ppt,    "sd"),
-  extract_fixed(m_stab_ppt,  "stab")
-)
-
-anova_all <- bind_rows(
-  extract_anova(m_mean_ppt,  "manpp"),
-  extract_anova(m_sd_ppt,    "sd"),
-  extract_anova(m_stab_ppt,  "stab")
-)
-
-random_all <- bind_rows(
-  extract_random(m_mean_ppt,  "manpp"),
-  extract_random(m_sd_ppt,    "sd"),
-  extract_random(m_stab_ppt,  "stab")
-)
-
-# Write combined CSVs
-readr::write_csv(fixed_all,  file.path(out_dir, "combined_fixed_effects_ppt_models.csv"))
-readr::write_csv(anova_all,  file.path(out_dir, "combined_typeIII_anova_ppt_models.csv"))
-readr::write_csv(random_all, file.path(out_dir, "combined_random_effects_ppt_models.csv"))
+# # Output directory
+# out_dir <- "C:/Users/david.hoover/OneDrive - USDA/HomeDrive/Manuscripts/NCEAS - Stability/output/stab metrics vs ppt"
+# dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+# 
+# # Helpers
+# extract_fixed <- function(model, metric_label) {
+#   broom.mixed::tidy(model, effects = "fixed", conf.int = TRUE) %>%
+#     mutate(
+#       metric        = metric_label,
+#       exp_estimate  = exp(estimate),
+#       exp_conf.low  = exp(conf.low),
+#       exp_conf.high = exp(conf.high)
+#     ) %>%
+#     select(metric, term, estimate, std.error, df, statistic, p.value,
+#            conf.low, conf.high, exp_estimate, exp_conf.low, exp_conf.high)
+# }
+# 
+# extract_anova <- function(model, metric_label) {
+#   car::Anova(model, type = 3) %>%
+#     as.data.frame() %>%
+#     tibble::rownames_to_column("Effect") %>%
+#     rename(Chisq = Chisq, Df = Df, p.value = `Pr(>Chisq)`) %>%
+#     mutate(metric = metric_label) %>%
+#     select(metric, Effect, Chisq, Df, p.value)
+# }
+# 
+# extract_random <- function(model, metric_label) {
+#   broom.mixed::tidy(model, effects = "ran_pars") %>%
+#     mutate(metric = metric_label) %>%
+#     select(metric, group, term, estimate)
+# }
+# 
+# # Build combined tables from your three ppt models
+# fixed_all <- bind_rows(
+#   extract_fixed(m_mean_ppt,  "manpp"),
+#   extract_fixed(m_sd_ppt,    "sd"),
+#   extract_fixed(m_stab_ppt,  "stab")
+# )
+# 
+# anova_all <- bind_rows(
+#   extract_anova(m_mean_ppt,  "manpp"),
+#   extract_anova(m_sd_ppt,    "sd"),
+#   extract_anova(m_stab_ppt,  "stab")
+# )
+# 
+# random_all <- bind_rows(
+#   extract_random(m_mean_ppt,  "manpp"),
+#   extract_random(m_sd_ppt,    "sd"),
+#   extract_random(m_stab_ppt,  "stab")
+# )
+# 
+# # Write combined CSVs
+# readr::write_csv(fixed_all,  file.path(out_dir, "combined_fixed_effects_ppt_models.csv"))
+# readr::write_csv(anova_all,  file.path(out_dir, "combined_typeIII_anova_ppt_models.csv"))
+# readr::write_csv(random_all, file.path(out_dir, "combined_random_effects_ppt_models.csv"))
 
 ##########################################################################
 # taylor law testing
@@ -840,51 +910,96 @@ dat5<-dat4.2%>%
   mutate(vi = log10(var))
 ##Combining all types to calc aCV#####
 
+fit<-lm(vi~mi*type2, data=dat5)
+
+# Get the slope of 'mi' for each level of 'type2'
+trend_tbl <- emtrends(fit, specs = "type2", var = "mi") %>%
+  as.data.frame() %>%
+  rename(slope = mi.trend)
+
+# If you have only one slope per level, a boxplot will be trivial;
+# points + reference line is clearer:
+inset<-ggplot(trend_tbl, aes(x = type2, y = slope, color=type2)) +
+  geom_point(size = 3) +
+  scale_color_manual(name='Type', values=c( '#D55E00','#56B4E9','#117733')) +
+  geom_errorbar(aes(ymin=slope-SE, ymax=slope+SE), width=0.3)+
+  geom_hline(yintercept = 2, linetype = "dashed", color = "black", size = 0.5) +
+  labs(x = NULL, y = expression(beta)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = 'none', plot.background = element_rect(fill='transparent', color='transparent'), axis.text.x=element_blank())+
+  scale_y_continuous(limits=c(0.75, 2.25))
+inset
+
 
 #getting overall slopes and intercepts not for different type2
-ggplot(dat5, aes(mi, vi))+
+slopes<-ggplot(dat5, aes(mi, vi, color=type2))+
   geom_point(aes(color=type2))+
-  geom_smooth(method='lm')+
+  geom_smooth(method='lm', aes(group=type2))+
+  scale_color_manual(name='System Type', values=c( '#D55E00','#56B4E9','#117733')) +
+  #scale_fill_manual(name='System Type', values=c( '#D55E00','#56B4E9','#117733')) +
   geom_abline(slope=2)+
-  xlab('Log(Mean ANPP)')+
-  ylab('Log(sd^2 ANPP)')
+  xlab('Log(ANPP Mean)')+
+  ylab('Log(ANPP Variance)')+
+  theme(panel.grid.major=element_blank(), panel.grid.minor = element_blank())+
+  guides(
+    color = guide_legend(override.aes = list(fill = NA)),
+  ) #drop the gray around the lines in the legend
+slopes
 
-mod.1<-lm(vi ~ mi, data = dat5)
-summary(mod.1)
-coef(mod.1)
-b<-coef(mod.1)["mi"]
-a<-coef(mod.1)["(Intercept)"]
-a2<-a + (b-2)*mean(dat5$mi, na.rm=T)
+#left, bottom, right, top
+slopes+
+  inset_element(inset, 0.5,0.01,0.99, 0.5)
 
-#calculate adjusted coefficent of variaion based on Doring and Recking 2018
-dat6<-dat5%>%
-  mutate(ui = vi - (a +b*mi), #calculate residuals from regression line (Power Law Residuals, POLAR) 
- vi2 = a2 + 2*mi + ui, #adjusting variance based on slope of 2
- aCV = (sqrt(10^vi2)/manpp), #creating adjusted CV
- astab=(1/aCV)) #calculating adjusted stability
- 
+#getting slopes inset
 
-ggplot(dat6, aes(cv, aCV))+
-  geom_point(aes(color=type2))+
-  geom_smooth(method='lm')
 
-data6.1<-dat6%>%
-  pivot_longer(cols = c(astab, stab), names_to = "vartype", values_to = "var2")%>%
-  group_by(type2, vartype)%>%
-  summarise(stab = mean(var2),
-            sestab = sd(var2)/sqrt(n()))
+#testing whether slopes differ by type2
+#cropland and fert grassland no different, but cropland v. grassland is different
+summary(aov(lm(vi~mi*type2, data=dat5)))
 
-data6.1$vartype<-factor(data6.1$vartype, levels = c("stab", "astab"))
 
-ggplot(data6.1, aes(x = type2, y = stab, fill = vartype)) +
-  geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
-  geom_errorbar(aes(ymin = stab - sestab, ymax = stab + sestab),
-                width = 0.2, position = position_dodge(width = 0.8)) +
-  theme_minimal()
+#are slopes different from 2?
+#based on model outputs, the slope of the croplands are less than 2 (estimate + SE), the slope of the fertilized are also less than 2, but barely, grasslands are 2.1 so not different from 2. 
 
-#correction does change pairwise comparisions
-TukeyHSD(aov(stab~type2, data=dat6))
-TukeyHSD(aov(astab~type2, data=dat6))
+#We decided NOT to correct overall, but by type
+
+
+# mod.1<-lm(vi ~ mi, data = dat5)
+# summary(mod.1)
+# coef(mod.1)
+# b<-coef(mod.1)["mi"]
+# a<-coef(mod.1)["(Intercept)"]
+# a2<-a + (b-2)*mean(dat5$mi, na.rm=T)
+# 
+# #calculate adjusted coefficent of variaion based on Doring and Recking 2018
+# dat6<-dat5%>%
+#   mutate(ui = vi - (a +b*mi), #calculate residuals from regression line (Power Law Residuals, POLAR) 
+#  vi2 = a2 + 2*mi + ui, #adjusting variance based on slope of 2
+#  aCV = (sqrt(10^vi2)/manpp), #creating adjusted CV
+#  astab=(1/aCV)) #calculating adjusted stability
+#  
+# 
+# ggplot(dat6, aes(cv, aCV))+
+#   geom_point(aes(color=type2))+
+#   geom_smooth(method='lm')
+# 
+# data6.1<-dat6%>%
+#   pivot_longer(cols = c(astab, stab), names_to = "vartype", values_to = "var2")%>%
+#   group_by(type2, vartype)%>%
+#   summarise(stab = mean(var2),
+#             sestab = sd(var2)/sqrt(n()))
+# 
+# data6.1$vartype<-factor(data6.1$vartype, levels = c("stab", "astab"))
+# 
+# ggplot(data6.1, aes(x = type2, y = stab, fill = vartype)) +
+#   geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
+#   geom_errorbar(aes(ymin = stab - sestab, ymax = stab + sestab),
+#                 width = 0.2, position = position_dodge(width = 0.8)) +
+#   theme_minimal()
+# 
+# #correction does change pairwise comparisions
+# TukeyHSD(aov(stab~type2, data=dat6))
+# TukeyHSD(aov(astab~type2, data=dat6))
+
 
 ####redoing above but doing seperate correction for each type2
 types<-as.data.frame(unique(dat5$type2))
@@ -920,6 +1035,39 @@ ggplot(acv_bytype.1, aes(cv, aCV, color = type2))+
   geom_point()+
   geom_smooth(method='lm')
 
+slopes_orig<-ggplot(dat5, aes(mi, vi, color=type2))+
+  geom_point(aes(color=type2))+
+  geom_smooth(method='lm', aes(group=type2))+
+  scale_color_manual(name='System Type', values=c( '#D55E00','#56B4E9','#117733')) +
+  #scale_fill_manual(name='System Type', values=c( '#D55E00','#56B4E9','#117733')) +
+  geom_abline(slope=2)+
+  xlab('Log(ANPP Mean)')+
+  ylab('Log(ANPP Variance)')+
+  theme(panel.grid.major=element_blank(), panel.grid.minor = element_blank(), legend.position = 'bottom')+
+  guides(
+    color = guide_legend(override.aes = list(fill = NA)),
+  ) #drop the gray around the lines in the legend
+slopes_orig
+
+slopes_adj<-ggplot(acv_bytype.1, aes(mi, vi2, color=type2))+
+  geom_point(aes(color=type2))+
+  geom_smooth(method='lm', aes(group=type2))+
+  scale_color_manual(name='System Type', values=c( '#D55E00','#56B4E9','#117733')) +
+  #scale_fill_manual(name='System Type', values=c( '#D55E00','#56B4E9','#117733')) +
+  geom_abline(slope=2)+
+  xlab('Log(ANPP Mean)')+
+  ylab('Log(ANPP Variance)')+
+  theme(panel.grid.major=element_blank(), panel.grid.minor = element_blank(), legend.position = 'bottom')+
+  guides(
+    color = guide_legend(override.aes = list(fill = NA)),
+  ) #drop the gray around the lines in the legend
+slopes_adj
+
+# ggplot(acv_bytype.1, aes(mi, vi, color = type2))+
+#   geom_point()+
+#   geom_smooth(method='lm')+
+#   geom_abline(slope = 2, linetype = "dashed", color = "grey40") 
+
 
 acv_bytype.2<-acv_bytype.1%>%
   pivot_longer(cols = c(astab, stab), names_to = "vartype", values_to = "var2")%>%
@@ -933,7 +1081,9 @@ ggplot(acv_bytype.2, aes(x = type2, y = stab, fill = vartype)) +
   geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
   geom_errorbar(aes(ymin = stab - sestab, ymax = stab + sestab),
                 width = 0.2, position = position_dodge(width = 0.8)) +
-  theme_minimal()
+  scale_fill_manual(name='', labels = c('Raw', 'Corrected'), values=c('lightgray', 'darkgray'))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(y='Stability', x="")
 
 #correction does not change pairwise comparisons
 TukeyHSD(aov(astab~type2, data=acv_bytype.1))
@@ -942,6 +1092,36 @@ TukeyHSD(aov(stab~type2, data=acv_bytype.1))
 m<-(lm(vi~mi*type2, data=dat6))
 m2<-emtrends(m, spec='type2',var="mi")
 pairs(m2)
+
+
+####rerun the precip analysis now with the corrected astab.
+#make dat long below
+dat6.1<-dat6 |> 
+  left_join(ppt_by_group)
+
+ggplot(data=dat6.1, aes(x=sd, y=vi2))+
+  geom_point()+ 
+
+dat_along <- dat6.1 %>%
+  ungroup() %>%  # avoid grouped-column warnings
+  select(network, site, type, type2, ppt_mean, nobs, manpp, sd, vi2, astab) %>%
+  pivot_longer(cols = c(manpp, sd, astab),
+               names_to = "metric", values_to = "value")
+
+# 1) Long-format points (original scale)
+ggplot(data=dat_along, aes(x=ppt_mean, y=value))+
+  geom_point()+
+  geom_smooth(aes(group=type2), method = 'lm')+
+  facet_grid(metric~type2, scales='free')
+
+#consider running model with random crop type
+dat_along_stats<-dat_along %>% 
+  group_by(metric, type2) %>% 
+  summarise(p=summary(lm(log(value)~ppt_mean, weights = nobs))$coefficients['ppt_mean', "Pr(>|t|)"]) %>% 
+  mutate(pajd=p.adjust(p, method = 'bonferroni', n=3))
+
+
+
 
 
 #graph#####################################################
