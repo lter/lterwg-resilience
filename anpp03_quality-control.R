@@ -78,8 +78,8 @@ tidy_v3 <- tidy_v2 %>%
   dplyr::mutate(dates = coalesce(date2, date3, date4, date5, date_m.d.yyy, date_m.d.yyy2, date6)) %>%
   # add year
   dplyr::mutate(year = ifelse(is.na(year), lubridate::year(dates), year)) %>%
-  # add month column
-  dplyr::mutate(month = lubridate::month(dates)) %>%
+  # add month from dates to existing month column
+  dplyr::mutate(month = coalesce(month, lubridate::month(dates))) %>%
   # get rid of extra date columns
   dplyr::select(-c("date", "date_m.d.yyy", "date2", "date3", "date4", "date5", "date6", "date_m.d.yyy2"))
 #   
@@ -96,80 +96,13 @@ tidy_v3 <- tidy_v2 %>%
 # Calculate duration for each "site"
 #MEGHAN NOTES: year is not filled out for each dataset so this isn't working, i created a new year2 column above, it works now.
 
-tidy_v4 <- tidy_v2 %>% 
+tidy_v4 <- tidy_v3 %>% 
   dplyr::group_by(site, treatment) %>% 
   dplyr::mutate(duration_years = length(unique(year))) %>% 
   dplyr::ungroup()
 
 # Check structure
 dplyr::glimpse(tidy_v4)
-
-# Generate column for average harvest month by site-crop
-tidy_v4 %>% 
-  dplyr::group_by(network, site, crop) %>% 
-  dplyr::mutate(avg_harvest_month = mean(month),
-                avg_harvest_month_rounded = round(avg_harvest_month)) %>% #round avg. harvest month
-  dplyr::ungroup() -> tidy_v4
-
-# Create df of sites with no harvest month
-tidy_v4 %>% 
-  dplyr::filter(is.na(month)) %>% 
-  dplyr::distinct(network, site, crop, month) -> no_harvest_month_df
-
-# CREATE INITIAL NO HARVEST MONTH FILE TO BE FILLED OUT MANUALLY
-# # Identify name for exported object
-# no_harvest_month_df_output <- "no_harvest_month_table.csv"
-# 
-# # Export locally
-# write.csv(x = no_harvest_month_df, row.names = F, na = '',
-#           file = file.path("data", "harmonized_data", no_harvest_month_df_output))
-
-# Upload to Drive
-# googledrive::drive_upload(media = file.path("data", "harmonized_data", no_harvest_month_df_output), overwrite = T,
-#                           path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ"))
-
-
-#import csv file with manually filled out harvest month (Ingrid, Tim & Beatriz)
-
-# Identify relevant tidy file
-focal_file2 <- "filled_harvest_month_table.csv"
-
-# Download harmonized data file
-googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
-  dplyr::filter(name == focal_file2) %>% 
-  googledrive::drive_download(file = .$id, overwrite = T,
-                              path = file.path("data", "harmonized_data", .$name))
-
-# Read in harmonized data
-filled_out_df <- read.csv(file = file.path("data", "harmonized_data", focal_file2))
-
-#merge manually filled out month with avg. harvest month in tidy_v4
-tidy_v4 <- tidy_v4 %>%
-  left_join(
-    filled_out_df %>% 
-      select(network, site, crop, month),by = c("network", "site", "crop")) %>% 
-  rename(manual_month = month.y) %>% 
-  mutate(mean_harvest_month_rounded = coalesce(avg_harvest_month_rounded, manual_month)) %>% 
-  select(-c(avg_harvest_month_rounded, manual_month)) %>% 
-  rename(avg_harvest_month_rounded = mean_harvest_month_rounded,
-         month = month.x)
-
-# Get final list with newly added sites (Katherine's drive date) without harvest dates:
-tidy_v4 %>% 
-  dplyr::filter(is.na(avg_harvest_month_rounded)) %>% 
-  dplyr::distinct(network, site, crop, avg_harvest_month_rounded) -> no_harvest_month_df_07_09_26
-
-# Identify name for exported object
-no_harvest_month_output2 <- "no_harvest_month_df_07_09_26.csv"
-
-# # Export locally
-# write.csv(x = no_harvest_month_df_07_09_26, row.names = F, na = '',
-#            file = file.path("data", "harmonized_data", no_harvest_month_output2))
-# 
-# # Upload to Drive
-# googledrive::drive_upload(media = file.path("data", "harmonized_data", no_harvest_month_output2), overwrite = T,
-#                            path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ"))
-
 
 ## ------------------------------------------- ##
 # ANPP Unit Conversions ----
@@ -349,11 +282,97 @@ for (Site in sites) {
 
 
 ## ------------------------------------------- ##
+# CALCULATE AVG. HARVEST DATE ----
+## ------------------------------------------- ##
+
+# Generate column for average harvest month by site-crop
+tidy_v7 %>% 
+  dplyr::group_by(network, site, crop) %>% 
+  dplyr::mutate(avg_harvest_month = mean(month),
+                avg_harvest_month_rounded = round(avg_harvest_month)) %>% #round avg. harvest month
+  dplyr::ungroup() -> tidy_v8
+
+# Create df of sites with no harvest month
+tidy_v8 %>% 
+  dplyr::filter(is.na(month)) %>% 
+  dplyr::distinct(network, site, crop, month) -> no_harvest_month_df
+
+# CREATE INITIAL NO HARVEST MONTH FILE TO BE FILLED OUT MANUALLY
+# Identify name for exported object
+no_harvest_month_df_output <- "no_harvest_month_table_updated_cropnames.csv"
+
+# Export locally
+write.csv(x = no_harvest_month_df, row.names = F, na = '',
+          file = file.path("data", "harmonized_data", no_harvest_month_df_output))
+
+# Upload to Drive
+# googledrive::drive_upload(media = file.path("data", "harmonized_data", no_harvest_month_df_output), overwrite = T,
+#                           path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ"))
+
+
+#import csv file with manually filled out harvest month (Ingrid, Tim & Beatriz)
+
+# Identify relevant tidy file
+focal_file2 <- "filled_harvest_month_table_updated_cropnames.csv"
+
+# Download harmonized data file
+googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
+  dplyr::filter(name == focal_file2) %>% 
+  googledrive::drive_download(file = .$id, overwrite = T,
+                              path = file.path("data", "harmonized_data", .$name))
+
+# Read in harmonized data
+filled_out_df <- read.csv(file = file.path("data", "harmonized_data", focal_file2))
+
+#check how many networks there are
+unique(filled_out_df$network)
+
+no_crop_filled <- filled_out_df %>% 
+  filter(network %in% c("LTER", "NutNet"))
+
+#merge manually filled out month with avg. harvest month in tidy_v8
+tidy_v9 <- tidy_v8 %>%
+  left_join(filled_out_df %>% 
+      select(network, site, crop, month),by = c("network", "site", "crop")) %>% 
+  rename(manual_month = month.y) %>% 
+  mutate(mean_harvest_month_rounded = coalesce(avg_harvest_month_rounded, manual_month)) %>% 
+  select(-c(avg_harvest_month_rounded, manual_month)) %>% 
+  rename(avg_harvest_month_rounded = mean_harvest_month_rounded,
+         month = month.x)
+
+#merge manually filled out month with avg. harvest month in filled out data for LTER & Nutnet (sites w/ no crop)
+tidy_v10 <- tidy_v9 %>%
+  left_join(no_crop_filled %>% 
+              select(network, site, month),by = c("network", "site")) %>% 
+  rename(manual_month = month.y) %>% 
+  mutate(mean_harvest_month_rounded = coalesce(avg_harvest_month_rounded, manual_month)) %>% 
+  select(-c(avg_harvest_month_rounded, manual_month)) %>% 
+  rename(avg_harvest_month_rounded = mean_harvest_month_rounded,
+         month = month.x)
+
+# Get final list with newly added sites (Katherine's drive date) without harvest dates:
+tidy_v10 %>% 
+  dplyr::filter(is.na(avg_harvest_month_rounded)) %>% 
+  dplyr::distinct(network, site, crop, avg_harvest_month_rounded) -> no_harvest_month_df_07_09_26
+
+# Identify name for exported object
+no_harvest_month_output2 <- "no_harvest_month_df_07_09_26.csv"
+
+# Export locally
+write.csv(x = no_harvest_month_df_07_09_26, row.names = F, na = '',
+           file = file.path("data", "harmonized_data", no_harvest_month_output2))
+
+# Upload to Drive
+googledrive::drive_upload(media = file.path("data", "harmonized_data", no_harvest_month_output2), overwrite = T,
+                           path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ"))
+
+
+## ------------------------------------------- ##
 # Export ----
 ## ------------------------------------------- ##
 
 # Final pre-export tweaks
-tidy_v99 <- tidy_v7
+tidy_v99 <- tidy_v10
 
 # Check structure
 dplyr::glimpse(tidy_v99)
