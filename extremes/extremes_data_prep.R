@@ -39,23 +39,21 @@ wyr_ppt_summary <- wyr_ppt_data %>%
 merge_anpp_wyr_ppt <- anpp_data %>%
   left_join(., wyr_ppt_summary, by = c("site", "network"))
 
-#identify sites less than years of anpp data and all years outside of +-1SD long-term avg MSWEP ppt
+#identify sites less than 5 years of anpp data 
 omit_select_sites <- merge_anpp_wyr_ppt %>%
   group_by(site) %>%
-  filter(duration_years < 5 | all(wyr_ppt < sd_lower_ppt | wyr_ppt > sd_upper_ppt, na.rm = TRUE)) %>%
+  filter(duration_years < 5 ) %>%
   distinct(site) %>%
   pull(site)
 print(omit_select_sites)
 
 #borrow Dave's data processing script in stability_analysis_DLH.R:
 dat <- merge_anpp_wyr_ppt %>%
-  filter(!site %in% c('BRADFORD.C', 'DPAC', 'HOYTVILLE.LTR', 'MAR', 'MO_Knox1',
-                      'MO_Knox2', 'MO_Knox4', 'WOOSTER.LTR', 'lake.us', 'msla.us',
-                      'msla_2.us', 'msla_3.us', 'unc.us')) %>% #drop all omit sites identified above
-  filter(site!='look.us'& site!='bnch.us') %>% #drop two odd NutNet sites
+  filter(!site %in% c(omit_select_sites)) %>% #drop all omit sites identified above
+  filter(site!='look.us'& site!='bnch.us' & site!= 'DAP') %>% #drop two odd NutNet sites
   filter(treatment!="PRHPA_NEMERREM_CCN4N")%>%#removing second treatment for PRHPA
   #filter(crop!='Garbanzo'&crop!='Canola'&crop!='Oats') %>% 
-  filter(!is.na(anpp_g_m2))%>% #this removes sites with grain yield but not anpp
+  #filter(!is.na(anpp_g_m2))%>% #this removes sites with grain yield but not anpp
   mutate(crop=tolower(crop)) %>% 
   mutate(crop2=case_when(
     crop %in% c('orchardgrass/white clover', 'orchard/fescue/clover/alfalfa/chicory', 'sorghum-sudangrass') ~ 'mixed_grass',
@@ -82,7 +80,8 @@ dat <- merge_anpp_wyr_ppt %>%
 
 #classify systems to just four land management types
 dat_4cat<-dat %>% 
-  mutate(type2=ifelse(type %in% c('Grassland', 'Fert. Grassland', 'Pasture'), type, 'Cropland'))
+  mutate(type2=ifelse(type %in% c('Grassland', 'Fert. Grassland', 'Pasture'), type, 'Cropland')) %>%
+  filter(type2 != "Pasture" )
 
 
 # ── Download helpers ──────────────────────────────────────────────────────────
@@ -142,19 +141,28 @@ temp_scaled <- temp_data %>%
 ########### Merge and classify type #################
 
 anpp_scaled <- dat_4cat%>%
+  ungroup()%>%
   group_by(site, type, type2)%>%
   mutate(mean_anpp    = mean(anpp_g_m2),
          per_dev_anpp = (anpp_g_m2 - mean_anpp) / mean_anpp,
          scaled_anpp  = scale(anpp_g_m2)[, 1])
 
+grain_scaled <- dat_4cat%>%
+  group_by(site, type, type2)%>%
+  mutate(mean_grain = mean(grain_g_m2),
+         per_dev_anpp = (grain_g_m2 - mean_grain)/ mean_grain,
+         scaled_grain = scale(grain_g_m2)[,1]) %>%
+  ungroup() %>%
+  dplyr::select(scaled_grain, w_yr, network, site, type, type2, treatment)
+
 ext_data_clean <- ppt_scaled %>%
   merge(anpp_scaled, by = c("w_yr", "site", "network", "wyr_ppt")) %>%
   left_join(spei_clean,  by = c("w_yr", "site")) %>%
   left_join(temp_scaled, by = c("w_yr", "network", "site"))%>%
+  left_join(grain_scaled, by = c("w_yr", "network", "site", "type", "type2", "treatment")) %>%
   mutate(n.obs   = n()) %>% #in most cases this is years, but a few sites have multiple harvest in a year
   filter(n.obs > 4) %>%
   ungroup()
-
 
 
 
