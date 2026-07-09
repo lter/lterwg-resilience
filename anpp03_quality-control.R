@@ -104,6 +104,30 @@ tidy_v4 <- tidy_v3 %>%
 # Check structure
 dplyr::glimpse(tidy_v4)
 
+# Generate column for average harvest month by site-crop
+tidy_v4 %>% 
+  dplyr::group_by(network, site, crop) %>% 
+  dplyr::mutate(avg_harvest_month = mean(month),
+                avg_harvest_month_rounded = round(avg_harvest_month)) %>% #round avg. harvest month
+  dplyr::ungroup() -> tidy_v4
+
+# Create df of sites with no harvest month
+tidy_v4 %>% 
+  dplyr::filter(is.na(month)) %>% 
+  dplyr::distinct(network, site, crop, month) -> no_harvest_month_df
+
+# Identify name for exported object
+no_harvest_month_df_output <- "no_harvest_month_table.csv"
+
+# Export locally
+write.csv(x = no_harvest_month_df, row.names = F, na = '',
+          file = file.path("data", "harmonized_data", no_harvest_month_df_output))
+
+# Upload to Drive
+# googledrive::drive_upload(media = file.path("data", "harmonized_data", no_harvest_month_df_output), overwrite = T,
+#                           path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ"))
+
+
 ## ------------------------------------------- ##
 # ANPP Unit Conversions ----
 ## ------------------------------------------- ##
