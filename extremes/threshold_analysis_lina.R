@@ -240,6 +240,8 @@ corn_grain_ppt_results
 soybean_grain_ppt_results
 wheat_grain_ppt_results
 
+
+
 # ── Segmented breakpoint analysis ────────────────────────────────────────────
 # Fits a linear model then estimates one breakpoint via segmented(), controlling
 # for mean_ppt. Returns the breakpoint estimate, 95% CI, and a plot.
