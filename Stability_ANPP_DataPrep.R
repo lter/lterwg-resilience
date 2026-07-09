@@ -57,7 +57,8 @@ dat<- read.csv(file = file.path("data", "harmonized_data", file2)) %>%
     TRUE~'999'
   ))%>%
   mutate(duration_years = ifelse(site == 'LCB', 9, duration_years))%>%
-  filter(!treatment %in% c('004b', '020b'))
+  filter(!treatment %in% c('004b', '020b')) %>%
+  filter(!(network == "DAP" & treatment %in% c(1,2)))
 
 
 ####Okay, we are going to combine to just four land management
