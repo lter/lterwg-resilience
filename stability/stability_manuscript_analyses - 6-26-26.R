@@ -34,14 +34,16 @@ dir.create(file.path("data", "harmonized_data"), showWarnings = F)
 
 
 # READ IN THE ANPP AND PRECIPITATION DATA
-file2<-'stability_anpp.csv'
+#using new data with DAP and DRIVES
+file2<-'stability_anpp2.csv'
 googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
   dplyr::filter(name == file2) %>% 
   googledrive::drive_download(file = .$id, overwrite = T,
                               path = file.path("data", "harmonized_data", .$name))
 
 ##STEP 1: Read in the ANPP data
-dat_4cat <- read.csv(file = file.path("data", "harmonized_data", file2)) 
+dat_4cat <- read.csv(file = file.path("data", "harmonized_data", file2)) |> 
+  filter(type!=999)
   
 ##STEP 2: Read in MAP data
 file3<-'site_climate_mswep.csv'
@@ -70,9 +72,8 @@ ann.climatedat<- read.csv(file = file.path("data", "harmonized_data", file4)) %>
 
 dat1.1<-dat_4cat |> ##this used to have join with ann.climate, but it lookes like the data is already in there.
   mutate(type2 = factor(type2))%>%
-  filter(stab.analysis == 1)#sites must have 5 or more years of data,
-
-plot(dat1.1$wyr_ppt.x, dat1.1$wyr_ppt.y)
+  filter(stab.analysis == 1) |> #sites must have 5 or more years of data,
+  mutate(site_type=paste(site, type, sep="::")) #have a unique identifier for each site type combo
 
 #normality tests
 transforms <- list(
@@ -90,11 +91,11 @@ lapply(transforms, function(x) {
 #selected sqrt transformation
 
 #Fit LMM with log-transformed ANPP (after comparing shapiro test, diagnostic plots)
-m_sqrt2 <- lmer(sqrt(anpp_g_m2) ~ wyr_ppt.y * type2 + (1 | site),
+m_sqrt2 <- lmer(sqrt(anpp_g_m2) ~ wyr_ppt * type2 + (1 | site),
            data = dat1.1)
-m_log2 <- lmer(log(anpp_g_m2) ~ wyr_ppt.y * type2 + (1 | site),
+m_log2 <- lmer(log(anpp_g_m2) ~ wyr_ppt * type2 + (1 | site),
                data = dat1.1)
-m_raw <- lmer(anpp_g_m2 ~ wyr_ppt.y * type2 + (1 | site),
+m_raw <- lmer(anpp_g_m2 ~ wyr_ppt * type2 + (1 | site),
                 data = dat1.1)
 
 # Basic diagnostic plots comparing log and sqrt transformation 
@@ -115,13 +116,15 @@ qqline(resid(m_log2))
 #heteroscedastic - mean-variance coupling; log model residuals a constant band. QQ plots also favor log transformation - sqrt has an s-shape with heavy tails, 
 #log closer fit to line with some deviation in the lower tail
 
-m_log <- lmer(log(anpp_g_m2) ~ wyr_ppt.y * type2 + (1 | site),
+#we are discussing nesting type (eg corn v. wheat) within site (1 | site/type) or of having site_type as is below.
+ 
+m_log <- lmer(log(anpp_g_m2) ~ wyr_ppt * type2 + (1 | site_type),
                data = dat1.1)
 summary(m_log)
 car::Anova(m_log, type = 3)
 
-emtrends(m_log, ~ type2, var = "wyr_ppt.y")
-pairs(emtrends(m_log, ~ type2, var = "wyr_ppt.y"))  # test differences in slopes
+emtrends(m_log, ~ type2, var = "wyr_ppt")
+pairs(emtrends(m_log, ~ type2, var = "wyr_ppt"))  # test differences in slopes
 
 
 # Table 1: Fixed effects (tidy)
@@ -152,7 +155,8 @@ write.csv(tab2, "C:/Users/david.hoover/OneDrive - USDA/HomeDrive/Manuscripts/NCE
 emm_options(lmer.df = "satterthwaite")
 
 # Get trends (slopes) by type
-emtr_log <- emtrends(m_log, ~ type2, var = "wyr_ppt.y")
+emtr_log <- emtrends(m_log, ~ type2, var = "wyr_ppt")
+#this says slopes are significant.
 
 # Pairwise differences in slopes (Tukey-adjusted)
 pair_tr <- pairs(emtr_log, adjust = "tukey")
@@ -166,48 +170,85 @@ write.csv(pair_df, "C:/Users/david.hoover/OneDrive - USDA/HomeDrive/Manuscripts/
 #        family = Gamma(link = "log"))
 
 
-#plot
+#plot on log scale to show actually values but account for log nature of the stats put 
+#fine line maybe on this for each site-type
 
-ggplot(dat1.1, aes(x = wyr_ppt.y, y = anpp_g_m2, color = type2)) +
-  geom_point(alpha = 0.65, size = 1.8) +
+ggplot(dat1.1, aes(x = wyr_ppt, y = anpp_g_m2, color = type2)) +
+  geom_point(alpha = 0.2, size = 1.3) +
+  scale_color_manual(name='Type', values=c( '#D55E00','#56B4E9','#117733')) +
   #geom_smooth(aes(group=site, color='black'), method = "lm", se=F, linewidth=0.01)+
   geom_smooth(method = "lm", formula = y ~ x, se = TRUE, linewidth = 1) +
-  scale_color_brewer(palette = "Dark2") +
-  labs(
+   labs(
     x = "Annual precipitation (mm)",
     y = expression(paste("ANPP ", "(g m"^{-2}, ")")),
-    color = "type2"
-  ) +
+   ) +
   theme_bw() +
   theme(
     legend.position = "right",
-    plot.title = element_text(face = "bold")
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
   )+
-  scale_y_log10()
+  guides(
+    color = guide_legend(override.aes = list(fill = NA)),
+    )+ #drop the gray around the lines in the legend
+  scale_y_log10()#+
+  #facet_wrap(~type2)
 
-ggplot(subset(dat1.1, site=='sava.us'), aes(x = wyr_ppt.y, y = anpp_g_m2, color = type2)) +
-  geom_point(alpha = 0.25, size = 1) +
-  geom_smooth(aes(group=site), method = "lm", se=F, linewidth=0.01)+
-  #geom_smooth(method = "lm", formula = y ~ x, se = TRUE, linewidth = 1) +
-  scale_color_brewer(palette = "Dark2") +
+
+
+
+#same figure but with small lines for each site-type
+ggplot(dat1.1, aes(x = wyr_ppt, y = anpp_g_m2, color = type2)) +
+  geom_point(alpha = 0.2, size = 1.3) +
+  scale_color_manual(name='Type', values=c( '#D55E00','#56B4E9','#117733')) +
+  geom_smooth(aes(group=site_type), method = "lm", se=F, linewidth=0.01)+
+  geom_smooth(method = "lm", formula = y ~ x, se = TRUE, linewidth = 1) +
   labs(
     x = "Annual precipitation (mm)",
     y = expression(paste("ANPP ", "(g m"^{-2}, ")")),
-    color = "type2"
   ) +
   theme_bw() +
   theme(
     legend.position = "right",
-    plot.title = element_text(face = "bold")
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
   )+
-  scale_y_log10()+
+  guides(
+    color = guide_legend(override.aes = list(fill = NA)),
+  )+ #drop the gray around the lines in the legend
+  #scale_y_log10()+
   facet_wrap(~type2)
 
 
-####pull out slopes
-slopes<-dat1.1 |> 
-  group_by(site, type, type2) |> 
-  summarise(b=lm(anpp_g_m2~wyr_ppt.x))
+####pull out slopes - actually let's not inlcude this in this paper
+
+#run code on line 570 to get ppt_by_group 
+#this is funky , we think that croplands have no relationship, but grasslands have a crappy one.
+#code to get a negative expotential slope: method = "nls",formula = y ~ a * exp(-b * x),method.args = list(start = c(a = 1000, b = 0.001)),
+
+# slopes<-dat1.1 |> 
+#   group_by(site, type, type2) |> 
+#   summarise(b = coef(lm(anpp_g_m2 ~ wyr_ppt))[["wyr_ppt"]]) |>
+#   left_join(ppt_by_group)
+# 
+# ggplot(slopes, aes(x = ppt_mean, y = b, color = type2)) +
+#   geom_point(alpha = 0.25, size = 1) +
+#   geom_smooth(method='lm', se=F, linewidth=0.1)+
+#   #geom_smooth(method = "lm", formula = y ~ x, se = TRUE, linewidth = 1) +
+#   scale_color_brewer(palette = "Dark2") +
+#   labs(
+#     x = "Annual precipitation (mm)",
+#     y = 'slope',
+#     color = "type2"
+#   ) +
+#   theme_bw() +
+#   theme(
+#     legend.position = "right",
+#     plot.title = element_text(face = "bold")
+#   )+
+#   #scale_y_log10()+
+#   facet_wrap(~type2)
+
 
 ##########################################################################
 # Main effects of type  on manpp, sd, stability
@@ -217,20 +258,6 @@ dat4.1<-dat_4cat%>% #using raw data, not detrended
   group_by(network, site, type, type2)%>% #need to average over type to make independent calcs of croplands with different types (e.g. corn, soy, wheat)
   # dropping anpp pulse summarize(nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2), anpp_pulse = (max(anpp_g_m2)-mean(anpp_g_m2))/mean(anpp_g_m2))
   summarize(nobs=n(), manpp=mean(anpp_g_m2), sd=sd(anpp_g_m2))
-
-
-###test analysis with Grace's data
-dummydata<-data.frame(
-  network=c('dummy', 'dummy'),
-  site=c('dryland', 'dryland'),
-  type=c('Corn', 'Wheat'),
-  type2=c('Cropland', 'Cropland'),
-  nobs=c(24, 24),
-  manpp=c(571.08, 587.829),
-  sd=c(249.58, 139.8712))
-
-dat4.1<-dat4.1 |> 
-  bind_rows(dummydata)
 
 #calc some stability metrics - taking mean across site (not Ingrids approach, which calcs across all sites within a type)
 dat4.2<-dat4.1%>%
@@ -281,7 +308,11 @@ lapply(transforms, function(x) {
 #added site as a random intercept (58 sites) to account for baseline differences across sites
 #weighted by nobs (years per site x type2 ) to weight sites with longer data sets
 
-m_mean_log <- lmer(log(manpp) ~ type2 + (1 | site),
+test<-dat4.2 |> 
+  group_by(site) |> 
+  summarize(n())
+
+m_mean_log <- aov(log(manpp) ~ type2,
                    data = dat4.2, weights = nobs) 
 summary(m_mean_log)
 emm_mean_log <- emmeans(m_mean_log, ~ type2)
@@ -307,7 +338,7 @@ lapply(transforms, function(x) {
 #using visual assessment to determine which model is best
 
 #log <-- the plots were pretty close but liked the q-q residuals better on this so using this model
-m_sd_log <- lmer(log(sd) ~ type2 + (1 | site),
+m_sd_log <- aov(log(sd) ~ type2,
                    data = dat4.2, weights = nobs) 
 summary(m_sd_log)
 emm_sd_log <- emmeans(m_sd_log, ~ type2)
@@ -334,7 +365,7 @@ lapply(transforms, function(x) {
 
 #log <-- the plots were pretty close but liked the q-q residuals better on this so using this model
 
-m_stab_log <- lmer(log(stab) ~ type2 + (1 | site),
+m_stab_log <- aov(log(stab) ~ type2,
                  data = dat4.2, weights = nobs) 
 summary(m_stab_log)
 emm_stab_log <- emmeans(m_stab_log, ~ type2)
@@ -374,13 +405,15 @@ plot_bar_single <- function(df, ylabel, title, outfile) {
       plot.title = element_text(face = "bold")
     )
   
-  ggsave(outfile, p, width = 6.5, height = 4.5, dpi = 300)
+  #ggsave(outfile, p, width = 6.5, height = 4.5, dpi = 300)
   p
 }
 
 # ------------------------------
 # Individual bar plots
 # ------------------------------
+
+#add a's and B's
 
 # 1. manpp
 p_manpp <- plot_bar_single(
@@ -587,16 +620,12 @@ dat4.2b<-left_join(dat4.2, ppt_by_group, by = c("network", "site", "type", "type
 
 #using same transformations as anova
 
-m_mean_ppt <- lmer(log(manpp) ~ ppt_mean * type2 + (1 | site),
+m_mean_ppt <- lm(log(manpp) ~ ppt_mean * type2,
                    data = dat4.2b, weights = nobs)
 summary(m_mean_ppt)
 car::Anova(m_mean_ppt, type = 3)
 
-m_mean_ppt2 <- lm(log(manpp) ~ ppt_mean*type2,
-                   data = dat4.2b, weights = nobs)
-summary(m_mean_ppt2)
-car::Anova(m_mean_ppt2, type = 3)
-
+#exploring why not sig
 m_mean_ppt3 <- lmer(log(manpp) ~ ppt_mean * type2 + (1 | site),
                    data = subset(dat4.2b, type2!='Cropland'), weights = nobs)
 
@@ -621,9 +650,9 @@ car::Anova(m_stab_ppt2, type = 3)
 
 
 #make dat long below
-ggplot(data=dat_long, aes(x=ppt_mean, y=value))+
+ggplot(data=dat_long, aes(x=ppt_mean, y=value, color=type))+
   geom_point()+
-  geom_smooth(method = 'lm')+
+  geom_smooth(aes(group=type2), method = 'lm')+
   facet_grid(metric~type2, scales='free')
 
 dat_long_stats<-dat_long %>% 
@@ -654,7 +683,7 @@ dat_long <- dat4.2b %>%
   ungroup() %>%  # avoid grouped-column warnings
   mutate(type2 = fct_relevel(factor(type2),
                              "Cropland", "Fert. Grassland", "Grassland")) %>%
-  select(site, type2, ppt_mean, nobs, manpp, sd, stab) %>%
+  select(network, site, type, type2, ppt_mean, nobs, manpp, sd, stab) %>%
   pivot_longer(cols = c(manpp, sd, stab),
                names_to = "metric", values_to = "value") %>%
   mutate(metric = factor(metric, levels = c("manpp", "sd", "stab")))

@@ -4,7 +4,7 @@
 # Authors: Makki Khorchani
 
 # Purpose
-## Download SPEI 6 months data for all sites and save a data frame on the drive.
+## Download SPEI data for all sites and save a data frame on the drive.
 ## The SPEI NC files are downloaded from this website https://spei.csic.es/spei_database/#map_name=spei01#map_position=1475
 
 
@@ -33,8 +33,8 @@ drive_auth()
 
 # Grab the data key for the site summary info file from Google drive. 
 # link below is the path for the location of the file on the drive
-key_drive <- googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Ty7QX7vyvD797eKJzMWbr8AwIo-GyBFO")) %>% 
-  dplyr::filter(name == "site_summary_info.csv")
+key_drive <- googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
+  dplyr::filter(name %in% "site_coordinates_combined.csv")
 
 # Did that work?
 key_drive
@@ -45,7 +45,8 @@ googledrive::drive_download(file = key_drive$id, overwrite = T, type = "csv",
 
 
 # importing site data (coordinates and siteID)
-sites <- read.csv(file.path("data","site_summary_info.csv"))
+sites <- read.csv(file.path("data","site_coordinates_combined.csv")) %>%
+  rename(site_id=site)
 
 
 # Creating a leaflet map of the site locations
@@ -74,8 +75,8 @@ folder_id <- as_id("https://drive.google.com/drive/u/0/folders/1JtFMD4IAizjNGd0w
 #list gloabl ncdf files on the spei_data folder
 ncs<-list.files(file.path("data","spei_data"),pattern = ".nc")
 
-extract=FALSE
-upload=FALSE
+extract=TRUE
+upload=TRUE
 #extract site spei times series for all scales (01-24) for all sites and upload output files to spei_data
 for (nc in ncs) {
   nc_filename<-file.path("data","spei_data",nc)  

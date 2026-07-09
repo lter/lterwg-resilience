@@ -9,11 +9,11 @@ source("extremes/extremes_data_prep.R")
 # ── Generalized GAM threshold bootstrap ──────────────────────────────────────
 # pred: quoted column name of the focal predictor (x-axis)
 # covariate: quoted column name used as the smoothed covariate (controls for MAP)
-gam_threshold <- function(data, pred, covariate = "mean_ppt",
+gam_threshold <- function(data, pred,
                           nboot = 500, fill_color = "steelblue", label = NULL) {
   set.seed(123)
-  fml_gam <- as.formula(paste0("scaled_anpp ~ s(", pred, ") + s(", covariate, ", k = 5)"))
-  fml_lm  <- as.formula(paste0("scaled_anpp ~ ", pred, " + ", covariate))
+  fml_gam <- as.formula(paste0("scaled_anpp ~ s(", pred, ")"))
+  fml_lm  <- as.formula(paste0("scaled_anpp ~ ", pred))
   smooth_term <- paste0("s(", pred, ")")
 
   fit  <- gam(fml_gam, data = data, method = "REML")
@@ -22,9 +22,9 @@ gam_threshold <- function(data, pred, covariate = "mean_ppt",
   aic_label <- paste0("AIC Linear: ", round(aics[2,2], 2),
                       "\nAIC GAM: ",  round(aics[1,2], 2))
 
-  fits <- smooth_estimates(fit, select = smooth_term) %>% mutate(category = label)
+  fits <- smooth_estimates(fit, select = smooth_term) %>% mutate(type = label)
   d2   <- derivatives(fit, select = smooth_term, order = 2,
-                      type = "central", n = 500, eps = 1e-5) %>% mutate(category = label)
+                      type = "central", n = 500, eps = 1e-5) %>% mutate(type = label)
   threshold <- d2[[pred]][which.min(d2$.derivative)]
 
   boot_thresholds <- sapply(seq_len(nboot), function(i) {
@@ -74,13 +74,13 @@ gam_threshold <- function(data, pred, covariate = "mean_ppt",
 
 # ── Run for all predictor × category combinations ────────────────────────────
 predictors <- c("scaled_ppt", "scaled_tmax", "SPEI")
-categories <- c("Grassland", "Fert. Grassland", "Crop")
+categories <- c("Grassland", "Fert. Grassland", "Corn", "Soybean", "Wheat")
 colors     <- c(Grassland = "green", `Fert. Grassland` = "darkgreen", Crop = "orange")
 
 results <- lapply(predictors, function(pred) {
   lapply(setNames(categories, categories), function(cat) {
     gam_threshold(
-      data       = ext_data_clean[ext_data_clean$category == cat & !is.na(ext_data_clean[[pred]]), ],
+      data       = ext_data_clean[ext_data_clean$type == cat & !is.na(ext_data_clean[[pred]]), ],
       pred       = pred,
       fill_color = colors[cat],
       label      = cat,
@@ -98,6 +98,8 @@ for (pred in predictors) {
   print(plt)
 }
 
+# plot each crop
+results$scaled_ppt$`Fert. Grassland`
 
 # ── Segmented breakpoint analysis ────────────────────────────────────────────
 # Fits a linear model then estimates one breakpoint via segmented(), controlling
@@ -224,4 +226,73 @@ for (pred in predictors) {
   print(plt)
 }
 
+
+
+###test thresholds on crop clim window####
+
+ext_data_cropclim <- ext_data_clean%>%
+  filter(mean_ppt > min(ext_data_clean$mean_ppt[ext_data_clean$category == 'Crop']) & mean_ppt < max(ext_data_clean$mean_ppt[ext_data_clean$category == 'Crop']))
+
+
+results_cropwin <- lapply(predictors, function(pred) {
+  lapply(setNames(categories, categories), function(cat) {
+    gam_threshold(
+      data       = ext_data_cropclim [ext_data_cropclim $category == cat & !is.na(ext_data_cropclim [[pred]]), ],
+      pred       = pred,
+      fill_color = colors[cat],
+      label      = cat,
+      nboot      = 500
+    )
+  })
+}) %>% setNames(predictors)
+
+
+for (pred in predictors) {
+  plt <- Reduce(`+`, lapply(categories, function(cat) wrap_elements(results_cropwin[[pred]][[cat]]$plot))) +
+    plot_layout(ncol = length(categories))
+  print(plt)
+}
+
+seg_results_cropwin <- lapply(predictors, function(pred) {
+  lapply(setNames(categories, categories), function(cat) {
+    seg_threshold(
+      data       = ext_data_cropclim[ext_data_cropclim$category == cat & !is.na(ext_data_cropclim[[pred]]), ],
+      pred       = pred,
+      fill_color = colors[cat],
+      label      = cat
+    )
+  })
+}) %>% setNames(predictors)
+
+# Composite plot: one figure per predictor, categories as columns
+for (pred in predictors) {
+  plt <- Reduce(`+`, lapply(categories, function(cat) seg_results_cropwin[[pred]][[cat]]$plot)) +
+    plot_layout(ncol = length(categories))
+  print(plt)
+}
+
+
+
+####
+
+ext_data_clean%>%
+  ggplot()+
+  geom_label(aes(label = site, x =  mean_anpp, y = mean_ppt ))
+ext_data_arid <- ext_data_clean%>%
+  filter(mean_ppt > 400)%>%
+  filter(category %in% c('Grassland', 'Fert. Grassland'))
+
+categories_arid <- c('Grassland', 'Fert. Grassland')
+
+results_arid <- lapply(predictors, function(pred) {
+  lapply(setNames(categories_arid, categories_arid), function(cat) {
+    gam_threshold(
+      data       = ext_data_arid[ext_data_arid $category == cat & !is.na(ext_data_arid[[pred]]), ],
+      pred       = pred,
+      fill_color = colors[cat],
+      label      = cat,
+      nboot      = 100
+    )
+  })
+}) %>% setNames(predictors)
 
