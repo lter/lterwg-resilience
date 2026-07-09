@@ -91,6 +91,42 @@ combo_v1 <- ltertools::harmonize(key = key, raw_folder = file.path("data", "pre_
 # Check that structure out
 dplyr::glimpse(combo_v1)
 
+
+#check date format
+str(combo_v1$date)
+
+#format both date columns as date
+combo_v1$date <- as.Date(combo_v1$date, format = "%Y-%m-%d")
+
+combo_v1$date_m.d.yyyy <- as.Date(combo_v1$date_m.d.yyyy, format = "%Y-%m-%d")
+
+
+#count how many actual date values there are 
+sum(!is.na(combo_v1$date))
+# 37484
+
+#count how many actual date values there are in the other date column
+sum(!is.na(combo_v1$date_m.d.yyyy))
+# 6467
+
+#merge date columns
+combo_v1 %>%
+  mutate(merged_dates = coalesce(date, date_m.d.yyyy)) -> combo_v1
+
+#count how many actual date values there are in the merged dates
+sum(!is.na(combo_v1$merged_dates))
+# 43951
+
+combo_v1 %>% 
+  select(- c(date, date_m.d.yyyy)) %>%  #remove the two old date columns
+  rename(date = merged_dates,
+         month_a = month) %>% 
+  mutate(month_b = format(date, "%m"), #pull month from complete date column
+         month = coalesce(month_a, month_b)) -> combo_v1 #combine month from raw data with month pulled from date
+
+combo_v1 %>% 
+  select(-c(month_a, month_b)) -> combo_v1 #remove the two unmerged month columns
+
 ## ------------------------------------------- ##
 # Export ----
 ## ------------------------------------------- ##
@@ -103,10 +139,10 @@ dplyr::glimpse(combo_v99)
 
 # Export locally
 write.csv(x = combo_v99, row.names = F, na = '',
-          file = file.path("data", "tidy", "01_resilience_harmonized.csv"))
+          file = file.path("data", "harmonized_data", "01_resilience_harmonized.csv"))
 
 # Upload to Drive
-googledrive::drive_upload(media = file.path("data", "tidy", "01_resilience_harmonized.csv"), overwrite = T,
+googledrive::drive_upload(media = file.path("data", "harmonized_data", "01_resilience_harmonized.csv"), overwrite = T,
                           path = googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ"))
 
 # 
