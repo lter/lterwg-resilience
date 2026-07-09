@@ -1,4 +1,5 @@
 **Assessing the Resilience of Productivity to Climate Variability Across Management and Climate Gradients**
+
 An NCEAS-supported LTER working group repository for compiling, harmonizing, and analyzing long-term aboveground net primary productivity (ANPP) data alongside climate covariates (precipitation, SPEI, temperature extremes) across croplands, grasslands, and other managed/unmanaged systems, in order to understand how productivity stability and climate sensitivity vary across management and climate gradients.
 
 Principal Investigators
