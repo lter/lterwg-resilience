@@ -9,11 +9,11 @@ source("extremes/extremes_data_prep.R")
 # ── Generalized GAM threshold bootstrap ──────────────────────────────────────
 # pred: quoted column name of the focal predictor (x-axis)
 # covariate: quoted column name used as the smoothed covariate (controls for MAP)
-gam_threshold <- function(data, pred, covariate = "mean_ppt",
+gam_threshold <- function(data, pred,
                           nboot = 500, fill_color = "steelblue", label = NULL) {
   set.seed(123)
-  fml_gam <- as.formula(paste0("scaled_anpp ~ s(", pred, ") + s(", covariate, ", k = 5)"))
-  fml_lm  <- as.formula(paste0("scaled_anpp ~ ", pred, " + ", covariate))
+  fml_gam <- as.formula(paste0("scaled_anpp ~ s(", pred, ")"))
+  fml_lm  <- as.formula(paste0("scaled_anpp ~ ", pred))
   smooth_term <- paste0("s(", pred, ")")
 
   fit  <- gam(fml_gam, data = data, method = "REML")
@@ -271,9 +271,26 @@ for (pred in predictors) {
 
 
 
-#### 
+####
+
 ext_data_clean%>%
   ggplot()+
-  geom_label(aes(label = site, mean))
+  geom_label(aes(label = site, x =  mean_anpp, y = mean_ppt ))
 ext_data_arid <- ext_data_clean%>%
-  filter(mean_ppt > min(ext_data_clean$mean_ppt[ext_data_clean$category == 'Crop']) & mean_ppt < max(ext_data_clean$mean_ppt[ext_data_clean$category == 'Crop']))
+  filter(mean_ppt > 400)%>%
+  filter(category %in% c('Grassland', 'Fert. Grassland'))
+
+categories_arid <- c('Grassland', 'Fert. Grassland')
+
+results_arid <- lapply(predictors, function(pred) {
+  lapply(setNames(categories_arid, categories_arid), function(cat) {
+    gam_threshold(
+      data       = ext_data_arid[ext_data_arid $category == cat & !is.na(ext_data_arid[[pred]]), ],
+      pred       = pred,
+      fill_color = colors[cat],
+      label      = cat,
+      nboot      = 100
+    )
+  })
+}) %>% setNames(predictors)
+
