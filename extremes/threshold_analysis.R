@@ -9,24 +9,27 @@ source("extremes/extremes_data_prep.R")
 # ── Generalized GAM threshold bootstrap ──────────────────────────────────────
 # pred: quoted column name of the focal predictor (x-axis)
 # covariate: quoted column name used as the smoothed covariate (controls for MAP)
-gam_threshold <- function(data, pred,
-                          nboot = 500, fill_color = "steelblue", label = NULL) {
+gam_threshold_data <- function(data, pred, response, nboot = 500, label = NULL) {
   set.seed(123)
-  fml_gam <- as.formula(paste0("scaled_anpp ~ s(", pred, ")"))
-  fml_lm  <- as.formula(paste0("scaled_anpp ~ ", pred))
+  fml_gam <- as.formula(paste0( response, " ~ s(", pred, ")"))
+  fml_lm  <- as.formula(paste0(response, " ~ ", pred))
   smooth_term <- paste0("s(", pred, ")")
-
-  fit  <- gam(fml_gam, data = data, method = "REML")
-  lm   <- gam(fml_lm,  data = data, method = "REML")
+  
+  fit <- gam(fml_gam, data = data, method = "REML")
+  lm  <- gam(fml_lm,  data = data, method = "REML")
   aics <- AIC(fit, lm)
   aic_label <- paste0("AIC Linear: ", round(aics[2,2], 2),
                       "\nAIC GAM: ",  round(aics[1,2], 2))
-
+  
   fits <- smooth_estimates(fit, select = smooth_term) %>% mutate(type = label)
+  
+  
   d2   <- derivatives(fit, select = smooth_term, order = 2,
                       type = "central", n = 500, eps = 1e-5) %>% mutate(type = label)
+  
+  
   threshold <- d2[[pred]][which.min(d2$.derivative)]
-
+  
   boot_thresholds <- sapply(seq_len(nboot), function(i) {
     bd  <- data[sample(nrow(data), replace = TRUE), ]
     bg  <- tryCatch(gam(fml_gam, data = bd, method = "REML"), error = function(e) NULL)
@@ -36,13 +39,48 @@ gam_threshold <- function(data, pred,
     if (is.null(bd2)) return(NA)
     bd2[[pred]][which.min(bd2$.derivative)]
   }) %>% na.omit()
-
+  
   ci <- quantile(boot_thresholds, c(0.1, 0.9))
   is_gam_better <- aics[1,2] < aics[2,2] - 2
+  
+  list(
+    response = response,
+    data = data,
+    pred = pred,
+    label = label,
+    fit = fit,
+    lm = lm,
+    aics = aics,
+    aic_label = aic_label,
+    estimates = fits,
+    d2s = d2,
+    boot_thresholds = boot_thresholds,
+    threshold = threshold,
+    ci_lower = ci[1],
+    ci_upper = ci[2],
+    is_gam_better = is_gam_better,
+    n_successful = length(boot_thresholds),
+    n_failed = nboot - length(boot_thresholds)
+  )
+}
 
+# ---- Function 2: generate the plots from those results ----
+gam_threshold_plot <- function(results, fill_color = "steelblue") {
+  data  <- results$data
+  pred  <- results$pred
+  label <- results$label
+  fits  <- results$estimates
+  d2    <- results$d2s
+  response <- results$response
+  boot_thresholds <- results$boot_thresholds
+  threshold <- results$threshold
+  ci <- c(results$ci_lower, results$ci_upper)
+  aic_label <- results$aic_label
+  is_gam_better <- results$is_gam_better
+  
   plt.smooth <- fits %>%
     ggplot(aes(x = .data[[pred]], y = .estimate)) +
-    geom_point(data = data, aes(x = .data[[pred]], y = scaled_anpp), alpha = 0.4) +
+    geom_point(data = data, aes(x = .data[[pred]], y = .data[[response]]), alpha = 0.4) +
     geom_line(color = fill_color, linewidth = 1.5,
               linetype = ifelse(is_gam_better, "solid", "dashed")) +
     coord_cartesian(xlim = c(-2.5, 2.5)) +
@@ -50,13 +88,13 @@ gam_threshold <- function(data, pred,
              hjust = 0, vjust = 1, size = 3.5, color = "firebrick") +
     labs(title = paste(label, "-", pred), x = pred, y = "Scaled ANPP") +
     theme_classic(base_size = 13)
-
+  
   plt.d <- d2 %>%
     ggplot(aes(x = .data[[pred]], y = .derivative)) +
     geom_line(color = fill_color, linewidth = 1.5) +
     coord_cartesian(xlim = c(-2.5, 2.5), ylim = c(0.5, -0.5)) +
     labs(x = pred, y = "S''(x)") + theme_classic(base_size = 13)
-
+  
   plt.th <- data.frame(threshold = as.numeric(boot_thresholds)) %>%
     ggplot(aes(x = threshold)) +
     geom_histogram(fill = fill_color, colour = fill_color, bins = 40) +
@@ -64,14 +102,15 @@ gam_threshold <- function(data, pred,
     geom_vline(xintercept = ci, color = "firebrick", linewidth = 0.8, linetype = "dotted") +
     coord_cartesian(xlim = c(-2.5, 2.5)) +
     labs(x = paste(pred, "threshold"), y = "Count") + theme_classic(base_size = 13)
-
-  list(estimates = fits, d2s = d2,
-       boot_thresholds = boot_thresholds, threshold = threshold,
-       ci_lower = ci[1], ci_upper = ci[2],
-       n_successful = length(boot_thresholds), n_failed = nboot - length(boot_thresholds),
-       plot = plt.smooth / plt.d / plt.th)
+  
+  plt.smooth / plt.d / plt.th
 }
 
+results <- gam_threshold_data(ext_data_clean[ext_data_clean$type == 'Grassland', ], pred = "scaled_ppt", nboot = 500, label = "Grassland", response = 'scaled_anpp')
+
+plot    <- gam_threshold_plot(results, fill_color = "steelblue")
+
+######### old code 7.9.26 ##########
 # ── Run for all predictor × category combinations ────────────────────────────
 predictors <- c("scaled_ppt", "scaled_tmax", "SPEI")
 categories <- c("Grassland", "Fert. Grassland", "Corn", "Soybean", "Wheat")
