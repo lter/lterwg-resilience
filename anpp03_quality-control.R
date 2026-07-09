@@ -65,23 +65,23 @@ tidy_v2 <- tidy_v2 %>%
 # # Fix Dates and Year----
 # ## --------------------------------------- ##
 # 
-# tidy_v3 <- tidy_v2 %>%
-#   # fix dates and extract year
-#   dplyr::mutate(date2 = lubridate::as_date(date, format = "%m/%d/%Y"),
-#                 date3 = lubridate::as_date(lubridate::mdy_hm(date)),
-#                 date4 = lubridate::as_date(lubridate::mdy_hms(date)),
-#                 date5 = lubridate::as_date(lubridate::ymd_hms(date)),
-#                 date6 = lubridate::as_date(lubridate::ymd(date)),
-#                 date_m.d.yyy = lubridate::as_date(date_m.d.yyyy, format = "%m-%d-%Y"),
-#                 date_m.d.yyy2 = lubridate::as_date(date_m.d.yyyy, format = "%Y-%m-%d")) %>%
-#   # make a single date column
-#   dplyr::mutate(dates = coalesce(date2, date3, date4, date5, date_m.d.yyy, date_m.d.yyy2, date6)) %>%
-#   # add year
-#   dplyr::mutate(year = ifelse(is.na(year), lubridate::year(dates), year)) %>%
-#   # add month column
-#   dplyr::mutate(month = lubridate::month(dates)) %>%
-#   # get rid of extra date columns
-#   dplyr::select(-c("date", "date_m.d.yyy", "date2", "date3", "date4", "date5", "date6", "date_m.d.yyy2"))
+tidy_v3 <- tidy_v2 %>%
+  # fix dates and extract year
+  dplyr::mutate(date2 = lubridate::as_date(date, format = "%m/%d/%Y"),
+                date3 = lubridate::as_date(lubridate::mdy_hm(date)),
+                date4 = lubridate::as_date(lubridate::mdy_hms(date)),
+                date5 = lubridate::as_date(lubridate::ymd_hms(date)),
+                date6 = lubridate::as_date(lubridate::ymd(date)),
+                date_m.d.yyy = lubridate::as_date(date_m.d.yyyy, format = "%m-%d-%Y"),
+                date_m.d.yyy2 = lubridate::as_date(date_m.d.yyyy, format = "%Y-%m-%d")) %>%
+  # make a single date column
+  dplyr::mutate(dates = coalesce(date2, date3, date4, date5, date_m.d.yyy, date_m.d.yyy2, date6)) %>%
+  # add year
+  dplyr::mutate(year = ifelse(is.na(year), lubridate::year(dates), year)) %>%
+  # add month column
+  dplyr::mutate(month = lubridate::month(dates)) %>%
+  # get rid of extra date columns
+  dplyr::select(-c("date", "date_m.d.yyy", "date2", "date3", "date4", "date5", "date6", "date_m.d.yyy2"))
 #   
 # Check that no unexpected columns are lost/gained
 #supportR::diff_check(old = names(tidy_v3), new = names(tidy_v4))
