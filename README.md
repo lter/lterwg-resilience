@@ -1,9 +1,9 @@
-Assessing the Resilience of Productivity to Climate Variability Across Management and Climate Gradients
+**Assessing the Resilience of Productivity to Climate Variability Across Management and Climate Gradients**
 An NCEAS-supported LTER working group repository for compiling, harmonizing, and analyzing long-term aboveground net primary productivity (ANPP) data alongside climate covariates (precipitation, SPEI, temperature extremes) across croplands, grasslands, and other managed/unmanaged systems, in order to understand how productivity stability and climate sensitivity vary across management and climate gradients.
 
 Principal Investigators
-•	David Hoover
-•	Olivia Hajek
+-	David Hoover
+-	Olivia Hajek
 
 Workflow Overview
 The core ANPP workflow proceeds in three stages: pre-processing (network-specific cleanup), harmonization (combining across networks into one tidy table), and downstream analysis (stability, thresholds, timing/critical-period, and extremes work).
@@ -36,15 +36,15 @@ Core pipeline (top level)
 -	trends_eda.R — exploratory trend analysis on the harmonized/tidy data
 
 Folders
-•	pre-process/ — network-specific scripts (DAP, DRIVES, LTAR, LTER, CSCAP, ISU-drainage, Konza, NutNet, etc.) that resolve idiosyncrasies in each raw dataset before it enters the harmonization workflow
-•	enviro-covariates/ — scripts for processing environmental covariates: precipitation, aridity index, heat index, SPEI extremes/whiplash windows, SSURGO soils data, Daymet weather retrieval
-•	stability/ — mean-variance scaling (Taylor's Power Law) and ANPP stability manuscript analyses; includes Old Code/ for prior analysis versions
-•	extremes/ — data prep and threshold analysis for climate extremes
-•	thresholds/ — analysis of ANPP-precipitation and ANPP-temperature relationships and their non-linearities across systems and sites
-•	tools/ — custom helper functions (e.g., difference-windows, whiplash identification) used across workflow scripts; see individual scripts for function documentation
-•	ancillary/ — supporting scripts not part of the core iterative workflow (e.g., expand-key.R for generating data-key rows via ltertools::expand_key, Google Drive URL helpers, planting/harvest date compilation)
-•	exploratory/ — exploratory data analysis and in-progress scripts (ANPP-PPT relationships, SPEI/whiplash EDA, weather source comparisons, visualization drafts)
+-	pre-process/ — network-specific scripts (DAP, DRIVES, LTAR, LTER, CSCAP, ISU-drainage, Konza, NutNet, etc.) that resolve idiosyncrasies in each raw dataset before it enters the harmonization workflow
+-	enviro-covariates/ — scripts for processing environmental covariates: precipitation, aridity index, heat index, SPEI extremes/whiplash windows, SSURGO soils data, Daymet weather retrieval
+-	stability/ — mean-variance scaling (Taylor's Power Law) and ANPP stability manuscript analyses; includes Old Code/ for prior analysis versions
+-	extremes/ — data prep and threshold analysis for climate extremes
+-	thresholds/ — analysis of ANPP-precipitation and ANPP-temperature relationships and their non-linearities across systems and sites
+-	tools/ — custom helper functions (e.g., difference-windows, whiplash identification) used across workflow scripts; see individual scripts for function documentation
+-	ancillary/ — supporting scripts not part of the core iterative workflow (e.g., expand-key.R for generating data-key rows via ltertools::expand_key, Google Drive URL helpers, planting/harvest date compilation)
+-	exploratory/ — exploratory data analysis and in-progress scripts (ANPP-PPT relationships, SPEI/whiplash EDA, weather source comparisons, visualization drafts)
 
 Supplementary Resources
-•	LTER Scientific Computing Team website
-•	NCEAS Resources for Working Groups
+-	LTER Scientific Computing Team website
+-	NCEAS Resources for Working Groups
