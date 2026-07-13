@@ -164,7 +164,20 @@ ext_data_clean <- ppt_scaled %>%
   filter(n.obs > 4) %>%
   ungroup()
 
+# summary table of data
+summary_dat_5yr <- ext_data_clean %>%
+  group_by(type) %>%
+  summarize(n_plot = length(unique(site)))
 
+summary_dat_7yr <- ext_data_clean %>%
+  filter(duration_years >= 7) %>%
+  group_by(type) %>%
+  summarize(n_plot = length(unique(site)))
+
+summary_dat_10yr <- ext_data_clean %>%
+  filter(duration_years >= 10) %>%
+  group_by(type) %>%
+  summarize(n_plot = length(unique(site)))
 
 
 
