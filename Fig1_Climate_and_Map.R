@@ -18,7 +18,7 @@ dir.create(file.path("data"), showWarnings = F)
 dir.create(file.path("data", "harmonized_data"), showWarnings = F)
 
 # READ IN THE ANPP AND PRECIPITATION DATA
-file2<-'stability_anpp.csv'
+file2<-'stability_anpp2.csv'
 googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
   dplyr::filter(name == file2) %>% 
   googledrive::drive_download(file = .$id, overwrite = T,
@@ -41,7 +41,7 @@ data.summary2 <- data.summary %>%
   summarize(min_anpp = min(manpp), max_anpp = max(manpp), min_n = min(nobs), max_n = max(nobs), 
             mean_n= mean(nobs), n = n(), min_map = min(map), max_map = max(map))
 
-
+## LIKELY WILL JUST 
 ##STEP 2: Read in MAP data
 file3<-'site_climate_mswep.csv'
 googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
@@ -63,15 +63,16 @@ ann.temp <- read.csv(file = file.path("data", "harmonized_data", file4)) %>%
   rename(site = site_id)
 
 ## STEP 3: Site Locations
-file5<-'site_summary_info.csv'
-googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/1Ty7QX7vyvD797eKJzMWbr8AwIo-GyBFO")) %>% 
+file5<-'site_coordinates_combined.csv'
+googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
   dplyr::filter(name == file5) %>% 
   googledrive::drive_download(file = .$id, overwrite = T,
-                              path = file.path("data", .$name))
+                              path = file.path("data", "harmonized_data", .$name))
 
-site.locs <- read.csv(file = file.path("data", file5)) %>%
-  rename(site = site_id) %>%
+site.locs <- read.csv(file = file.path("data", "harmonized_data", file5)) %>%
   select(c(site, latitude, longitude))
+
+site.locs.oh <- read.csv("/Users/olhajek/Desktop/nceas/lterwg-resilience/data/harmonized_data/sitelist.csv")
 
 ## Join the data
 sites <- dat_4cat %>%
@@ -90,11 +91,28 @@ library(sf)
 library(rnaturalearth)
 library(scatterpie)
 
+
+# subset join data
+site.loc2 <- left_join(data.summary, site.locs.oh)
+glimpse(site.loc2)
+
+siteloc2 <- site.loc2 %>%
+  filter(country != "ca") %>%
+  select(-c(longitude1, latitude1, country)) 
+
 # assumes df has: site, lon, lat, forest (0/1), ag (0/1), urban (0/1)
-sites_wide <- sites %>%
+glimpse(siteloc2)
+
+siteloc3 <- siteloc2 %>% 
+  dplyr::ungroup() %>%
+  dplyr::select(c(site2, type2, longitude, latitude))%>%
+  distinct()
+
+
+sites_wide <- siteloc3 %>%
   mutate(present = 1) %>%
   pivot_wider(
-    id_cols = c(site, longitude, latitude),   # whatever uniquely identifies a site + its coordinates
+    id_cols = c(site2, longitude, latitude),   # whatever uniquely identifies a site + its coordinates
     names_from = type2,           # the column holding "forest", "ag", "urban" etc.
     values_from = present,
     values_fill = 0                 # sites missing a given land use get 0
@@ -162,6 +180,61 @@ map <- ggplot() +
   theme_void() +
   labs(fill = "Land use")
 map
+
+
+# count how many land-use columns are non-zero for each site
+sites_wide <- sites_wide %>%
+  mutate(n_landuse = rowSums(across(c("Grassland", "Cropland", "Fert. Grassland")) > 0))
+
+sites_single <- sites_wide %>% filter(n_landuse == 1)
+sites_multi  <- sites_wide %>% filter(n_landuse > 1)
+
+# for single-landuse sites, figure out which land use it is, so geom_point can use the right color
+sites_single <- sites_single %>%
+  mutate(landuse = case_when(
+    Grassland > 0 ~ "Grassland",
+    Cropland > 0 ~ "Cropland",
+    `Fert. Grassland` > 0 ~ "Fert. Grassland"
+  ))
+
+library(colorspace)
+
+my_palette <- diverge_hcl(12, h = c(40, 246), c = 96)
+
+map <- ggplot() +
+  geom_spatraster(data = prism_map) +
+  scale_fill_gradientn(
+    colors = my_palette,
+    name = "MAP (mm)",
+    limits = c(0, 1500),
+    oob = scales::squish,na.value = "white" 
+  )+
+  ggnewscale::new_scale_fill() +
+  geom_sf(data = us, fill = NA, color = "black", linewidth = 0.2) +
+  
+  # single-landuse sites: plain points
+  geom_point(data = sites_single,
+             aes(x = longitude, y = latitude, fill = landuse),
+             shape = 21, size = 4, color = "black") +
+  
+  # multi-landuse sites: pies
+  geom_scatterpie(data = sites_multi,
+                  aes(x = longitude, y = latitude),
+                  cols = c("Grassland", "Cropland", "Fert. Grassland"),
+                  pie_scale = 0.6,
+                  color = "black") +
+  
+  scale_fill_manual(values = c(
+    "Grassland" =  '#117733',
+    "Cropland" =  '#D55E00',
+    "Fert. Grassland" = '#56B4E9'
+  )) +
+  coord_sf() +
+  theme_bw() +
+  theme_void()
+
+map
+
 
 
 # B) Whittaker
