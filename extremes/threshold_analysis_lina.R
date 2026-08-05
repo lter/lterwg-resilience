@@ -240,6 +240,37 @@ corn_grain_ppt_results
 soybean_grain_ppt_results
 wheat_grain_ppt_results
 
+# run gam_threshold_grain() by each crop on +10yr data
+data_10yr <- ext_data_clean %>%filter(duration_years >= 10)
+corn_grain_ppt_results_10yr <- gam_threshold_grain(
+  data       = data_10yr[data_10yr$type == "Corn" & !is.na(data_10yr[["scaled_ppt"]]), ],
+  pred       = "scaled_ppt",
+  fill_color = "blue",
+  label      = "Corn",
+  nboot      = 500
+)
+
+soybean_grain_ppt_results_10yr <- gam_threshold_grain(
+  data       = data_10yr[data_10yr$type == "Soybean" & !is.na(data_10yr[["scaled_ppt"]]), ],
+  pred       = "scaled_ppt",
+  fill_color = "tan",
+  label      = "Soybean",
+  nboot      = 500
+)
+
+wheat_grain_ppt_results_10yr <- gam_threshold_grain(
+  data       = data_10yr[data_10yr$type == "Wheat" & !is.na(data_10yr[["scaled_ppt"]]), ],
+  pred       = "scaled_ppt",
+  fill_color = "pink",
+  label      = "Wheat",
+  nboot      = 500
+)
+
+# plot results by crop 
+corn_grain_ppt_results_10yr
+soybean_grain_ppt_results_10yr
+wheat_grain_ppt_results_10yr
+
 
 
 # ── Segmented breakpoint analysis ────────────────────────────────────────────

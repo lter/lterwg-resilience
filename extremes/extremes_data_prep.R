@@ -25,6 +25,12 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
                               path = file.path("data", "harmonized_data", .$name))
 anpp_data <- read.csv(file = file.path("data", "harmonized_data", file2))
 
+#sites with normally distributed ppt 
+site_ppt_test <- anpp_data %>%
+  group_by(site) %>%
+  filter(n() >= 3) %>%
+  summarise(shapiro_p = shapiro.test(wyr_ppt)$p.value) %>%
+  filter(shapiro_p >= 0.05) #this gives us only 34 out of 79 sites to work with
 
 #calculate +-1SD of long-term avg MSWEP ppt
 wyr_ppt_summary <- wyr_ppt_data %>%
@@ -37,12 +43,30 @@ wyr_ppt_summary <- wyr_ppt_data %>%
 
 #merge ANPP and ppt summary tables
 merge_anpp_wyr_ppt <- anpp_data %>%
-  left_join(., wyr_ppt_summary, by = c("site", "network"))
+  left_join(., wyr_ppt_summary, by = c("site", "network")) %>%
+  mutate(
+    z_score = (wyr_ppt - mean_ppt)/sd_ppt,
+    climate_cat = case_when(
+      z_score < -1.0 ~ "dry",
+      z_score > 1.0 ~ "wet",
+      TRUE ~ "average"
+    )
+  )
 
-#identify sites less than 5 years of anpp data 
-omit_select_sites <- merge_anpp_wyr_ppt %>%
-  group_by(site) %>%
-  filter(duration_years < 5 ) %>%
+#check climate coverage per site
+site_coverage <- merge_anpp_wyr_ppt %>%
+  group_by(network, site, treatment) %>%
+  summarize(
+    n_total = n(),
+    n_dry = sum(climate_cat == "dry"),
+    n_wet = sum(climate_cat == "wet"),
+    n_avg = sum(climate_cat == "average")
+  )
+
+
+#identify sites less than 5 years of anpp data and sites with no average year 
+omit_select_sites <- site_coverage %>%
+  filter(n_total < 5 | n_avg == 0) %>%
   distinct(site) %>%
   pull(site)
 print(omit_select_sites)
