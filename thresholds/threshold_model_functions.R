@@ -357,35 +357,4 @@ plot_threshold_fit <- function(res, point_alpha = 0.3) {
   }
   p
 }
-<<<<<<< HEAD
-=======
 
-
-## --- example usage ----------------------------------------------------------
-# source("extremes/extremes_data_prep.R")
-#
-res_grassland <- fit_threshold_models(ext_data_clean, "Grassland", lb.quantile = 0.05, ub.quantile = 0.95)
-res_fertgrassland <- fit_threshold_models(ext_data_clean, "Fert. Grassland", lb.quantile = 0.05, ub.quantile = 0.95)
-res_corn      <- fit_threshold_models(ext_data_clean, "Corn", lb.quantile = 0.05, ub.quantile = 0.95)
-res_wheat     <- fit_threshold_models(ext_data_clean, "Wheat", lb.quantile = 0.05, ub.quantile = 0.95)
-#
-res_grassland$comparison
-summary(res_grassland$best_model)
-summary(res_fertgrassland$best_model)
-
-plot_threshold_fit(res_corn)
-#
-# # or all at once:
-# all_res <- fit_threshold_models_by_type(ext_data_clean)
-# all_res$summary
-
-#plot 
-
-library(patchwork)
-
-p.grass <- plot_threshold_fit(res_grassland)
-p.fertgrass <- plot_threshold_fit(res_fertgrassland)
-p.corn <- plot_threshold_fit(res_corn)
-p.wheat <- plot_threshold_fit(res_wheat)
-p.grass + p.fertgrass
->>>>>>> d9a1346a802a9fc68c343770518fae9f00069c5e
