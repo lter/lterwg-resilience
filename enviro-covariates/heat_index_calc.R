@@ -166,9 +166,11 @@ heat_indices <- merge(max.temp.growing.season, quantile.maxtemp, by = c("network
   left_join(., max_3day_temp, by = c("network", "site_id", "year"))
 write.csv(heat_indices, "data/harmonized_data/heat_indices_site.csv")
 #update the temp extreme csv
-drive_update(
-  file = as_id("https://drive.google.com/drive/u/1/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ"), #harmonized data folder
-  media = "data/harmonized_data/heat_indices_site.csv"
+drive_upload(
+  path = as_id("13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ"), #harmonized data folder
+  media = "data/harmonized_data/heat_indices_site.csv", 
+  name = "heat_indices_site.csv",
+  overwrite = TRUE
   )
 #Correlation matrix of temp metrics
 library(corrplot)
