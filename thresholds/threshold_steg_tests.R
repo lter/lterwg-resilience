@@ -1,7 +1,11 @@
 
 ## --- example usage ----------------------------------------------------------
 source("extremes/extremes_data_prep.R")
+<<<<<<< HEAD
 source('thresholds/threshold_model_functions.R')
+=======
+source('threshold_model_functions.R')
+>>>>>>> d9a1346a802a9fc68c343770518fae9f00069c5e
 #
 res_grassland <- fit_threshold_models(ext_data_clean, "Grassland", lb.quantile = 0.05, ub.quantile = 0.95)
 res_fertgrassland <- fit_threshold_models(ext_data_clean, "Fert. Grassland", lb.quantile = 0.05, ub.quantile = 0.95)
