@@ -5,6 +5,7 @@ library(dplyr)
 library(ggplot2)
 library(tidyverse)
 library(googledrive)
+library(slider)
 
 ################################################
 #Read in Daymet daily weather data
@@ -32,8 +33,6 @@ daymet_daily_raw <- read.csv(file = file.path("data", "pre_processed_data", foca
 dplyr::glimpse(daymet_daily_raw)
 
 ##################################################
-#Relative 3-dmax temperature 
-
 #Maximum temperature (absolute) during the growing season - Vogel 2019 
 #length of the growing season: March-August
 max.temp.growing.season <- daymet_daily_raw%>% 
@@ -140,13 +139,37 @@ heat_wave_meanT <- left_join(calc_hot_days, heat_wave_duration, by = c("network"
             Tmax_95th = max(tmax_degC))
 
 #################################################################
+#Rolling window 3 day average of daily max temperature 
+rolling_3day_tmax <- daymet_daily_raw %>%
+  arrange(site_id, yday) %>%
+  group_by(site_id, year) %>%
+  mutate(temp_roll3 = slide_dbl(
+    .x = tmax_degC,
+    .f = mean, 
+    .before = 2, #look back 2 rows + current row = 3 days
+    .complete = TRUE #returns NA for the first 2 days of each year
+  )) %>%
+  ungroup()
+#max 3-day ave tmax during the growing season
+max_3day_temp <- rolling_3day_tmax %>%
+  filter(month %in% c('3', '4', '5', '6', '7', '8')) %>% 
+  group_by(network, site_id, year) %>% 
+  summarise(Tmaxroll3 = max(temp_roll3))
+
+#################################################################
 #Make a temp extreme csv
 heat_indices <- merge(max.temp.growing.season, quantile.maxtemp, by = c("network", "site_id")) %>%
   merge(., extreme_temp_days, by = c("network", "site_id", "year")) %>%
   left_join(., warm_day_freq, by = c("network", "site_id", "year", "num_days_90th", "num_days_95th", "num_days_98th", "num_days_99th")) %>%
   left_join(., heat_wave_duration, by = c("network", "site_id", "year")) %>%
-  left_join(., heat_wave_meanT, by = c("network", "site_id", "year"))
+  left_join(., heat_wave_meanT, by = c("network", "site_id", "year")) %>%
+  left_join(., max_3day_temp, by = c("network", "site_id", "year"))
 write.csv(heat_indices, "data/harmonized_data/heat_indices_site.csv")
+#update the temp extreme csv
+drive_update(
+  file = as_id("https://drive.google.com/drive/u/1/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ"), #harmonized data folder
+  media = "data/harmonized_data/heat_indices_site.csv"
+  )
 #Correlation matrix of temp metrics
 library(corrplot)
 heat_matrix <- cor(heat_indices[,c(4,9, 10, 11, 12, 13, 14 )])

@@ -64,7 +64,7 @@ site_coverage <- merge_anpp_wyr_ppt %>%
   )
 
 
-#identify sites less than 5 years of anpp data and sites with no average year 
+#identify sites less than 5 years of anpp data or sites with no average year 
 omit_select_sites <- site_coverage %>%
   filter(n_total < 5 | n_avg == 0) %>%
   distinct(site) %>%
