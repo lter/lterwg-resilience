@@ -35,38 +35,32 @@ site_ppt_test <- anpp_data %>%
 #calculate +-1SD of long-term avg MSWEP ppt
 wyr_ppt_summary <- wyr_ppt_data %>%
   group_by(site_id, network) %>%
-  summarize(mean_ppt = mean(wyr_ppt),
-            sd_ppt = sd(wyr_ppt),
-            sd_upper_ppt = mean_ppt+sd_ppt,
-            sd_lower_ppt = mean_ppt-sd_ppt) %>%
+  summarize(mean_ppt_40yr = mean(wyr_ppt),
+            sd_ppt_40yr = sd(wyr_ppt)) %>%
   rename(site = site_id)
+
+#calculate site mean of ppt in biomass data
+biomass_ppt_mean <- anpp_data %>%
+  group_by(site) %>%
+  summarise(mean_ppt_site = mean(wyr_ppt))
 
 #merge ANPP and ppt summary tables
 merge_anpp_wyr_ppt <- anpp_data %>%
+  left_join(., biomass_ppt_mean, by = c("site")) %>%
   left_join(., wyr_ppt_summary, by = c("site", "network")) %>%
   mutate(
-    z_score = (wyr_ppt - mean_ppt)/sd_ppt,
+    z_score = (mean_ppt_site - mean_ppt_40yr)/sd_ppt_40yr,
     climate_cat = case_when(
-      z_score < -1.0 ~ "dry",
-      z_score > 1.0 ~ "wet",
+      z_score < -0.5 ~ "dry", #site-avg ppt is drier than -0.5 z-score of 40-yr mean ppt
+      z_score > 0.5 ~ "wet", #site-avg ppt is wetter than 0.5 z-score of 40-yr mean ppt
       TRUE ~ "average"
     )
   )
 
-#check climate coverage per site
-site_coverage <- merge_anpp_wyr_ppt %>%
-  group_by(network, site, treatment) %>%
-  summarize(
-    n_total = n(),
-    n_dry = sum(climate_cat == "dry"),
-    n_wet = sum(climate_cat == "wet"),
-    n_avg = sum(climate_cat == "average")
-  )
-
 
 #identify sites less than 5 years of anpp data or sites with no average year 
-omit_select_sites <- site_coverage %>%
-  filter(n_total < 5 | n_avg == 0) %>%
+omit_select_sites <- merge_anpp_wyr_ppt %>%
+  filter(climate_cat != "average") %>%
   distinct(site) %>%
   pull(site)
 print(omit_select_sites)
