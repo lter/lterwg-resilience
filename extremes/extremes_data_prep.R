@@ -99,7 +99,8 @@ dat <- merge_anpp_wyr_ppt %>%
 #classify systems to just four land management types
 dat_4cat<-dat %>% 
   mutate(type2=ifelse(type %in% c('Grassland', 'Fert. Grassland', 'Pasture'), type, 'Cropland')) %>%
-  filter(type2 != "Pasture" )
+  filter(type2 != "Pasture" )%>%
+  filter(type != '999')
 
 
 # ── Download helpers ──────────────────────────────────────────────────────────
@@ -153,8 +154,8 @@ temp_scaled <- temp_data %>%
   mutate(mean_tmax    = mean(Tmaxc),
          per_dev_tmax = (Tmaxc - mean_tmax) / mean_tmax,
          scaled_tmax  = scale(Tmaxc)[, 1]) %>%
-  dplyr::select(w_yr, site, network, Tmaxc, mean_tmax, scaled_tmax,
-                num_days_95th, warm_day_90th, meanTmax_95th, Tmax_95th)
+  dplyr::select(w_yr, site, network, Tmaxc, mean_tmax, scaled_tmax, num_days_90th,
+                num_days_95th, warm_day_90th, meanTmax_95th, Tmax_95th, Tmaxroll3, consecutive_days_heat_wave)
 
 ########### Merge and classify type #################
 
@@ -166,12 +167,13 @@ anpp_scaled <- dat_4cat%>%
          scaled_anpp  = scale(anpp_g_m2)[, 1])
 
 grain_scaled <- dat_4cat%>%
-  group_by(site, type, type2)%>%
+  group_by(site, type, type2, treatment)%>%
   mutate(mean_grain = mean(grain_g_m2),
          per_dev_anpp = (grain_g_m2 - mean_grain)/ mean_grain,
          scaled_grain = scale(grain_g_m2)[,1]) %>%
   ungroup() %>%
   dplyr::select(scaled_grain, w_yr, network, site, type, type2, treatment)
+
 
 ext_data_clean <- ppt_scaled %>%
   merge(anpp_scaled, by = c("w_yr", "site", "network", "wyr_ppt")) %>%
