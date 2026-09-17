@@ -8,11 +8,12 @@ library(googledrive)
 source("ancillary/google_drive_urls.R")
 
 ## downloaded data
-site_drive <-googledrive::drive_ls(googledrive::as_id(dir.data)) %>% 
-  dplyr::filter(name == "site_summary_info.csv")
-googledrive::drive_download(file = site_drive$id, overwrite = T, type = "csv",
-                            path = file.path("data", site_drive$name))
-site_info <- read.csv("data/site_summary_info.csv",fileEncoding = "UTF-8-BOM")
+site_data <- 'site_coordinates_combined.csv'
+googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/folders/13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ")) %>% 
+  dplyr::filter(name == site_data) %>% 
+  googledrive::drive_download(file = .$id, overwrite = T,
+                              path = file.path("data", "harmonized_data", .$name))
+site_info <- read.csv(file = file.path("data", "harmonized_data", site_data))
 str(site_info)
 
 #--- download daymet data ---#
@@ -24,12 +25,12 @@ for(i in 1:nrow(site_info)){
     start = 1980,
     end = 2023
   ) 
-  temp_daymet_data <- temp_daymet$data %>% add_column(site_id = site_info$site_id[i],
+  temp_daymet_data <- temp_daymet$data %>% add_column(site_id = site_info$site[i],
                                                       network = site_info$network[i],
                                                       .before = 1)
   output <- rbind(output, temp_daymet_data)
   rm(temp_daymet_data)
-  cat(paste(site_info$site_id[i],"check\n"))
+  cat(paste(site_info$site[i],"check\n"))
 }
 
 ## fix names. 
@@ -56,11 +57,17 @@ datedf$month <- format(datedf$date, format = "%m") %>% as.integer()
 datedf$yday <- lubridate::yday(datedf$date)
 weather <- left_join(output2, datedf, by = c("year", "yday" ))
 
-## saved in google drive temp_raw folder:
-#write.csv(weather, file = "data/harmonized_data/daymet_daily_weather.csv", row.names = FALSE)
-# upload to google drive
-googledrive::drive_upload(media = file.path("data", "harmonized_data","daymet_daily_weather.csv"), overwrite = T,
-                          path = googledrive::as_id(dir.harmonized_data))
+## saved in google drive :
+write.csv(weather, file = "data/harmonized_data/daymet_daily_weather.csv", row.names = FALSE)
+
+#update the daymet csv
+drive_upload(
+  path = as_id("13Ymkrr-kRLDmpaj1jwwVOnOSmEYnF-dJ"), #harmonized data folder
+  media = "data/pre_processed_data/daymet_daily_weather.csv", 
+  name = "daymet_daily_weather.csv",
+  overwrite = TRUE
+)
+
 
 # Summarize to monthly, annual, and mean annual--------
 monthly <- weather %>% group_by(site_id, network, year, month) %>%
