@@ -288,10 +288,14 @@ W <- grass.wheat %>%
 
 X <- grass.wheat %>%
   ungroup() %>%
-  dplyr::select(fertilized, #ppt_max_event,  ppt_mean_event,days_half_ppt,daily_ppt_d,n_wet_days,avg_dryspell_length,ppt_95th_percentile_size,
+  dplyr::select(fertilized, ppt_max_event,  ppt_mean_event,#days_half_ppt,
+                #daily_ppt_d,#n_wet_days,
+                #avg_dryspell_length,
+                ppt_95th_percentile_size,
                 MAP,#cv_ppt_intra,
-                cv_ppt_inter,#yearly_ppt_d,
-                seasonality_index )
+                cv_ppt_inter#,#yearly_ppt_d,
+                #seasonality_index 
+                )
 
 # ----------------------------------
 # Site-level equal weighting
