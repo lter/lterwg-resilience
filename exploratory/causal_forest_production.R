@@ -294,13 +294,13 @@ W <- grass.wheat %>%
 
 X <- grass.wheat %>%
   ungroup() %>%
-  dplyr::select(fertilized, ppt_max_event,  ppt_mean_event,#days_half_ppt,
-                #daily_ppt_d,#n_wet_days,
+  dplyr::select(fertilized, #ppt_max_event,  ppt_mean_event,#days_half_ppt,
+               # daily_ppt_d,#n_wet_days,
                 #avg_dryspell_length,
-                ppt_95th_percentile_size,
-                MAP,#cv_ppt_intra,
-                cv_ppt_inter#,#yearly_ppt_d,
-                #seasonality_index 
+                #ppt_95th_percentile_size,
+                MAP,cv_ppt_intra,
+                cv_ppt_inter,#yearly_ppt_d,
+                seasonality_index 
                 )
 
 # ----------------------------------
@@ -647,3 +647,4 @@ sv_dependence(shap_values, v = colnames(X), color_var = NULL, jitter_width = 0.0
 # ----------------------------------
 H <- hstats(eval.forest, X = X, pred_fun = pred_fun, verbose = FALSE)
 plot(H)
+
