@@ -70,7 +70,7 @@ dap_pp <- dap_raw %>%
   # Summarize the values across topographic position, strip will come next
   dplyr::group_by(network, site_ID, strip, trt, year, crop) %>%
   dplyr::summarize(mean_grain = mean(g_wt_kg_ha_dm, na.rm = T), mean_anpp = mean(anpp, na.rm = TRUE), 
-                   min_date = min(day), .groups = "drop") %>%
+                   min_date = min(date), .groups = "drop") %>%
   # Summarize values across strip
   dplyr::group_by(network, site_ID, trt, min_date, year, crop)%>%
   dplyr::summarize(grain_kg_ha = mean(mean_grain, na.rm = T),  anpp_kg_ha= mean(mean_anpp, na.rm = T), .groups = "drop") %>%
