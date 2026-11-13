@@ -56,6 +56,10 @@ googledrive::drive_ls(googledrive::as_id("https://drive.google.com/drive/u/0/fol
 # Read in harmonized data
 ppt_v1 <- read.csv(file = file.path("data", "harmonized_data", ppt_file))
 
+# fix the dap site year
+ppt_v1 <- ppt_v1 %>%
+  mutate(site_id = ifelse(site_id == "DAP", "STERLING", site_id))
+
 # Check structure
 dplyr::glimpse(ppt_v1)
 
