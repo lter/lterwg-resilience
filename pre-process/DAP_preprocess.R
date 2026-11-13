@@ -65,6 +65,8 @@ dap_pp <- dap_raw %>%
                 site_ID = "Sterling") %>%
   # drop the old crop now and the stover
   dplyr::select(-c(crop_code, st_wt_kg_ha_dm)) %>%
+  # remove super high ANPP values iwth the stover
+  dplyr::filter(total_anpp < 12500 | is.na(total_anpp))%>%
   # Select just the NP treatment - THERE IS ONLY EVER ONE "SIDE" per treatment/year/strip/topo position (confirmed)
   dplyr::filter(n_np == "NP") %>%
   # Summarize the values across topographic position, strip will come next
@@ -77,7 +79,8 @@ dap_pp <- dap_raw %>%
   # rename the date
   dplyr::rename(Date = min_date) %>%
   # Drop crops that are 0, 3, 10
-  dplyr::filter(!is.na(crop)) 
+  dplyr::filter(!is.na(crop)) %>%
+
 
 
 # Is the harvest date the day/year as included here
