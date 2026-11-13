@@ -79,7 +79,7 @@ dap_pp <- dap_raw %>%
   # rename the date
   dplyr::rename(Date = min_date) %>%
   # Drop crops that are 0, 3, 10
-  dplyr::filter(!is.na(crop)) %>%
+  dplyr::filter(!is.na(crop)) 
 
 
 
