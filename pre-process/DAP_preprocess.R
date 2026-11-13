@@ -45,47 +45,39 @@ purrr::walk2(.x = drive_raw$id, .y = drive_raw$name,
 # Needed pre-processing:
 
 # Read in file
-dap_raw <- read_excel(file.path("data", "raw", "DAP_Dryland_Sterling_production_1986_2009.xlsx"), sheet = "Sheet1")
+dap_raw <- read.csv(file.path("data", "raw", "Sterling_wheat_1986_2009.csv"))
 
 # Check structure
 dplyr::glimpse(dap_raw)
+unique(dap_raw$crop)
+summary(dap_raw$total_anpp)
 
 # Do needed repairs
 dap_pp <- dap_raw %>% 
-  # Select the correct treatments
-  dplyr::filter(TRT %in% c(1,2,3,4,5)) %>%
   # Replace 0 or 9999 with NA in the grain and stover columns
-  mutate(across(c(ST_WT_kg_ha_DM, G_WT_kg_ha_DM), ~ na_if(.x, 0))) %>%
-  mutate(across(c(ST_WT_kg_ha_DM, G_WT_kg_ha_DM), ~ na_if(.x, 99999.000))) %>%
+  mutate(across(c(st_wt_kg_ha_dm, g_wt_kg_ha_dm), ~ na_if(.x, 0))) %>%
+  mutate(across(c(st_wt_kg_ha_dm, g_wt_kg_ha_dm), ~ na_if(.x, 99999.000))) %>%
   # Add desired columns, network, site_ID, ANPP summing
   dplyr::mutate(network = "DAP", site_ID = "dap",
                 .before = dplyr::everything()) %>% 
-  dplyr::mutate(anpp = ST_WT_kg_ha_DM + G_WT_kg_ha_DM, 
-                date = as.Date(DAY - 1, origin = paste0(YEAR, "-01-01"))) %>%
-  # Drop the unwanted columns - for now include STN_PPM, STP_PPM, GN_PPM, GP_PPM
-  dplyr::select(-c(STN_PPM, STP_PPM, GN_PPM, GP_PPM)) %>%
-  # update the crop name where 1 = "Wheat" and 2 = "Corn"
-  dplyr::mutate(Crop = case_when(
-    CROP == 1 ~ "Wheat", 
-    CROP == 2 ~ "Corn",
-    TRUE ~ NA
-  )) %>%
+  dplyr::mutate(anpp = total_anpp, 
+                date = as.Date(day - 1, origin = paste0(year, "-01-01")), 
+                site_ID = "Sterling") %>%
   # drop the old crop now and the stover
-  dplyr::select(-c(CROP, ST_WT_kg_ha_DM)) %>%
+  dplyr::select(-c(crop_code, st_wt_kg_ha_dm)) %>%
   # Select just the NP treatment - THERE IS ONLY EVER ONE "SIDE" per treatment/year/strip/topo position (confirmed)
-  dplyr::filter(N_NP == "NP") %>%
+  dplyr::filter(n_np == "NP") %>%
   # Summarize the values across topographic position, strip will come next
-  dplyr::group_by(network, site_ID, STRIP, TRT, YEAR, Crop) %>%
-  dplyr::summarize(mean_grain = mean(G_WT_kg_ha_DM, na.rm = T), mean_anpp = mean(anpp, na.rm = TRUE), 
-                   min_date = min(date), .groups = "drop") %>%
+  dplyr::group_by(network, site_ID, strip, trt, year, crop) %>%
+  dplyr::summarize(mean_grain = mean(g_wt_kg_ha_dm, na.rm = T), mean_anpp = mean(anpp, na.rm = TRUE), 
+                   min_date = min(day), .groups = "drop") %>%
   # Summarize values across strip
-  dplyr::group_by(network, site_ID, TRT, min_date, YEAR, Crop)%>%
+  dplyr::group_by(network, site_ID, trt, min_date, year, crop)%>%
   dplyr::summarize(grain_kg_ha = mean(mean_grain, na.rm = T),  anpp_kg_ha= mean(mean_anpp, na.rm = T), .groups = "drop") %>%
   # rename the date
   dplyr::rename(Date = min_date) %>%
   # Drop crops that are 0, 3, 10
-  dplyr::filter(!is.na(Crop)) %>%
-  filter(anpp_kg_ha < 50000 | is.na(anpp_kg_ha))
+  dplyr::filter(!is.na(crop)) 
 
 
 # Is the harvest date the day/year as included here
